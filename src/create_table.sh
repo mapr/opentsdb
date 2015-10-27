@@ -32,7 +32,7 @@ esac
 # they expect can confuse them in some cases.  So rename the variable.
 hbh=$HBASE_HOME
 unset HBASE_HOME
-exec "$hbh/bin/hbase" shell <<EOF
+MAPR_DAEMON=spyglass exec "$hbh/bin/hbase" shell <<EOF
 create '$UID_TABLE',
   {NAME => 'id', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'},
   {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
