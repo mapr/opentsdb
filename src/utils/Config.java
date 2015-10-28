@@ -507,9 +507,9 @@ public class Config {
       file_locations.add("C:\\Program Files\\opentsdb\\opentsdb.conf");
       file_locations.add("C:\\Program Files (x86)\\opentsdb\\opentsdb.conf");
     } else {
-      file_locations.add("/etc/opentsdb.conf");
-      file_locations.add("/etc/opentsdb/opentsdb.conf");
-      file_locations.add("/opt/opentsdb/opentsdb.conf");
+      file_locations.add("__INSTALL__/etc/opentsdb.conf");
+      file_locations.add("__INSTALL__/etc/opentsdb/opentsdb.conf");
+      file_locations.add("__INSTALL__/opt/opentsdb/opentsdb.conf");
     }
 
     for (String file : file_locations) {
