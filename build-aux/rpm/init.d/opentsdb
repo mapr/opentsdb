@@ -33,14 +33,14 @@ MAX_OPEN_FILES=65535
 
 # Default program options
 NAME=opentsdb
-PROG=/usr/bin/tsdb
+PROG=__INSTALL__/bin/tsdb
 HOSTNAME=$(hostname --fqdn)
 USER=root
 
 # Default directories
-LOG_DIR=/var/log/opentsdb
-LOCK_DIR=/var/lock/subsys
-PID_DIR=/var/run/opentsdb
+LOG_DIR=__INSTALL__/var/log/opentsdb
+LOCK_DIR=__INSTALL__/var/lock/subsys
+PID_DIR=__INSTALL__/var/run/opentsdb
 
 # Global and Local sysconfig files
 [ -e /etc/sysconfig/opentsdb ] && . /etc/sysconfig/opentsdb
@@ -75,7 +75,7 @@ start() {
 
   # Set a default value for JVMARGS
   : ${JVMXMX:=-Xmx6000m}
-  : ${JVMARGS:=-DLOG_FILE_PREFIX=${LOG_FILE} -enableassertions -enablesystemassertions $JVMXMX -XX:OnOutOfMemoryError=/usr/share/opentsdb/tools/opentsdb_restart.py}
+  : ${JVMARGS:=-DLOG_FILE_PREFIX=${LOG_FILE} -enableassertions -enablesystemassertions $JVMXMX -XX:OnOutOfMemoryError=__INSTALL__/share/opentsdb/tools/opentsdb_restart.py}
   export JVMARGS
 
   if [ "`id -u -n`" == root ] ; then
@@ -87,7 +87,7 @@ start() {
     chown $USER: ${LOG_FILE}opentsdb.err > /dev/null 2>&1
 
     # Changes the owner of the lock, and the pid files to allow
-    # non-root OpenTSDB daemons to run /usr/share/opentsdb/bin/opentsdb_restart.py.
+    # non-root OpenTSDB daemons to run __INSTALL__/share/opentsdb/bin/opentsdb_restart.py.
     touch $LOCK_FILE && chown $USER: $LOCK_FILE
     touch $PID_FILE && chown $USER: $PID_FILE
     daemon --user $USER --pidfile $PID_FILE "$PROG $PROG_OPTS 1>> ${LOG_FILE}opentsdb.out 2>> ${LOG_FILE}opentsdb.err &"
