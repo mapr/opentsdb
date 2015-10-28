@@ -29,13 +29,14 @@
 . /etc/init.d/functions
 
 # Maximum number of open files
-MAX_OPEN_FILES=65535
+#MAX_OPEN_FILES=65535
+MAX_OPEN_FILES=64000
 
 # Default program options
 NAME=opentsdb
 PROG=__INSTALL__/bin/tsdb
 HOSTNAME=$(hostname --fqdn)
-USER=root
+USER=mapr
 
 # Default directories
 LOG_DIR=__INSTALL__/var/log/opentsdb
