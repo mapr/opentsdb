@@ -51,7 +51,7 @@ PID_DIR=__INSTALL__/var/run/opentsdb
 LOG_FILE=$LOG_DIR/$NAME-$HOSTNAME-
 LOCK_FILE=$LOCK_DIR/$NAME
 PID_FILE=$PID_DIR/$NAME.pid
-CONFIG=/etc/opentsdb/${NAME}.conf
+CONFIG=__INSTALL__/etc/opentsdb/${NAME}.conf
 
 # Create dirs if they don't exist
 [ -e $LOG_DIR ] || (mkdir -p $LOG_DIR && chown $USER: $LOG_DIR)
