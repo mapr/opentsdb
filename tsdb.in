@@ -10,6 +10,17 @@ abs_srcdir='@abs_srcdir@'
 abs_builddir='@abs_builddir@'
 pkgdatadir='@pkgdatadir@'
 configdir='@configdir@'
+
+# we redirect output here since the different init.d functions 
+# vary in what they allow on the command line and it eliminates the extra
+# shell that causes stop and status not to work
+
+logfile='__INSTALL__/var/log/opentsdb/opentsdb.out'
+logerrfile='__INSTALL__/var/log/opentsdb/opentsdb.err'
+
+#redirect output
+exec > $logfile 2> $logerrfile
+
 # Either we've been installed and pkgdatadir exists, or we haven't been
 # installed and abs_srcdir / abs_builddir aren't empty.
 test -d "$pkgdatadir" || test -n "$abs_srcdir$abs_builddir" || {
