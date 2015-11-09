@@ -51,6 +51,9 @@ import net.opentsdb.search.SearchQuery;
 import net.opentsdb.stats.Histogram;
 import net.opentsdb.stats.StatsCollector;
 
+import org.apache.hadoop.conf.Configuration;
+import com.mapr.fs.MapRFileSystem;
+
 /**
  * Thread-safe implementation of the TSDB client.
  * <p>
@@ -149,6 +152,7 @@ public final class TSDB {
       uid_cache_map.put(TAG_VALUE_QUAL.getBytes(CHARSET), tag_values);
       UniqueId.preloadUidCache(this, uid_cache_map);
     }
+    enablePrivilegedProcess(true);
     LOG.debug(config.dumpConfiguration());
   }
 
@@ -1125,5 +1129,11 @@ public final class TSDB {
   final Deferred<Object> delete(final byte[] key, final byte[][] qualifiers) {
     return client.delete(new DeleteRequest(table, key, FAMILY, qualifiers));
   }
-
+  
+  /** Make it privileged process to work with M5*/
+  final void enablePrivilegedProcess(boolean enable) {
+    FileSystem fs = FileSystem.get(new Configuration());
+    ((MapRFileSystem)fs).enablePrivilegedProcessAccess(true);
+  }
+  
 }

@@ -369,6 +369,11 @@
       <artifactId>asynchbase</artifactId>
       <version>@ASYNCHBASE_VERSION@</version>
     </dependency>
+    
+    <dependency>
+      <groupId>com.mapr.hadoop</groupId>
+      <artifactId>maprfs-core</artifactId>
+    </dependency>
 
     <!-- runtime dependencies -->
 
