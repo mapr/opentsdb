@@ -35,3 +35,5 @@ include third_party/slf4j/include.mk
 include third_party/suasync/include.mk
 include third_party/validation-api/include.mk
 include third_party/zookeeper/include.mk
+include third_party/hadoop/include.mk
+include third_party/mapr/include.mk
