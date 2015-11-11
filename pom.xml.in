@@ -373,11 +373,13 @@
     <dependency>
       <groupId>org.apache.hadoop</groupId>
       <artifactId>hadoop-common</artifactId> 
+      <version>@HADOOP_VERSION@</version>
     </dependency>
     
     <dependency>
       <groupId>com.mapr.hadoop</groupId>
       <artifactId>maprfs-core</artifactId>
+      <version>@MAPR_VERSION@</version>
     </dependency>
 
     <!-- runtime dependencies -->

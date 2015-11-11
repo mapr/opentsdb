@@ -130,12 +130,14 @@ tsdb_SRC := \
 tsdb_DEPS = \
 	$(ASYNCHBASE)	\
 	$(GUAVA)	\
+	$(HADOOP)	\
 	$(LOG4J_OVER_SLF4J)	\
 	$(LOGBACK_CLASSIC)	\
 	$(LOGBACK_CORE)	\
 	$(JACKSON_ANNOTATIONS)	\
 	$(JACKSON_CORE)	\
 	$(JACKSON_DATABIND)	\
+	$(MAPR)	\
 	$(NETTY)	\
 	$(PROTOBUF)	\
 	$(SLF4J_API)	\
@@ -605,6 +607,7 @@ pom.xml: pom.xml.in Makefile
 	    -e 's/@ASYNCHBASE_VERSION@/$(ASYNCHBASE_VERSION)/' \
 	    -e 's/@GUAVA_VERSION@/$(GUAVA_VERSION)/' \
 	    -e 's/@GWT_VERSION@/$(GWT_VERSION)/' \
+	    -e 's/@HADOOP_VERSION@/$(HADOOP_VERSION)/' \
 	    -e 's/@HAMCREST_VERSION@/$(HAMCREST_VERSION)/' \
 	    -e 's/@JACKSON_VERSION@/$(JACKSON_VERSION)/' \
 	    -e 's/@JAVASSIST_VERSION@/$(JAVASSIST_VERSION)/' \
@@ -612,6 +615,7 @@ pom.xml: pom.xml.in Makefile
 	    -e 's/@LOG4J_OVER_SLF4J_VERSION@/$(LOG4J_OVER_SLF4J_VERSION)/' \
 	    -e 's/@LOGBACK_CLASSIC_VERSION@/$(LOGBACK_CLASSIC_VERSION)/' \
 	    -e 's/@LOGBACK_CORE_VERSION@/$(LOGBACK_CORE_VERSION)/' \
+	    -e 's/@MAPR_VERSION@/$(MAPR_VERSION)/' \
 	    -e 's/@MOCKITO_VERSION@/$(MOCKITO_VERSION)/' \
 	    -e 's/@NETTY_VERSION@/$(NETTY_VERSION)/' \
 	    -e 's/@OBJENESIS_VERSION@/$(OBJENESIS_VERSION)/' \
