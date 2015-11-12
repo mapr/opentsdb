@@ -53,7 +53,7 @@ import net.opentsdb.stats.StatsCollector;
 
 import org.apache.hadoop.conf.Configuration;
 import com.mapr.fs.MapRFileSystem;
-import org.apache.hadoop.fs.FileSystem
+import org.apache.hadoop.fs.FileSystem;
 
 /**
  * Thread-safe implementation of the TSDB client.
