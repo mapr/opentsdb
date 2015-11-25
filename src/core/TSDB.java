@@ -156,11 +156,11 @@ public final class TSDB {
       uid_cache_map.put(TAG_VALUE_QUAL.getBytes(CHARSET), tag_values);
       UniqueId.preloadUidCache(this, uid_cache_map);
     }
-    try {
-      enablePrivilegedProcess(true);
-    } catch(IOException e) {
-      LOG.error("Exception while setting the privileged process: "+e);
-    }
+//    try {
+//      enablePrivilegedProcess(true);
+//    } catch(IOException e) {
+//      LOG.error("Exception while setting the privileged process: "+e);
+//    }
     LOG.debug(config.dumpConfiguration());
   }
 
