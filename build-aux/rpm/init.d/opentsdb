@@ -143,7 +143,7 @@ findproc() {
     # XXX comment out for now - our classpath is too long so we don't see 
     #     the end of the command line
     #pgrep -f "java .* net.opentsdb.tools.TSDMain .*${NAME}"
-    pgrep -f "java .*lib/tsd.*"
+    pgrep -f "java .*${NAME}"
 }
 
 case "$1" in
