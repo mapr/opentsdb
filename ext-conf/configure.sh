@@ -23,7 +23,7 @@
 # -nodeZkPort   the port Zookeeper is listening on
 
 # This gets fillled out at package time
-#PACKAGE_INSTALL_DIR="__INSTALL__"
+PACKAGE_INSTALL_DIR="__INSTALL__"
 PACKAGE_CONFIG_FILE="${PACKAGE_INSTALL_DIR}/etc/opentsdb/opentsdb.conf"
 
 # Parse the arguments
