@@ -68,6 +68,23 @@ else
   # Add the src dir so we can find logback.xml
   CLASSPATH="$CLASSPATH:$abs_srcdir/src"
 fi
+
+# Base of MapR installation
+BASEMAPR=${MAPR_HOME:-/opt/mapr}
+ 
+# Add MapR hadoop jars to classpath
+if test -d "$BASEMAPR/hadoop/hadoop-0.20.2/lib"; then
+ # hadoop conf directory to beginning of classpath (for core-site.xml)
+ CLASSPATH="$BASEMAPR/hadoop/hadoop-0.20.2/conf:$CLASSPATH"
+ 
+ for jar in "$BASEMAPR"/hadoop/hadoop-0.20.2/lib/*.jar; do
+   if [ "`echo $jar | grep slf4j`" != "" ]; then
+     continue
+   fi
+   CLASSPATH="$CLASSPATH:$jar"
+ done
+fi
+
 # Remove any leading colon.
 CLASSPATH="${CLASSPATH#:}"
 

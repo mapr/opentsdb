@@ -10,10 +10,10 @@ test -d "$HBASE_HOME" || {
   exit 1
 }
 
-TSDB_TABLE=${TSDB_TABLE-'tsdb'}
-UID_TABLE=${UID_TABLE-'tsdb-uid'}
-TREE_TABLE=${TREE_TABLE-'tsdb-tree'}
-META_TABLE=${META_TABLE-'tsdb-meta'}
+TSDB_TABLE=${TSDB_TABLE-'/tsdb'}
+UID_TABLE=${UID_TABLE-'/tsdb-uid'}
+TREE_TABLE=${TREE_TABLE-'/tsdb-tree'}
+META_TABLE=${META_TABLE-'/tsdb-meta'}
 BLOOMFILTER=${BLOOMFILTER-'ROW'}
 # LZO requires lzo2 64bit to be installed + the hadoop-gpl-compression jar.
 COMPRESSION=${COMPRESSION-'LZO'}
