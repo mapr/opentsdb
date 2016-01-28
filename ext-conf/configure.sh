@@ -65,7 +65,7 @@ zkNodesList=''
 if [ ! -z ${ZK_PORT} -a ! -z ${ZK_NODES_LIST} -a -w ${PACKAGE_CONFIG_FILE} ]
   then
   for zkNode in $(echo ${ZK_NODES_LIST} | tr "," " "); do
-    zkNodesList=$zkNodesList,$zkNode:${ZK_PORT} 
+    zkNodesList=$zkNodesList,$zkNode
   done
   zkNodesList=${zkNodesList:1}
   zkNodesList=${zkNodesList/,/ }
@@ -73,7 +73,8 @@ if [ ! -z ${ZK_PORT} -a ! -z ${ZK_NODES_LIST} -a -w ${PACKAGE_CONFIG_FILE} ]
 fi
 
 # Create TSDB tables
-export COMPRESSION=NONE; export HBASE_HOME=/opt/mapr/hbase/hbase-0.98.12; ${PACKAGE_INSTALL_DIR}/share/opentsdb/tools/create_table.sh > ${PACKAGE_INSTALL_DIR}/var/log/opentsdb/opentsdb_install.log
+HBASE_VERSION=`cat /opt/mapr/hbase/hbaseversion`
+export COMPRESSION=NONE; export HBASE_HOME=/opt/mapr/hbase/$HBASE_VERSION; ${PACKAGE_INSTALL_DIR}/share/opentsdb/tools/create_table.sh > ${PACKAGE_INSTALL_DIR}/var/log/opentsdb/opentsdb_install.log
 
 # Copy warden conf
 cp ${PACKAGE_INSTALL_DIR}/etc/conf/warden.opentsdb.conf /opt/mapr/conf/conf.d
