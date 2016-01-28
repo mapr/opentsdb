@@ -74,7 +74,7 @@ fi
 
 # Create TSDB tables
 HBASE_VERSION=`cat /opt/mapr/hbase/hbaseversion`
-export COMPRESSION=NONE; export HBASE_HOME=/opt/mapr/hbase/$HBASE_VERSION; ${PACKAGE_INSTALL_DIR}/share/opentsdb/tools/create_table.sh > ${PACKAGE_INSTALL_DIR}/var/log/opentsdb/opentsdb_install.log
+export COMPRESSION=NONE; export HBASE_HOME=/opt/mapr/hbase/$HBASE_VERSION; su -C ${PACKAGE_INSTALL_DIR}/share/opentsdb/tools/create_table.sh > ${PACKAGE_INSTALL_DIR}/var/log/opentsdb/opentsdb_install.log mapr
 
 # Copy warden conf
 cp ${PACKAGE_INSTALL_DIR}/etc/conf/warden.opentsdb.conf /opt/mapr/conf/conf.d
