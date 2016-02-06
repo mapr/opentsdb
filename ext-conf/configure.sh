@@ -76,8 +76,8 @@ fi
 timeout -s HUP 30s $MAPR_HOME/bin/maprcli node cldbmaster -noheader 2> /dev/null
 if [ $? -eq 0 ]
 then 
-  HBASE_VERSION=`cat /opt/mapr/hbase/hbaseversion`
-  export COMPRESSION=NONE; export HBASE_HOME=/opt/mapr/hbase/hbase-$HBASE_VERSION; su -c ${PACKAGE_INSTALL_DIR}/share/opentsdb/tools/create_table.sh > ${PACKAGE_INSTALL_DIR}/var/log/opentsdb/opentsdb_install.log mapr
+  HBASE_VERSION=`cat $MAPR_HOME/hbase/hbaseversion`
+  export COMPRESSION=NONE; export HBASE_HOME=$MAPR_HOME/hbase/hbase-$HBASE_VERSION; su -c ${PACKAGE_INSTALL_DIR}/share/opentsdb/tools/create_table.sh > ${PACKAGE_INSTALL_DIR}/var/log/opentsdb/opentsdb_install.log mapr
 else
   return 1
 fi
