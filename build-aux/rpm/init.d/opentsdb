@@ -29,18 +29,19 @@
 . /etc/init.d/functions
 
 # Maximum number of open files
-MAX_OPEN_FILES=65535
+#MAX_OPEN_FILES=65535
+MAX_OPEN_FILES=64000
 
 # Default program options
 NAME=opentsdb
-PROG=/usr/bin/tsdb
+PROG=__INSTALL__/bin/tsdb
 HOSTNAME=$(hostname --fqdn)
-USER=root
+USER=mapr
 
 # Default directories
-LOG_DIR=/var/log/opentsdb
-LOCK_DIR=/var/lock/subsys
-PID_DIR=/var/run/opentsdb
+LOG_DIR=__INSTALL__/var/log/opentsdb
+LOCK_DIR=__INSTALL__/var/lock/subsys
+PID_DIR=__INSTALL__/var/run/opentsdb
 
 # Global and Local sysconfig files
 [ -e /etc/sysconfig/opentsdb ] && . /etc/sysconfig/opentsdb
@@ -50,7 +51,7 @@ PID_DIR=/var/run/opentsdb
 LOG_FILE=$LOG_DIR/$NAME-$HOSTNAME-
 LOCK_FILE=$LOCK_DIR/$NAME
 PID_FILE=$PID_DIR/$NAME.pid
-CONFIG=/etc/opentsdb/${NAME}.conf
+CONFIG=__INSTALL__/etc/opentsdb/${NAME}.conf
 
 # Create dirs if they don't exist
 [ -e $LOG_DIR ] || (mkdir -p $LOG_DIR && chown $USER: $LOG_DIR)
@@ -75,7 +76,7 @@ start() {
 
   # Set a default value for JVMARGS
   : ${JVMXMX:=-Xmx6000m}
-  : ${JVMARGS:=-DLOG_FILE_PREFIX=${LOG_FILE} -enableassertions -enablesystemassertions $JVMXMX -XX:OnOutOfMemoryError=/usr/share/opentsdb/tools/opentsdb_restart.py}
+  : ${JVMARGS:=-DLOG_FILE_PREFIX=${LOG_FILE} -enableassertions -enablesystemassertions $JVMXMX -XX:OnOutOfMemoryError=__INSTALL__/share/opentsdb/tools/opentsdb_restart.py}
   export JVMARGS
 
   if [ "`id -u -n`" == root ] ; then
@@ -87,7 +88,7 @@ start() {
     chown $USER: ${LOG_FILE}opentsdb.err > /dev/null 2>&1
 
     # Changes the owner of the lock, and the pid files to allow
-    # non-root OpenTSDB daemons to run /usr/share/opentsdb/bin/opentsdb_restart.py.
+    # non-root OpenTSDB daemons to run __INSTALL__/share/opentsdb/bin/opentsdb_restart.py.
     touch $LOCK_FILE && chown $USER: $LOCK_FILE
     touch $PID_FILE && chown $USER: $PID_FILE
     daemon --user $USER --pidfile $PID_FILE "$PROG $PROG_OPTS 1>> ${LOG_FILE}opentsdb.out 2>> ${LOG_FILE}opentsdb.err &"
@@ -139,7 +140,10 @@ rh_status_q() {
 }
 
 findproc() {
-    pgrep -f "java .* net.opentsdb.tools.TSDMain .*${NAME}"
+    # XXX comment out for now - our classpath is too long so we don't see 
+    #     the end of the command line
+    #pgrep -f "java .* net.opentsdb.tools.TSDMain .*${NAME}"
+    pgrep -f "java .*${NAME}"
 }
 
 case "$1" in

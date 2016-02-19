@@ -28,9 +28,9 @@ $MKDIR_P "$d"
 trap "rv=\$?; rm -f '$2-t'; exit \$rv" 0
 
 if test -n "$WGET"; then
-  $WGET "$1/$f" -O "$2-t"
+  $WGET -q "$1/$f" -O "$2-t"
 elif test -n "$CURL"; then
-  $CURL "$1/$f" -o "$2-t"
+  $CURL -s "$1/$f" -o "$2-t"
 else
   echo >&2 "cannot find a tool to download $1/$f"
   exit 1
