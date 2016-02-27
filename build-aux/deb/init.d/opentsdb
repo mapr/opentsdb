@@ -37,7 +37,9 @@ LOCK_FILE=${LOCK_DIR}/${NAME}
 #MAX_OPEN_FILES=65535
 MAX_OPEN_FILES=64000
 
-. /lib/lsb/init-functions
+if [ -f /lib/lsb/init-functions ]; then
+    . /lib/lsb/init-functions
+fi
 
 # The first existing directory is used for JAVA_HOME
 # (if JAVA_HOME is not defined in $DEFAULT)
