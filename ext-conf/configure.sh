@@ -44,9 +44,7 @@ done
 
 # TODO -- Use regex to get the correct version number instead of hardcoding it
 # copy asynchbase jar
-# XXX commented out for now, OT v2.2. ships with the 1.7 version of this jar file
-# and will not run with the 1.6 one.
-#cp  /opt/mapr/asynchbase/asynchbase-1.6.0/asynchbase-1.6.0-mapr-1504.jar ${PACKAGE_INSTALL_DIR}/share/opentsdb/lib/asynchbase-1.6.0.jar
+cp  /opt/mapr/asynchbase/asynchbase-1.6.0/asynchbase-1.6.0-mapr-1504.jar ${PACKAGE_INSTALL_DIR}/share/opentsdb/lib/asynchbase-1.6.0.jar
 
 # TODO - change owner on /tmp/opentsdb
 
