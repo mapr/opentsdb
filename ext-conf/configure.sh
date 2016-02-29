@@ -25,6 +25,8 @@
 # This gets fillled out at package time
 PACKAGE_INSTALL_DIR="__INSTALL__"
 PACKAGE_CONFIG_FILE="${PACKAGE_INSTALL_DIR}/etc/opentsdb/opentsdb.conf"
+MAPR_HOME=${MAPR_HOME:-/opt/mapr}
+MAPR_CONF_DIR="${MAPR_HOME}/conf/conf.d"
 
 # Parse the arguments
 while [ $# -gt 0 ]
@@ -82,7 +84,12 @@ else
   return 1
 fi
 
+# make sure conf directory exist
+if ! [ -d ${MAPR_CONF_DIR} ]; then
+  mkdir -p ${MAPR_CONF_DIR} > /dev/null 2>&1
+fi
+
 # Copy warden conf
-cp ${PACKAGE_INSTALL_DIR}/etc/conf/warden.opentsdb.conf /opt/mapr/conf/conf.d
+cp ${PACKAGE_INSTALL_DIR}/etc/conf/warden.opentsdb.conf ${MAPR_CONF_DIR}
 
 true
