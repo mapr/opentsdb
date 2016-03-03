@@ -80,6 +80,21 @@ else
     APP_ENV_SCRIPT="$APP_HOME_DIR/bin/env.sh"
 fi
 
+# Need to run this early so that things like JAVA_HOME is setup early
+if [ -f "$APP_ENV_SCRIPT" ]; then
+    # exit if we don't find a complete and compatible JDK - 
+    # this is only for our env.sh, and may need altering for something different
+    JDK_REQUIRED=1
+    . "$APP_ENV_SCRIPT"
+    if [ -n "$JAVA_HOME" -a -x "$JAVA_HOME/bin/java" ]; then
+        JAVA="$JAVA_HOME/bin/java"
+        PATH="$JAVA_HOME/bin:$PATH"; export PATH
+    fi
+else
+    echo "could not locate env.sh"
+    exit 1
+fi
+
 # CHOOSE BEHAVOR: Set to fit app if you need something different - should fit most scenarios
 if [ $APP_SELF_CONTAINED -eq 1 ]; then
     APP_LOCK_DIR=${APP_HOME_DIR}/var/lock/subsys
@@ -330,19 +345,6 @@ fi
 if [ -z "APP_MAIN" ]; then
     echo "ERROR: Need to set APP_MAIN else the script will hang"
     exit 4
-fi
-
-if [ -f "$APP_ENV_SCRIPT" ]; then
-    # exit if we don't find a complete and compatible JDK
-    JDK_REQUIRED=1
-    . "$APP_ENV_SCRIPT"
-    if [ -n "$JAVA_HOME" -a -x "$JAVA_HOME/bin/java" ]; then
-        JAVA="$JAVA_HOME/bin/java"
-        PATH="$JAVA_HOME/bin:$PATH"; export PATH
-    fi
-else
-    echo "could not locate env.sh"
-    exit 1
 fi
 
 [ -s "$APP_PID_FILE" ] && APP_PID=$(cat "$APP_PID_FILE")
