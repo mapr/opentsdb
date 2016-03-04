@@ -44,7 +44,12 @@ done
 
 # TODO -- Use regex to get the correct version number instead of hardcoding it
 # copy asynchbase jar
-cp  /opt/mapr/asynchbase/asynchbase-1.6.0/asynchbase-1.6.0-mapr-1504.jar ${PACKAGE_INSTALL_DIR}/share/opentsdb/lib/asynchbase-1.6.0.jar
+if uname -v | fgrep -q 'Ubuntu' > /dev/null 2>&1 ; then 
+    SNAPSHOT=1503
+else
+    SNAPSHOT=1504
+fi
+cp  /opt/mapr/asynchbase/asynchbase-1.6.0/asynchbase-1.6.0-mapr-${SNAPSHOT}.jar ${PACKAGE_INSTALL_DIR}/share/opentsdb/lib/asynchbase-1.6.0.jar
 
 # TODO - change owner on /tmp/opentsdb
 
