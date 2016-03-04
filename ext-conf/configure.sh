@@ -45,7 +45,7 @@ done
 # TODO -- Use regex to get the correct version number instead of hardcoding it
 # copy asynchbase jar
 if uname -v | fgrep -q 'Ubuntu' > /dev/null 2>&1 ; then 
-    SNAPSHOT=1503
+    SNAPSHOT=1503-SNAPSHOT
 else
     SNAPSHOT=1504
 fi
