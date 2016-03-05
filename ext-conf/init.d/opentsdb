@@ -37,7 +37,14 @@
 # 
 # Set APP_STOP_NEED_TO_KILL_GROUP=1 if you want use a hammer to make sure the daemon
 # and all its children go away. It does not allow the daemon to manage this on his own.
-# ----- Use with care.
+#
+# **********************  PLEASE READ CAREFULLY ****************
+# Another note, turning this option on if your app gets init as its parent(pid 1), then 
+# stop WILL not work if this app is run a different user than root, and if run as root,
+# will likely cause init to act strange, worst case to boot the system 
+#
+# ----- Use with care!!!!!.
+# **********************  PLEASE READ CAREFULLY ****************
 # 
 #
 # NB: Make sure you set APP_MAIN to something that is recongizable and distict
@@ -64,7 +71,7 @@ APP_WARDEN_CONTROLLED=1
 APP_DAEMONIZES=0
 APP_DOES_NOT_MANAGE_PID_FILE=1
 APP_ROTATES_OWN_LOG_FILE=1
-APP_STOP_NEED_TO_KILL_GROUP=1
+APP_STOP_NEED_TO_KILL_GROUP=0
 
 
 if [ $APP_STOP_NEED_TO_KILL_GROUP -eq 1 ]; then
