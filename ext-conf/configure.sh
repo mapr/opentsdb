@@ -31,6 +31,7 @@ MAPR_CONF_DIR="${MAPR_HOME}/conf/conf.d"
 MAPR_USER=${MAPR_USER:-mapr}
 NOW=`date "+%Y%m%d_%H%M%S"`
 CLDB_RUNNING=0
+SNAPSHOT="1503-SNAPSHOT"
 RC=0
 
 #############################################################################
@@ -75,11 +76,6 @@ function configureZKQuorum() {
 function installAsyncHbaseJar() {
     # TODO -- Use regex to get the correct version number instead of hardcoding it
     # copy asynchbase jar
-    if uname -v | fgrep -q 'Ubuntu' > /dev/null 2>&1 ; then 
-        SNAPSHOT=1503-SNAPSHOT
-    else
-        SNAPSHOT=1504
-    fi
     cp  /opt/mapr/asynchbase/asynchbase-1.6.0/asynchbase-1.6.0-mapr-${SNAPSHOT}.jar ${OT_HOME}/share/opentsdb/lib/asynchbase-1.6.0.jar
 }
 

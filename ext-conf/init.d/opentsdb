@@ -56,8 +56,8 @@
 
 # Behaviour knobs
 # CHOOSE BEHAVOR: Set to fit app
-APP_REQUIRE_JAVA=0  
-APP_STARTS_WITH_JAVA=0  
+APP_REQUIRE_JAVA=1
+APP_STARTS_WITH_JAVA=0
 APP_SELF_CONTAINED=1
 APP_RESOLVE_LINK=0
 APP_WARDEN_CONTROLLED=1
@@ -137,7 +137,7 @@ fi
 
 APP_LOCK_DIR=${APP_HOME_DIR}/var/lock/subsys
 APP_LOCK_FILE="$APP_LOCK_DIR/$APP"
-APP_LOG_FILE="$APP_LOG_DIR/$APP-$APP_HOSTNAME-"        # use this for apps own logging
+APP_LOG_FILE="$APP_LOG_DIR/${APP}-${APP_HOSTNAME}-"    # use this for apps own logging
 APP_LOG_START_FILE="$APP_LOG_DIR/${APP}_startup.log"   # use this for startup logging
 APP_PID_FILE="$APP_PID_DIR/$APP.pid"
 
