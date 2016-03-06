@@ -230,6 +230,8 @@ check() {
             # the string we need to grep for migh be very different than what we expect
             #
             # cat $file
+            # For Java apps rely on jps to get around the 4k /proc/<pid>/cmdline limitation
+            # on older systems
             if [ $APP_REQUIRE_JAVA -eq 1 ]; then 
                 jps -l | grep -q $APP_MAIN > /dev/null 2>&1 && return
             else
