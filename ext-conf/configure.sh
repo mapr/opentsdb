@@ -25,13 +25,12 @@
 # This gets fillled out at package time
 OT_HOME="__INSTALL__"
 OT_CONF_FILE="${OT_HOME}/etc/opentsdb/opentsdb.conf"
-NEW_OT_CONF_FILE=${NEW_CD_CONF_FILE:-${OT_HOME}/etc/opentsdb/opentsdb.conf.progress}
+NEW_OT_CONF_FILE=${NEW_OT_CONF_FILE:-${OT_HOME}/etc/opentsdb/opentsdb.conf.progress}
 MAPR_HOME=${MAPR_HOME:-/opt/mapr}
 MAPR_CONF_DIR="${MAPR_HOME}/conf/conf.d"
 MAPR_USER=${MAPR_USER:-mapr}
 NOW=`date "+%Y%m%d_%H%M%S"`
 CLDB_RUNNING=0
-SNAPSHOT="1503-SNAPSHOT"
 RC=0
 
 #############################################################################
@@ -46,6 +45,9 @@ function installWardenConfFile() {
     
     # Copy warden conf
     cp ${OT_HOME}/etc/conf/warden.opentsdb.conf ${MAPR_CONF_DIR}
+    if [ $? -ne 0 ]; then 
+        echo "WARNING: Failed to install Warden conf file for service - service will not start"
+    fi
 }
 
 
@@ -74,9 +76,24 @@ function configureZKQuorum() {
 #
 #############################################################################
 function installAsyncHbaseJar() {
-    # TODO -- Use regex to get the correct version number instead of hardcoding it
     # copy asynchbase jar
-    cp  /opt/mapr/asynchbase/asynchbase-1.6.0/asynchbase-1.6.0-mapr-${SNAPSHOT}.jar ${OT_HOME}/share/opentsdb/lib/asynchbase-1.6.0.jar
+    local asyncHbaseJar=""
+    local jar_ver=""
+    local rc=1
+    asyncHbaseJar=$(find ${MAPR_HOME}/asynchbase -name 'asynchbase*mapr*.jar' | fgrep -v javadoc|fgrep -v sources)
+    if [ -n "$asyncHbaseJar" ]; then 
+        jar_ver=$(basename $asyncHbaseJar)
+        jar_ver=$(echo $jar_ver | cut -d- -f2)
+        if [ -n "$jar_ver" ]; then
+            cp  "$asyncHbaseJar" ${OT_HOME}/share/opentsdb/lib/asynchbase-"$jar_ver".jar
+            rc=$?
+        fi
+    fi
+   
+    if [ $rc -eq 1 ]; then
+        echo "ERROR: Failed to install asyncHbase Jar file"
+    fi
+    return $rc
 }
 
 
@@ -110,7 +127,7 @@ function configureOTIp() {
 #
 #############################################################################
 function waitForCLDB() {
-    cldbretries=12   # give it a minute
+    cldbretries=24   # give it two minutes
     until [ $CLDB_RUNNING -eq 1 -o $cldbretries -lt 0 ] ; do
         $MAPR_HOME/bin/maprcli node cldbmaster > /dev/null 2>&1 
         [ $? -eq 0 ] && CLDB_RUNNING=1
@@ -127,14 +144,17 @@ function waitForCLDB() {
 #
 #############################################################################
 function createTSDBHbaseTables() {
+    local rc=1
     # Create TSDB tables
     if [ $CLDB_RUNNING -eq 1 ]; then 
         HBASE_VERSION=`cat $MAPR_HOME/hbase/hbaseversion`
         export COMPRESSION=NONE; export HBASE_HOME=$MAPR_HOME/hbase/hbase-$HBASE_VERSION; su -c ${OT_HOME}/share/opentsdb/tools/create_table.sh > ${OT_HOME}/var/log/opentsdb/opentsdb_install.log $MAPR_USER
-        return $?
-    else
-        return 1
+        rc=$?
     fi
+    if [ $rc -ne 0 ]; then 
+        echo "WARNING: Failed to create Hbase TSDB tables"
+    fi
+    return $rc
 }
 
 
@@ -211,12 +231,17 @@ cp ${OT_CONF_FILE} ${NEW_OT_CONF_FILE}
 configureOTPort
 configureZKQuorum
 installAsyncHbaseJar
+RC=$?
+if [ $RC -ne 0 ]; then
+    # If we couldn't install the jar file - report early
+    return $RC 2>/dev/null || exit $RC
+else
+    true
+fi
 
 #install our changes
 cp ${NEW_OT_CONF_FILE} ${OT_CONF_FILE}
 waitForCLDB
 createTSDBHbaseTables
-RC=$?
 installWardenConfFile
-[ $RC -ne 0 ] && return $RC || exit $RC
 true
