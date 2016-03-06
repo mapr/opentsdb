@@ -230,9 +230,15 @@ check() {
             # the string we need to grep for migh be very different than what we expect
             #
             # cat $file
-            grep -q $APP_MAIN $file && return
+            if [ $APP_REQUIRE_JAVA -eq 1 ]; then 
+                jps -l | grep -q $APP_MAIN > /dev/null 2>&1 && return
+            else
+                grep -q $APP_MAIN $file && return
+            fi
         fi
-        rm -f $APP_PID_FILE
+        if [ $APP_DOES_NOT_MANAGE_PID_FILE -eq 0 ]; then
+            rm -f $APP_PID_FILE
+        fi
     fi
     false
 }
@@ -343,6 +349,7 @@ start() {
     check TERM && sleep 2 && check KILL
     wait $APP_PID
     echo "$APP ($APP_PID) start failed ($?). See $APP_LOG_START_FILE for details"
+    rm -f $APP_PID_FILE
     false
 }
 
