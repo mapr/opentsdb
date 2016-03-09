@@ -195,7 +195,7 @@ set_kernel_opts() {
     local kern_opt_val=$3
     if [ $(id -u) -eq 0 ] ; then
         if [ -n "$kern_opt_val" -a -f "$kern_opt_path" ]; then
-            sysctl -q -w $kern_op_name=$kern_op_val
+            sysctl -q -w $kern_opt_name=$kern_opt_val
         fi
     fi
 }
