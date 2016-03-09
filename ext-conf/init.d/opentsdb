@@ -10,28 +10,52 @@
 # If you have something different change the expression in the line below that
 # computes MAPR_HOME
 #
+# This script is assumed to be named using the application name or name with a .sh
+# if you change that, change how the APP variable is set below.
+#
+# There are two defines for log files APP_LOG_FILE and APP_LOG_START_FILE. The first
+# one is used when you pass the log file name into the application, the latter one
+# is used for this script to log the startup events.
+#
 # Set APP_REQUIRE_JAVA=1 if the app requires java  
 #
 # Set APP_STARTS_WITH_JAVA=1 if the is started using java directly  
 #
-# Set APP_SELF_CONTAINED if the has its on var/run, var/log, var/lock structure
-# like ecos
+# Set APP_SELF_CONTAINED=1 if the has its on var/run, var/log, var/lock structure
+# like ecos, instead of using the system /var/log for example
 #
 # Set APP_RESOLVE_LINK=1 if you don't need the script to follow link to script to resolve
 # location
 #
 # Set APP_WARDEN_CONTROLLED=1 if this app is run under warden
 #
-# Set APP_DEAMONIZES=1 if this app forks itself
+# Set APP_DAEMONIZES=1 if this app forks itself
 # 
 # Set APP_DOES_NOT_MANAGE_PID_FILE=1 if this app does not create its own pidfile
+# 
+# Set APP_ROTATES_OWN_LOG_FILE=1 if this app has its own way of rotating logs 
+# 
+# Set APP_STOP_NEED_TO_KILL_GROUP=1 if you want use a hammer to make sure the daemon
+# and all its children go away. It does not allow the daemon to manage this on his own.
+#
+# **********************  PLEASE READ CAREFULLY ****************
+# Another note, turning this option on if your app gets init as its parent(pid 1), then 
+# stop WILL not work if this app is run a different user than root, and if run as root,
+# will likely cause init to act strange, worst case to boot the system 
+#
+# ----- Use with care!!!!!.
+# **********************  PLEASE READ CAREFULLY ****************
 # 
 #
 # NB: Make sure you set APP_MAIN to something that is recongizable and distict
 # form the process command line. This string is used to verify that the pid matches 
 # the process. For Java apps, this variable should be set to the name of the main class
 # even if this script doesn't start the app directly. 
-# For regular processes the app name usually suffice, $APP_DEAMON should work fine
+# For regular processes the app name usually suffice, $APP_DAEMON should work fine
+#
+# If you are having trouble with the startup, it is often because we don't find the
+# string expected in /proc/<pid>/cmdline. Uncomment the line in check() that cats out
+# the cmdline so you can verify that we are grepping for the right pattern
 #
 # Look for "Set to fit app" for section that you may want to edit for new app
 
@@ -39,14 +63,22 @@
 
 # Behaviour knobs
 # CHOOSE BEHAVOR: Set to fit app
-APP_REQUIRE_JAVA=0  
-APP_STARTS_WITH_JAVA=0  
+APP_REQUIRE_JAVA=1
+APP_STARTS_WITH_JAVA=0
 APP_SELF_CONTAINED=1
 APP_RESOLVE_LINK=0
 APP_WARDEN_CONTROLLED=1
-APP_DEAMONIZES=0
+APP_DAEMONIZES=0
 APP_DOES_NOT_MANAGE_PID_FILE=1
+APP_ROTATES_OWN_LOG_FILE=1
+APP_STOP_NEED_TO_KILL_GROUP=0
 
+
+if [ $APP_STOP_NEED_TO_KILL_GROUP -eq 1 ]; then
+    KILL_GROUP="-- -"
+else
+    KILL_GROUP=""
+fi
 
 SCRIPT_DIR=$(dirname $0)
 SCRIPT_NAME=${0##*/}
@@ -63,6 +95,8 @@ ACTUAL_SCRIPT_NAME="${ACTUAL_LOCATION##*/}"
 APP_HOSTNAME=$(hostname --fqdn)
 
 #if MAPR_HOME isn't set figure it out
+# You need to alter the /*/*/etc/init.d and /etc/init.d patterns here if your structure
+# is different
 MAPR_HOME="${MAPR_HOME:-${ACTUAL_LOCATION%/*/*/etc/init.d/${ACTUAL_SCRIPT_NAME}}}"
 APP_HOME_DIR="${ACTUAL_LOCATION%/etc/init.d/${ACTUAL_SCRIPT_NAME}}"
 APP_DATA_DIR_PERM=0700
@@ -97,24 +131,22 @@ fi
 
 # CHOOSE BEHAVOR: Set to fit app if you need something different - should fit most scenarios
 if [ $APP_SELF_CONTAINED -eq 1 ]; then
-    APP_LOCK_DIR=${APP_HOME_DIR}/var/lock/subsys
-    APP_LOCK_FILE="$APP_LOCK_DIR/$APP"
     APP_LOG_DIR="$APP_HOME_DIR/var/log/$APP"
-    APP_LOG_FILE="$APP_LOG_DIR/$APP-$APP_HOSTNAME-"
     APP_CONF_DIR="$APP_HOME_DIR/etc/$APP"
     APP_CONF_FILE="$APP_CONF_DIR/$APP.conf"
     APP_DATA_DIR="$APP_HOME_DIR/var/db/$APP"
     APP_PID_DIR="$APP_HOME_DIR/var/run/$APP"
-    APP_PID_FILE="$APP_PID_DIR/$APP.pid"
 else
-    APP_LOCK_DIR=${APP_HOME_DIR}/var/lock/subsys
-    APP_LOCK_FILE="$APP_LOCK_DIR/$APP"
     APP_LOG_DIR="$APP_HOME_DIR/logs"
-    APP_LOG_FILE="$APP_LOG_DIR/$APP.log"
     APP_DATA_DIR="$APP_HOME_DIR/data"
     APP_PID_DIR="$APP_HOME_DIR/data"
-    APP_PID_FILE="$APP_PID_DIR/$APP.pid"
 fi
+
+APP_LOCK_DIR=${APP_HOME_DIR}/var/lock/subsys
+APP_LOCK_FILE="$APP_LOCK_DIR/$APP"
+APP_LOG_FILE="$APP_LOG_DIR/${APP}-${APP_HOSTNAME}-"    # use this for apps own logging
+APP_LOG_START_FILE="$APP_LOG_DIR/${APP}_startup.log"   # use this for startup logging
+APP_PID_FILE="$APP_PID_DIR/$APP.pid"
 
 # CHOOSE BEHAVOR: Set to fit app
 APP_OPTS_1="tsd --config=${APP_CONF_FILE}"
@@ -123,11 +155,11 @@ APP_OPTS_2=""
 # Export APP specific variables here
 # Set a default value for JVMARGS
 : ${JVMXMX:=-Xmx6000m}
-: ${JVMARGS:=-DLOG_FILE_PREFIX=${LOG_FILE} -enableassertions -enablesystemassertions $JVMXMX -XX:OnOutOfMemoryError=$APP_HOME_DIR/share/opentsdb/tools/opentsdb_restart.py}
+: ${JVMARGS:=-DLOG_FILE_PREFIX=${APP_LOG_FILE} -enableassertions -enablesystemassertions $JVMXMX -XX:OnOutOfMemoryError=$APP_HOME_DIR/share/opentsdb/tools/opentsdb_restart.py}
 export JVMARGS
 
 
-# CHOOSE BEHAVOR: alter for Application
+# CHOOSE BEHAVOR: Set to fit app
 if [ $APP_REQUIRE_JAVA -eq 1 -a $APP_STARTS_WITH_JAVA -eq 1 ]; then
     APP_JAVA_LIBRARY_PATH="$APP_HOME_DIR/lib"
     APP_CLASSPATH="$APP_HOME_DIR/data:$APP_HOME_DIR/conf:$APP_JAVA_LIBRARY_PATH/*"
@@ -137,7 +169,7 @@ else
 fi
 
 # FILL IN java main class - like com.mapr.installer.InstallerApplication if it is a
-# java app, otherwise set it to APP_DEAMON
+# java app, otherwise set it to APP_DAEMON(usually)
 
 APP_MAIN="net.opentsdb.tools.TSDMain"
 
@@ -163,7 +195,7 @@ set_kernel_opts() {
     local kern_opt_val=$3
     if [ $(id -u) -eq 0 ] ; then
         if [ -n "$kern_opt_val" -a -f "$kern_opt_path" ]; then
-            sysctl -q -w $kern_op_name=$kern_op_val
+            sysctl -q -w $kern_opt_name=$kern_opt_val
         fi
     fi
 }
@@ -178,19 +210,37 @@ check_and_setup_system() {
 check() {
     local sig=$1
     [ -z "$sig" ] && sig=0
-    if [ ! -r "$APP_DATA_DIR" ]; then
+    if [ ! -r "$APP_PID_DIR" ]; then
         echo "$APP permission denied"
-    elif [ $APP_DEAMONIZES -eq 1 ] ; then
+    elif [ $APP_DAEMONIZES -eq 1 ] ; then
         APP_PID=$(cat $APP_PID_FILE 2> /dev/null)
     fi
     if [ -n "$APP_PID" ]; then
-        if kill -$sig $APP_PID > /dev/null 2>&1; then
+        if [ "$sig" = "0" ]; then
+            KILL_ARGS="-$sig $APP_PID"
+        else
+            KILL_ARGS="-$sig $KILL_GROUP$APP_PID"
+        fi
+        if kill $KILL_ARGS > /dev/null 2>&1; then
             # check if it is truly $APP
             local file=/proc/$APP_PID/cmdline
             [ ! -f $file ] && return
-            grep -q $APP_MAIN $file && return
+            # If you are having trouble with startup, uncomment this line to see what
+            # the command line looks like. When underlying services are execed, 
+            # the string we need to grep for migh be very different than what we expect
+            #
+            # cat $file
+            # For Java apps rely on jps to get around the 4k /proc/<pid>/cmdline limitation
+            # on older systems
+            if [ $APP_REQUIRE_JAVA -eq 1 ]; then 
+                jps -l | grep -q $APP_MAIN > /dev/null 2>&1 && return
+            else
+                grep -q $APP_MAIN $file && return
+            fi
         fi
-        rm -f $APP_PID_FILE
+        if [ $APP_DOES_NOT_MANAGE_PID_FILE -eq 0 ]; then
+            rm -f $APP_PID_FILE
+        fi
     fi
     false
 }
@@ -244,9 +294,14 @@ start() {
     mkdir -m $APP_DATA_DIR_PERM -p "$APP_DATA_DIR"
     mkdir -p "$APP_LOG_DIR" "$APP_PID_DIR"
 
-    # Manage log 
-    rotate_log "$APP_LOG_FILE"
-    touch "$APP_LOG_FILE"
+    # Manage logs
+    rotate_log "$APP_LOG_START_FILE"
+    touch "$APP_LOG_START_FILE"
+
+    if [ $APP_ROTATES_OWN_LOG_FILE -eq 0 ]; then
+        rotate_log "$APP_LOG_FILE"
+        touch "$APP_LOG_FILE"
+    fi
 
     # make sure ulimits/kernel options are set
     check_and_setup_system
@@ -272,9 +327,9 @@ start() {
     if [ $APP_STARTS_WITH_JAVA -eq 1 ]; then
         "$JAVA" -Dlog.file="$APP_LOG_FILE" -Djava.library.path="$APP_JAVA_LIBRARY_PATH" \
             -classpath "$APP_CLASSPATH" $APP_OPTS_1 $APP_OPTS_2 $MAPR_SSL_OPTS \
-           "$APP_MAIN" $* >> "$APP_LOG_FILE" 2>&1 < /dev/null &
+           "$APP_MAIN" $* >> "$APP_LOG_START_FILE" 2>&1 < /dev/null &
     else
-        $APP_DAEMON $APP_OPTS_1 $APP_OPTS_2 $* >> "$APP_LOG_FILE" 2>&1 < /dev/null &
+        $APP_DAEMON $APP_OPTS_1 $APP_OPTS_2 $* >> "$APP_LOG_START_FILE" 2>&1 < /dev/null &
     fi
     APP_PID=$!
     # do not overwrite service managed pid file and wait for process to write it
@@ -285,7 +340,7 @@ start() {
     until [ $i -eq 100 ]; do
         sleep 0.3
         if check && [ -s "$APP_PID_FILE" ]; then
-            echo "$APP ($APP_PID) started with log $APP_LOG_FILE"
+            echo "$APP ($APP_PID) started with log $APP_LOG_START_FILE"
             if [ $APP_SELF_CONTAINED -o "$uid" = "root" ]; then
                 [ -d "$LOCK_DIR" ] && touch "$APP_LOCK_FILE"
             fi
@@ -295,7 +350,8 @@ start() {
     done
     check TERM && sleep 2 && check KILL
     wait $APP_PID
-    echo "$APP ($APP_PID) start failed ($?). See $APP_LOG_FILE for details"
+    echo "$APP ($APP_PID) start failed ($?). See $APP_LOG_START_FILE for details"
+    rm -f $APP_PID_FILE
     false
 }
 
@@ -332,12 +388,7 @@ stop() {
     false
 }
 
-if [ -n "$APP_ULIMIT_MAX_LOCKED_MEMORY" -a -z "$ES_HEAP_SIZE" ]; then
-    echo "APP_ULIMIT_MAX_LOCKED_MEMORY is set - ES_HEAP_SIZE must also be set"
-    exit 2
-fi
-
-if [ $APP_DOES_NOT_MANAGE_PID_FILE -eq 1 -a $APP_DEAMONIZES -eq 1 ] ;then
+if [ $APP_DOES_NOT_MANAGE_PID_FILE -eq 1 -a $APP_DAEMONIZES -eq 1 ] ;then
     echo "We have no way of managing the pid file"
     exit 3
 fi
@@ -346,6 +397,7 @@ if [ -z "APP_MAIN" ]; then
     echo "ERROR: Need to set APP_MAIN else the script will hang"
     exit 4
 fi
+
 
 [ -s "$APP_PID_FILE" ] && APP_PID=$(cat "$APP_PID_FILE")
 

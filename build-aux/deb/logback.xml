@@ -19,11 +19,11 @@
   
   <!-- Appender to write OpenTSDB data to a set of rotating log files -->
   <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-    <file>/var/log/opentsdb/opentsdb.log</file>
+    <file>__INSTALL__/var/log/opentsdb/opentsdb.log</file>
     <append>true</append>
     
     <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
-      <fileNamePattern>/var/log/opentsdb/opentsdb.log.%i</fileNamePattern>
+      <fileNamePattern>__INSTALL__/var/log/opentsdb/opentsdb.log.%i</fileNamePattern>
       <minIndex>1</minIndex>
       <maxIndex>3</maxIndex>
     </rollingPolicy>
