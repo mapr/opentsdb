@@ -31,6 +31,7 @@ MAPR_CONF_DIR="${MAPR_HOME}/conf/conf.d"
 MAPR_USER=${MAPR_USER:-mapr}
 NOW=`date "+%Y%m%d_%H%M%S"`
 CLDB_RUNNING=0
+ASYNCVER="1.7"   # two most significat version number of compatible asynchbase jar
 RC=0
 
 #############################################################################
@@ -83,10 +84,16 @@ function installAsyncHbaseJar() {
     asyncHbaseJar=$(find ${MAPR_HOME}/asynchbase -name 'asynchbase*mapr*.jar' | fgrep -v javadoc|fgrep -v sources)
     if [ -n "$asyncHbaseJar" ]; then 
         jar_ver=$(basename $asyncHbaseJar)
-        jar_ver=$(echo $jar_ver | cut -d- -f2)
+        jar_ver=$(echo $jar_ver | cut -d- -f2) # should look like 1.7.0
         if [ -n "$jar_ver" ]; then
-            cp  "$asyncHbaseJar" ${OT_HOME}/share/opentsdb/lib/asynchbase-"$jar_ver".jar
-            rc=$?
+            verify_ver=$(echo $jar_ver | cut -d. -f1,2) 
+            # verify the two most significant
+            if [ -n "$verify_ver" -a "$verify_ver" = "$ASYNCVER" ] ; then
+                cp  "$asyncHbaseJar" ${OT_HOME}/share/opentsdb/lib/asynchbase-"$jar_ver".jar
+                rc=$?
+            else
+                echo "ERROR: Incompatible asynchbase jar found"
+            fi
         fi
     fi
    
