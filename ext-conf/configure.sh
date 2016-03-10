@@ -31,7 +31,7 @@ MAPR_CONF_DIR="${MAPR_HOME}/conf/conf.d"
 MAPR_USER=${MAPR_USER:-mapr}
 NOW=`date "+%Y%m%d_%H%M%S"`
 CLDB_RUNNING=0
-ASYNCVER="1.7"   # two most significat version number of compatible asynchbase jar
+ASYNCVER="1.6"   # two most significat version number of compatible asynchbase jar
 RC=0
 
 #############################################################################
