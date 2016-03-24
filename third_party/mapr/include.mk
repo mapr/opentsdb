@@ -13,9 +13,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-MAPR_VERSION := 5.1.0-mapr-SNAPSHOT
+MAPR_VERSION := 5.1.0-mapr
 MAPR := third_party/mapr/maprfs-$(MAPR_VERSION).jar
-MAPR_BASE_URL := http://maven.corp.maprtech.com/nexus/content/repositories/snapshots/com/mapr/hadoop/maprfs/5.1.0-mapr-SNAPSHOT/
+MAPR_BASE_URL := http://maven.corp.maprtech.com/nexus/content/repositories/releases/com/mapr/hadoop/maprfs/5.1.0-mapr/
 
 $(MAPR):
 	set dummy "$(MAPR_BASE_URL)" "$(MAPR)"; shift; mvn org.apache.maven.plugins:maven-dependency-plugin:2.4:get -DrepoUrl=$(MAPR_MAVEN_REPO) -Dartifact=com.mapr.hadoop:maprfs:$(MAPR_VERSION) -Ddest=$(MAPR)
