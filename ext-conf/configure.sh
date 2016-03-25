@@ -1,16 +1,26 @@
 #!/bin/bash
+# Copyright (c) 2009 & onwards. MapR Tech, Inc., All rights reserved
 
-
+#############################################################################
+#
 # Script to configure opentTsdb
 #
-
-
+# __INSTALL_ (double underscore at the end)  gets expanded to __INSTALL__ during pakcaging
+# set OT_HOME explicitly if running this in a source built env.
+#
+# This script is sourced from the master configure.sh, this way any variables
+# we need are available to us.
+#
+# It also means that this script should never do an exit in the case of failure
+# since that would cause the master configure.sh to exit too. Simply return
+# an return value if needed. Sould be 0 for the most part.
+#
 # When called from the master installer, expect to see the following options:
 #
-# -nodeCount ${otNodesCount} -OT "${otNodesList}" -nodePort ${otPort} 
+# -nodeCount ${otNodesCount} -OT "${otNodesList}" -nodePort ${otPort}
 # -nodeZkCount ${zkNodesCount} -Z "${zkNodesList}" -nodeZkPort ${zkClientPort}
-# 
-# where the 
+#
+# where the
 #
 # -nodeCount    tells you how many openTsdb server configured in the cluster
 # -OT           tells you the list of hosts to be configure as opentTsdb servers
@@ -25,13 +35,16 @@
 # This gets fillled out at package time
 OT_HOME="__INSTALL__"
 OT_CONF_FILE="${OT_HOME}/etc/opentsdb/opentsdb.conf"
-NEW_OT_CONF_FILE=${NEW_OT_CONF_FILE:-${OT_HOME}/etc/opentsdb/opentsdb.conf.progress}
+NEW_OT_CONF_FILE=${NEW_OT_CONF_FILE:-${OT_CONF_FILE}.progress}
 MAPR_HOME=${MAPR_HOME:-/opt/mapr}
 MAPR_CONF_DIR="${MAPR_HOME}/conf/conf.d"
 MAPR_USER=${MAPR_USER:-mapr}
 NOW=`date "+%Y%m%d_%H%M%S"`
+CLDB_RETRIES=24
+CLDB_RETRY_DLY=5
 CLDB_RUNNING=0
 ASYNCVER="1.7"   # two most significat version number of compatible asynchbase jar
+OT_CONF_ASSUME_RUNNING_CORE=${isOnlyRoles:-0}
 RC=0
 
 #############################################################################
@@ -43,10 +56,10 @@ function installWardenConfFile() {
     if ! [ -d ${MAPR_CONF_DIR} ]; then
         mkdir -p ${MAPR_CONF_DIR} > /dev/null 2>&1
     fi
-    
+
     # Copy warden conf
     cp ${OT_HOME}/etc/conf/warden.opentsdb.conf ${MAPR_CONF_DIR}
-    if [ $? -ne 0 ]; then 
+    if [ $? -ne 0 ]; then
         echo "WARNING: Failed to install Warden conf file for service - service will not start"
     fi
 }
@@ -82,13 +95,13 @@ function installAsyncHbaseJar() {
     local jar_ver=""
     local rc=1
     asyncHbaseJar=$(find ${MAPR_HOME}/asynchbase -name 'asynchbase*mapr*.jar' | fgrep -v javadoc|fgrep -v sources)
-    if [ -n "$asyncHbaseJar" ]; then 
+    if [ -n "$asyncHbaseJar" ]; then
         jar_ver=$(basename $asyncHbaseJar)
         jar_ver=$(echo $jar_ver | cut -d- -f2) # should look like 1.7.0
         if [ -n "$jar_ver" ]; then
-            verify_ver=$(echo $jar_ver | cut -d. -f1,2) 
+            verify_ver=$(echo $jar_ver | cut -d. -f1,2)
             # verify the two most significant
-            if [ -n "$verify_ver" -a "$verify_ver" = "$ASYNCVER" ] ; then
+            if [ -n "$verify_ver" -a "$verify_ver" = "$ASYNCVER" ]; then
                 cp  "$asyncHbaseJar" ${OT_HOME}/share/opentsdb/lib/asynchbase-"$jar_ver".jar
                 rc=$?
             else
@@ -96,7 +109,7 @@ function installAsyncHbaseJar() {
             fi
         fi
     fi
-   
+
     if [ $rc -eq 1 ]; then
         echo "ERROR: Failed to install asyncHbase Jar file"
     fi
@@ -111,7 +124,7 @@ function installAsyncHbaseJar() {
 function configureOTPort() {
     # The following configuration knobs needs to be set at a minimum:
     # opentsdb.conf:tsd.network.port = 4242
-    
+
     if [ ! -z ${nodeport} -a -w ${NEW_OT_CONF_FILE} ]; then
         sed -i 's/\(tsd.network.port = \).*/\1'$nodeport'/g' $NEW_OT_CONF_FILE
     fi
@@ -134,11 +147,12 @@ function configureOTIp() {
 #
 #############################################################################
 function waitForCLDB() {
-    cldbretries=24   # give it two minutes
-    until [ $CLDB_RUNNING -eq 1 -o $cldbretries -lt 0 ] ; do
-        $MAPR_HOME/bin/maprcli node cldbmaster > /dev/null 2>&1 
+    local cldbretries
+    cldbretries=$CLDB_RETRIES   # give it two minutes
+    until [ $CLDB_RUNNING -eq 1 -o $cldbretries -lt 0 ]; do
+        $MAPR_HOME/bin/maprcli node cldbmaster > /dev/null 2>&1
         [ $? -eq 0 ] && CLDB_RUNNING=1
-        [ $CLDB_RUNNING -ne 0 ] &&  sleep 5
+        [ $CLDB_RUNNING -ne 0 ] &&  sleep $CLDB_RETRY_DLY
         let cldbretries=cldbretries-1
     done
     return $CLDB_RUNNING
@@ -153,12 +167,12 @@ function waitForCLDB() {
 function createTSDBHbaseTables() {
     local rc=1
     # Create TSDB tables
-    if [ $CLDB_RUNNING -eq 1 ]; then 
+    if [ $CLDB_RUNNING -eq 1 ]; then
         HBASE_VERSION=`cat $MAPR_HOME/hbase/hbaseversion`
         export COMPRESSION=NONE; export HBASE_HOME=$MAPR_HOME/hbase/hbase-$HBASE_VERSION; su -c ${OT_HOME}/share/opentsdb/tools/create_table.sh > ${OT_HOME}/var/log/opentsdb/opentsdb_install.log $MAPR_USER
         rc=$?
     fi
-    if [ $rc -ne 0 ]; then 
+    if [ $rc -ne 0 ]; then
         echo "WARNING: Failed to create Hbase TSDB tables"
     fi
     return $rc
@@ -176,45 +190,51 @@ function createTSDBHbaseTables() {
 # Parse the arguments
 
 usage="usage: $0 -nodeCount <cnt> -OT \"ip:port,ip1:port,\" -nodePort <port> -nodeZkCount <zkCnt> -Z \"ip:port,ip1:port,\" -nodeZkPort <zkPort>"
-if [ ${#} -gt 1 ] ; then
+if [ ${#} -gt 1 ]; then
     # we have arguments - run as as standalone - need to get params and
     # XXX why do we need the -o to make this work?
     OPTS=`getopt -a -o h -l nodeCount: -l nodePort: -l OT: -l nodeZkCount: -l nodeZkPort: -l Z: -- "$@"`
-    if [ $? != 0 ] ; then
+    if [ $? != 0 ]; then
         echo ${usage}
-         return 2 2>/dev/null || exit 2
+        return 2 2>/dev/null || exit 2
     fi
     eval set -- "$OPTS"
 
     for i ; do
         case "$i" in
-            --nodeCount) 
-                 nodecount="$2";
-                 shift 2;;
-            --nodeZkCount) 
-                 zk_nodecount="$2";
-                 shift 2;;
+            --nodeCount)
+                nodecount="$2";
+                shift 2
+                ;;
+            --nodeZkCount)
+                zk_nodecount="$2";
+                shift 2
+                ;;
             --OT) # not used at the moment
-                 nodelist="$2"; 
-                 shift 2;;
+                nodelist="$2";
+                shift 2
+                ;;
             --Z)
-                 zk_nodelist="$2"; 
-                 shift 2;;
+                zk_nodelist="$2";
+                shift 2
+                ;;
             --nodePort)
-                 nodeport="$2"; 
-                 shift 2;;
+                nodeport="$2";
+                shift 2
+                ;;
             --nodeZkPort)
-                 zk_nodeport="$2"; 
-                 shift 2;;
+                zk_nodeport="$2";
+                shift 2
+                ;;
             -h)
-                 echo ${usage}
-                 return 2 2>/dev/null || exit 2
-                 ;;
+                echo ${usage}
+                return 2 2>/dev/null || exit 2
+                ;;
             --)
-                 shift;;
+                shift
+                ;;
         esac
     done
-
 else
     echo "${usage}"
     return 2 2>/dev/null || exit 2
@@ -248,7 +268,13 @@ fi
 
 #install our changes
 cp ${NEW_OT_CONF_FILE} ${OT_CONF_FILE}
-waitForCLDB
-createTSDBHbaseTables
-installWardenConfFile
+if [ $OT_CONF_ASSUME_RUNNING_CORE -eq 1 ]; then
+    waitForCLDB
+    createTSDBHbaseTables
+    if [ $? -eq 0 ]; then
+        installWardenConfFile
+    else
+        echo "WARNING: opentsdb service not enabled - failed to setup hbase tables"
+    fi
+fi
 true
