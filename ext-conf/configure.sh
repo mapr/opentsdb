@@ -79,7 +79,7 @@ function configureZKQuorum() {
             zkNodesList=$zkNodesList,$zkNode
         done
         zkNodesList=${zkNodesList:1}
-        zkNodesList=${zkNodesList/,/ }
+        zkNodesList=${zkNodesList//,/ }
         sed -i 's/\(tsd.storage.hbase.zk_quorum = \).*/\1'"$zkNodesList"'/g' $NEW_OT_CONF_FILE
     fi
 }
