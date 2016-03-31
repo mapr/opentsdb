@@ -269,12 +269,15 @@ fi
 #install our changes
 cp ${NEW_OT_CONF_FILE} ${OT_CONF_FILE}
 if [ $OT_CONF_ASSUME_RUNNING_CORE -eq 1 ]; then
-    waitForCLDB
-    createTSDBHbaseTables
-    if [ $? -eq 0 ]; then
-        installWardenConfFile
-    else
-        echo "WARNING: opentsdb service not enabled - failed to setup hbase tables"
+    # if warden isn't running, nothing else will - likely uninstall
+    if /opt/mapr/initscripts/mapr-warden status > /dev/null 2>&1 ; then
+        waitForCLDB
+        createTSDBHbaseTables
+        if [ $? -eq 0 ]; then
+            installWardenConfFile
+        else
+            echo "WARNING: opentsdb service not enabled - failed to setup hbase tables"
+        fi
     fi
 fi
 true
