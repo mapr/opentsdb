@@ -189,11 +189,11 @@ function createTSDBHbaseTables() {
 #
 # Parse the arguments
 
-usage="usage: $0 -nodeCount <cnt> -OT \"ip:port,ip1:port,\" -nodePort <port> -nodeZkCount <zkCnt> -Z \"ip:port,ip1:port,\" -nodeZkPort <zkPort>"
+usage="usage: $0 -nodeCount <cnt> -OT \"ip:port,ip1:port,\" -nodePort <port> -nodeZkCount <zkCnt> -Z \"ip:port,ip1:port,\" -nodeZkPort <zkPort> [-R]"
 if [ ${#} -gt 1 ]; then
     # we have arguments - run as as standalone - need to get params and
     # XXX why do we need the -o to make this work?
-    OPTS=`getopt -a -o h -l nodeCount: -l nodePort: -l OT: -l nodeZkCount: -l nodeZkPort: -l Z: -- "$@"`
+    OPTS=`getopt -a -o h -l nodeCount: -l nodePort: -l OT: -l nodeZkCount: -l nodeZkPort: -l Z: -l R -- "$@"`
     if [ $? != 0 ]; then
         echo ${usage}
         return 2 2>/dev/null || exit 2
@@ -226,7 +226,11 @@ if [ ${#} -gt 1 ]; then
                 zk_nodeport="$2";
                 shift 2
                 ;;
-            -h)
+            --R)
+                OT_CONF_ASSUME_RUNNING_CORE=1
+                shift 1
+                ;;
+            --h)
                 echo ${usage}
                 return 2 2>/dev/null || exit 2
                 ;;
@@ -257,18 +261,18 @@ cp ${OT_CONF_FILE} ${NEW_OT_CONF_FILE}
 
 configureOTPort
 configureZKQuorum
-installAsyncHbaseJar
-RC=$?
-if [ $RC -ne 0 ]; then
-    # If we couldn't install the jar file - report early
-    return $RC 2>/dev/null || exit $RC
-else
-    true
-fi
 
 #install our changes
 cp ${NEW_OT_CONF_FILE} ${OT_CONF_FILE}
 if [ $OT_CONF_ASSUME_RUNNING_CORE -eq 1 ]; then
+
+    installAsyncHbaseJar
+    RC=$?
+    if [ $RC -ne 0 ]; then
+        # If we couldn't install the jar file - report early
+        echo "WARNING: opentsdb - failed to install asynchbase jar"
+        return $RC 2>/dev/null || exit $RC
+    fi
     # if warden isn't running, nothing else will - likely uninstall
     if ${MAPR_HOME}/initscripts/mapr-warden status > /dev/null 2>&1 ; then
         waitForCLDB
