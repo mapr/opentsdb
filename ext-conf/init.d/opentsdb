@@ -39,8 +39,6 @@
 # Set APP_ENABLE_GROUPLEADER=1 if you want use a hammer to make sure the daemon
 # and all its children go away. It does not allow the daemon to manage this on his own.
 #
-# This option only works with bash, so make sure the she-bang line on top uses bash and
-# not sh.
 # ----- Use with care!!!!!.
 # **********************  PLEASE READ CAREFULLY ****************
 # 
