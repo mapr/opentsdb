@@ -35,14 +35,12 @@
 # 
 # Set APP_ROTATES_OWN_LOG_FILE=1 if this app has its own way of rotating logs 
 # 
-# Set APP_STOP_NEED_TO_KILL_GROUP=1 if you want use a hammer to make sure the daemon
+# **********************  PLEASE READ CAREFULLY ****************
+# Set APP_ENABLE_GROUPLEADER=1 if you want use a hammer to make sure the daemon
 # and all its children go away. It does not allow the daemon to manage this on his own.
 #
-# **********************  PLEASE READ CAREFULLY ****************
-# Another note, turning this option on if your app gets init as its parent(pid 1), then 
-# stop WILL not work if this app is run a different user than root, and if run as root,
-# will likely cause init to act strange, worst case to boot the system 
-#
+# This option only works with bash, so make sure the she-bang line on top uses bash and
+# not sh.
 # ----- Use with care!!!!!.
 # **********************  PLEASE READ CAREFULLY ****************
 # 
@@ -71,13 +69,15 @@ APP_WARDEN_CONTROLLED=1
 APP_DAEMONIZES=0
 APP_DOES_NOT_MANAGE_PID_FILE=1
 APP_ROTATES_OWN_LOG_FILE=1
-APP_STOP_NEED_TO_KILL_GROUP=0
+APP_ENABLE_GROUPLEADER=1
 
 
-if [ $APP_STOP_NEED_TO_KILL_GROUP -eq 1 ]; then
+if [ $APP_ENABLE_GROUPLEADER -eq 1 ]; then
     KILL_GROUP="-- -"
+    SETSID="setsid "
 else
     KILL_GROUP=""
+    SETSID=""
 fi
 
 SCRIPT_DIR=$(dirname $0)
@@ -223,18 +223,18 @@ check() {
         fi
         if kill $KILL_ARGS > /dev/null 2>&1; then
             # check if it is truly $APP
-            local file=/proc/$APP_PID/cmdline
-            [ ! -f $file ] && return
-            # If you are having trouble with startup, uncomment this line to see what
-            # the command line looks like. When underlying services are execed, 
-            # the string we need to grep for migh be very different than what we expect
-            #
-            # cat $file
-            # For Java apps rely on jps to get around the 4k /proc/<pid>/cmdline limitation
-            # on older systems
             if [ $APP_REQUIRE_JAVA -eq 1 ]; then 
-                jps -l | grep -q $APP_MAIN > /dev/null 2>&1 && return
+                # For Java apps rely on jps to get around the 4k /proc/<pid>/cmdline limitation
+                # on older systems
+                jps -l | grep -q "$APP_MAIN" > /dev/null 2>&1 && return
             else
+                local file=/proc/$APP_PID/cmdline
+                [ ! -f $file ] && return
+                # If you are having trouble with startup, uncomment this line to see what
+                # the command line looks like. When underlying services are execed, 
+                # the string we need to grep for migh be very different than what we expect
+                #
+                # cat $file
                 grep -q $APP_MAIN $file && return
             fi
         fi
@@ -259,6 +259,55 @@ rotate_log() {
     fi
 }
 
+setEffectiveIds() {
+    # Chose user ID to run as
+    uid=$(id -nu)
+    gid=$(id -ng)
+    if [ -f "$APP_PROPERTIES_FILE" ]; then
+        euid=$(grep cluster_admin_id "$APP_PROPERTIES_FILE" | cut -d\" -f4)
+        egid=$(grep cluster_admin_group "$APP_PROPERTIES_FILE" | cut -d\" -f4)
+    elif [ -f "$APP_WARDEN_DAEMON_CONF_FILE" -a $APP_WARDEN_CONTROLLED -eq 1 ]; then
+        euid=$(grep mapr.daemon.user "$APP_WARDEN_DAEMON_CONF_FILE" | cut -d= -f2)
+        egid=$(grep mapr.daemon.group "$APP_WARDEN_DAEMON_CONF_FILE" | cut -d= -f2)
+    fi
+    euid=${euid:-$uid}
+    egid=${egid:-$gid}
+}
+
+createDirectoriesAndFiles() {
+    case $1 in 
+        start)
+            # Setup required directories and files
+            mkdir -m $APP_DATA_DIR_PERM -p "$APP_DATA_DIR"
+            mkdir -p "$APP_LOG_DIR" "$APP_PID_DIR"
+        
+            # update ownership/permissions
+            if [ "$euid" != "$uid" -a "$uid" = "root" ]; then
+                if [ -O "$APP_HOME_DIR" -o -G "$APP_HOME_DIR" ]; then
+                    chown -R $euid:$egid "$APP_HOME_DIR"
+                else
+                    chown -R $euid:$egid "$APP_DATA_DIR" "$APP_LOG_DIR" "$APP_PID_DIR"
+                fi
+            fi
+    esac
+}
+
+execAsUser() {
+    local cmd
+    
+    cmd=$1
+    shift 1
+    # Restart as required user
+    if [ $euid != $uid ]; then
+        # re-run as non-root user because sudo could require a tty
+        if [ -d "$(getent passwd $euid | cut -d: -f6)" ]; then
+            exec su - $euid -- "$APP_SCRIPT" $cmd $*
+        else
+            exec su $euid -- "$APP_SCRIPT" $cmd $*
+        fi
+    fi
+}
+
 reload() {
     if check HUP; then
         echo "$APP ($APP_PID) reloaded"
@@ -277,23 +326,6 @@ start() {
         false || return
     fi
  
-    # Chose user ID to run as
-    uid=$(id -nu)
-    gid=$(id -ng)
-    if [ -f "$APP_PROPERTIES_FILE" ]; then
-        euid=$(grep cluster_admin_id "$APP_PROPERTIES_FILE" | cut -d\" -f4)
-        egid=$(grep cluster_admin_group "$APP_PROPERTIES_FILE" | cut -d\" -f4)
-    elif [ -f "$APP_WARDEN_DAEMON_CONF_FILE" -a $APP_WARDEN_CONTROLLED -eq 1 ]; then
-        euid=$(grep mapr.daemon.user "$APP_WARDEN_DAEMON_CONF_FILE" | cut -d= -f2)
-        egid=$(grep mapr.daemon.group "$APP_WARDEN_DAEMON_CONF_FILE" | cut -d= -f2)
-    fi
-    euid=${euid:-$uid}
-    egid=${egid:-$gid}
-
-    # Setup required directories and files
-    mkdir -m $APP_DATA_DIR_PERM -p "$APP_DATA_DIR"
-    mkdir -p "$APP_LOG_DIR" "$APP_PID_DIR"
-
     # Manage logs
     rotate_log "$APP_LOG_START_FILE"
     touch "$APP_LOG_START_FILE"
@@ -306,30 +338,13 @@ start() {
     # make sure ulimits/kernel options are set
     check_and_setup_system
 
-    # Restart as required user, update ownership/permissions
-    if [ $euid != $uid ]; then
-        if [ -O "$APP_HOME_DIR" -o -G "$APP_HOME_DIR" ]; then
-            chown -R $euid:$egid "$APP_HOME_DIR"
-        else
-            chown -R $euid:$egid "$APP_DATA_DIR" "$APP_LOG_DIR" "$APP_PID_DIR"
-        fi
-        chmod $APP_DATA_DIR_PERM "$APP_DATA_DIR"
-
-
-        # re-run as non-root user because sudo could require a tty
-        if [ -d "$(getent passwd $euid | cut -d: -f6)" ]; then
-            exec su - $euid -- "$APP_SCRIPT" start $*
-        else
-            exec su $euid -- "$APP_SCRIPT" start $*
-        fi
-    fi
     cd $APP_HOME_DIR
     if [ $APP_STARTS_WITH_JAVA -eq 1 ]; then
-        "$JAVA" -Dlog.file="$APP_LOG_FILE" -Djava.library.path="$APP_JAVA_LIBRARY_PATH" \
+        "$SETSID $JAVA" -Dlog.file="$APP_LOG_FILE" -Djava.library.path="$APP_JAVA_LIBRARY_PATH" \
             -classpath "$APP_CLASSPATH" $APP_OPTS_1 $APP_OPTS_2 $MAPR_SSL_OPTS \
            "$APP_MAIN" $* >> "$APP_LOG_START_FILE" 2>&1 < /dev/null &
     else
-        $APP_DAEMON $APP_OPTS_1 $APP_OPTS_2 $* >> "$APP_LOG_START_FILE" 2>&1 < /dev/null &
+        $SETSID $APP_DAEMON $APP_OPTS_1 $APP_OPTS_2 $* >> "$APP_LOG_START_FILE" 2>&1 < /dev/null &
     fi
     APP_PID=$!
     # do not overwrite service managed pid file and wait for process to write it
@@ -401,7 +416,15 @@ fi
 
 [ -s "$APP_PID_FILE" ] && APP_PID=$(cat "$APP_PID_FILE")
 
+setEffectiveIds
+
 command=$1 && shift
+
+createDirectoriesAndFiles $command 
+
+# swtich user for all commands so that jps works correctly. As of jdk 1.8 jps -l will only list the mainClass if
+# the process is owned by the user running jps
+execAsUser $command "$@"
 
 case $command in
     (condreload) ! check || reload ;;
