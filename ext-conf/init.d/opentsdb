@@ -2,8 +2,8 @@
 
 # Generic start script that can be used for services that are running under warden
 
-# Assumptions: 
-# 
+# Assumptions:
+#
 # The script will be located in the etc/init.d directory
 # It is also assumed that the directory structure is something like:
 # /opt/mapr/app/app-vers/etc/init.d/app
@@ -17,9 +17,9 @@
 # one is used when you pass the log file name into the application, the latter one
 # is used for this script to log the startup events.
 #
-# Set APP_REQUIRE_JAVA=1 if the app requires java  
+# Set APP_REQUIRE_JAVA=1 if the app requires java
 #
-# Set APP_STARTS_WITH_JAVA=1 if the is started using java directly  
+# Set APP_STARTS_WITH_JAVA=1 if the is started using java directly
 #
 # Set APP_SELF_CONTAINED=1 if the has its on var/run, var/log, var/lock structure
 # like ecos, instead of using the system /var/log for example
@@ -30,23 +30,23 @@
 # Set APP_WARDEN_CONTROLLED=1 if this app is run under warden
 #
 # Set APP_DAEMONIZES=1 if this app forks itself
-# 
+#
 # Set APP_DOES_NOT_MANAGE_PID_FILE=1 if this app does not create its own pidfile
-# 
-# Set APP_ROTATES_OWN_LOG_FILE=1 if this app has its own way of rotating logs 
-# 
+#
+# Set APP_ROTATES_OWN_LOG_FILE=1 if this app has its own way of rotating logs
+#
 # **********************  PLEASE READ CAREFULLY ****************
 # Set APP_ENABLE_GROUPLEADER=1 if you want use a hammer to make sure the daemon
 # and all its children go away. It does not allow the daemon to manage this on his own.
 #
 # ----- Use with care!!!!!.
 # **********************  PLEASE READ CAREFULLY ****************
-# 
+#
 #
 # NB: Make sure you set APP_MAIN to something that is recongizable and distict
-# form the process command line. This string is used to verify that the pid matches 
+# form the process command line. This string is used to verify that the pid matches
 # the process. For Java apps, this variable should be set to the name of the main class
-# even if this script doesn't start the app directly. 
+# even if this script doesn't start the app directly.
 # For regular processes the app name usually suffice, $APP_DAEMON should work fine
 #
 # If you are having trouble with the startup, it is often because we don't find the
@@ -114,7 +114,7 @@ fi
 
 # Need to run this early so that things like JAVA_HOME is setup early
 if [ -f "$APP_ENV_SCRIPT" ]; then
-    # exit if we don't find a complete and compatible JDK - 
+    # exit if we don't find a complete and compatible JDK -
     # this is only for our env.sh, and may need altering for something different
     JDK_REQUIRED=1
     . "$APP_ENV_SCRIPT"
@@ -177,7 +177,7 @@ set_ulimit() {
     local ulim_val=$3
     if [ -n "$ulim_val" ]; then
         if [ $ulim_val -gt $(ulimit $ulim_opt) ]; then
-            if [ $(id -u) -eq 0 ] ; then
+            if [ $(id -u) -eq 0 ]; then
                 ulimit -n $ulim_val
             else
                 echo "Must be root to alter ulimit for $ulim_msg"
@@ -191,7 +191,7 @@ set_kernel_opts() {
     local kern_opt_path=$1
     local kern_opt_name=$2
     local kern_opt_val=$3
-    if [ $(id -u) -eq 0 ] ; then
+    if [ $(id -u) -eq 0 ]; then
         if [ -n "$kern_opt_val" -a -f "$kern_opt_path" ]; then
             sysctl -q -w $kern_opt_name=$kern_opt_val
         fi
@@ -210,7 +210,7 @@ check() {
     [ -z "$sig" ] && sig=0
     if [ ! -r "$APP_PID_DIR" ]; then
         echo "$APP permission denied"
-    elif [ $APP_DAEMONIZES -eq 1 ] ; then
+    elif [ $APP_DAEMONIZES -eq 1 ]; then
         APP_PID=$(cat $APP_PID_FILE 2> /dev/null)
     fi
     if [ -n "$APP_PID" ]; then
@@ -221,7 +221,7 @@ check() {
         fi
         if kill $KILL_ARGS > /dev/null 2>&1; then
             # check if it is truly $APP
-            if [ $APP_REQUIRE_JAVA -eq 1 ]; then 
+            if [ $APP_REQUIRE_JAVA -eq 1 ]; then
                 # For Java apps rely on jps to get around the 4k /proc/<pid>/cmdline limitation
                 # on older systems
                 jps -l | grep -q "$APP_MAIN" > /dev/null 2>&1 && return
@@ -229,7 +229,7 @@ check() {
                 local file=/proc/$APP_PID/cmdline
                 [ ! -f $file ] && return
                 # If you are having trouble with startup, uncomment this line to see what
-                # the command line looks like. When underlying services are execed, 
+                # the command line looks like. When underlying services are execed,
                 # the string we need to grep for migh be very different than what we expect
                 #
                 # cat $file
@@ -273,12 +273,12 @@ setEffectiveIds() {
 }
 
 createDirectoriesAndFiles() {
-    case $1 in 
+    case $1 in
         start)
             # Setup required directories and files
             mkdir -m $APP_DATA_DIR_PERM -p "$APP_DATA_DIR"
             mkdir -p "$APP_LOG_DIR" "$APP_PID_DIR"
-        
+
             # update ownership/permissions
             if [ "$euid" != "$uid" -a "$uid" = "root" ]; then
                 if [ -O "$APP_HOME_DIR" -o -G "$APP_HOME_DIR" ]; then
@@ -292,7 +292,7 @@ createDirectoriesAndFiles() {
 
 execAsUser() {
     local cmd
-    
+
     cmd=$1
     shift 1
     # Restart as required user
@@ -323,7 +323,7 @@ start() {
         echo "$APP ($APP_PID) already running"
         false || return
     fi
- 
+
     # Manage logs
     rotate_log "$APP_LOG_START_FILE"
     touch "$APP_LOG_START_FILE"
@@ -378,7 +378,7 @@ status() {
         echo "$APP not running"
     fi
     false
-} 
+}
 
 stop() {
     if check; then
@@ -401,7 +401,7 @@ stop() {
     false
 }
 
-if [ $APP_DOES_NOT_MANAGE_PID_FILE -eq 1 -a $APP_DAEMONIZES -eq 1 ] ;then
+if [ $APP_DOES_NOT_MANAGE_PID_FILE -eq 1 -a $APP_DAEMONIZES -eq 1 ]; then
     echo "We have no way of managing the pid file"
     exit 3
 fi
@@ -418,7 +418,7 @@ setEffectiveIds
 
 command=$1 && shift
 
-createDirectoriesAndFiles $command 
+createDirectoriesAndFiles $command
 
 # swtich user for all commands so that jps works correctly. As of jdk 1.8 jps -l will only list the mainClass if
 # the process is owned by the user running jps
