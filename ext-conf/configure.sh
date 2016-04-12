@@ -251,8 +251,6 @@ if [ -z "$nodeport" -o -z "$zk_nodelist" -o -z "$zk_nodeport" ]; then
     return 2 2>/dev/null || exit 2
 fi
 
-# TODO - change owner on /tmp/opentsdb
-
 # save off a copy
 cp -p ${OT_CONF_FILE} ${OT_CONF_FILE}.${NOW}
 
