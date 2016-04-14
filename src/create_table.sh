@@ -1,48 +1,51 @@
 #!/bin/sh
-# Small script to setup the HBase tables used by OpenTSDB.
-
-test -n "$HBASE_HOME" || {
-  echo >&2 'The environment variable HBASE_HOME must be set'
-  exit 1
-}
-test -d "$HBASE_HOME" || {
-  echo >&2 "No such directory: HBASE_HOME=$HBASE_HOME"
-  exit 1
-}
+# Small script to setup the tables used by OpenTSDB.
 
 TSDB_TABLE=${TSDB_TABLE-'/tsdb'}
 UID_TABLE=${UID_TABLE-'/tsdb-uid'}
 TREE_TABLE=${TREE_TABLE-'/tsdb-tree'}
 META_TABLE=${META_TABLE-'/tsdb-meta'}
-BLOOMFILTER=${BLOOMFILTER-'ROW'}
-# LZO requires lzo2 64bit to be installed + the hadoop-gpl-compression jar.
-COMPRESSION=${COMPRESSION-'LZO'}
-# All compression codec names are upper case (NONE, LZO, SNAPPY, etc).
-COMPRESSION=`echo "$COMPRESSION" | tr a-z A-Z`
 
-case $COMPRESSION in
-  (NONE|LZO|GZIP|SNAPPY)  :;;  # Known good.
-  (*)
-    echo >&2 "warning: compression codec '$COMPRESSION' might not be supported."
-    ;;
-esac
+maprcli table info -path $TSDB_TABLE > /dev/null
+RC=$?
+if [ $RC -ne 0 ]; then
+  echo "Creating $TSDB_TABLE table..."
+  maprcli table create -path $TSDB_TABLE -defaultreadperm p -defaultwriteperm p -defaultappendperm p
+  maprcli table cf create -path $TSDB_TABLE -cfname t -maxversions 1 -inmemory false -compression lzf -ttl 0
+elif
+  echo "$TSDB_TABLE exists."
+fi
 
-# HBase scripts also use a variable named `HBASE_HOME', and having this
-# variable in the environment with a value somewhat different from what
-# they expect can confuse them in some cases.  So rename the variable.
-hbh=$HBASE_HOME
-unset HBASE_HOME
-MAPR_DAEMON=spyglass exec "$hbh/bin/hbase" shell <<EOF
-create '$UID_TABLE',
-  {NAME => 'id', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'},
-  {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
+maprcli table info -path $UID_TABLE > /dev/null 
+RC=$?
+if [ $RC -ne 0 ]; then
+  echo "Creating $UID_TABLE table..."
+  maprcli table create -path $UID_TABLE -defaultreadperm p -defaultwriteperm p -defaultappendperm p
+  maprcli table cf create -path $UID_TABLE -cfname id -maxversions 1 -inmemory true -compression lzf -ttl 0
+  maprcli table cf create -path $UID_TABLE -cfname name -maxversions 1 -inmemory true -compression lzf -ttl 0
+elif
+    echo "$UID_TABLE exists."
+fi
 
-create '$TSDB_TABLE',
-  {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
-  
-create '$TREE_TABLE',
-  {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
-  
-create '$META_TABLE',
-  {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
-EOF
+maprcli table info -path $TREE_TABLE > /dev/null
+RC=$?
+if [ $RC -ne 0 ]; then
+  echo "Creating $TREE_TABLE table..."
+  maprcli table create -path $TREE_TABLE -defaultreadperm p -defaultwriteperm p -defaultappendperm p
+  maprcli table cf create -path $TREE_TABLE -cfname t -maxversions 1 -inmemory false -compression lzf -ttl 0
+elif
+  echo "$TREE_TABLE exists."
+fi
+
+maprcli table info -path $META_TABLE > /dev/null
+RC=$?
+if [ $RC -ne 0 ]; then
+  echo "Creating $META_TABLE table..."
+  maprcli table create -path $META_TABLE -defaultreadperm p -defaultwriteperm p -defaultappendperm p
+  maprcli table cf create -path $META_TABLE -cfname name -maxversions 1 -inmemory false -compression lzf -ttl 0
+elif
+  echo "$META_TABLE exists."
+fi
+
+echo "Complete!"
+
