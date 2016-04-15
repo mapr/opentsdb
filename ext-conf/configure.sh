@@ -189,7 +189,7 @@ function createTSDBHbaseTables() {
 #
 # Parse the arguments
 
-usage="usage: $0 -nodeCount <cnt> -OT \"ip:port,ip1:port,\" -nodePort <port> -nodeZkCount <zkCnt> -Z \"ip:port,ip1:port,\" -nodeZkPort <zkPort> [-R]"
+usage="usage: $0 [-nodeCount <cnt>] [-nodePort <port> -nodeZkCount <zkCnt>] [-nodeZkPort <zkPort>] [-R]-OT \"ip:port,ip1:port,\" -Z \"ip:port,ip1:port,\" "
 if [ ${#} -gt 1 ]; then
     # we have arguments - run as as standalone - need to get params and
     # XXX why do we need the -o to make this work?
@@ -246,7 +246,8 @@ fi
 
 # make sure we have what we need
 # we don't really need the OT list at the moment, nor do we use the two counts
-if [ -z "$nodeport" -o -z "$zk_nodelist" -o -z "$zk_nodeport" ]; then
+if [ -z "$nodelist" -o -z "$zk_nodelist" ]; then
+    echo "-OT and -Z options are required"
     echo "${usage}"
     return 2 2>/dev/null || exit 2
 fi
