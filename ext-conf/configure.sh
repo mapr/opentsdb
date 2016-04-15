@@ -33,8 +33,8 @@
 # -nodeZkPort   the port Zookeeper is listening on
 
 # This gets fillled out at package time
-OT_HOME="__INSTALL__"
-OT_CONF_FILE="${OT_HOME}/etc/opentsdb/opentsdb.conf"
+OT_HOME="${OT_HOME:-__INSTALL__}"
+OT_CONF_FILE="${OT_CONF_FILE:-${OT_HOME}/etc/opentsdb/opentsdb.conf}"
 NEW_OT_CONF_FILE=${NEW_OT_CONF_FILE:-${OT_CONF_FILE}.progress}
 MAPR_HOME=${MAPR_HOME:-/opt/mapr}
 MAPR_CONF_DIR="${MAPR_HOME}/conf/conf.d"
@@ -46,6 +46,12 @@ CLDB_RUNNING=0
 ASYNCVER="1.7"   # two most significat version number of compatible asynchbase jar
 OT_CONF_ASSUME_RUNNING_CORE=${isOnlyRoles:-0}
 RC=0
+nodeport="4232"
+nodecount=0
+nodelist=""
+zk_nodecount=0
+zk_nodeport=7222
+zk_nodelist=""
 
 #############################################################################
 # Function to install Warden conf file
@@ -74,7 +80,7 @@ function configureZKQuorum() {
     # port specifiers, default is "localhost"
     # tsd.storage.hbase.zk_quorum = 10.10.88.98:5181
     zkNodesList=''
-    if [ ! -z ${zk_nodeport} -a ! -z ${zk_nodelist} -a -w ${NEW_OT_CONF_FILE} ]; then
+    if [ ! -z "${zk_nodeport}" -a ! -z "${zk_nodelist}" -a -w ${NEW_OT_CONF_FILE} ]; then
         for zkNode in $(echo ${zk_nodelist} | tr "," " "); do
             zkNodesList=$zkNodesList,$zkNode
         done
@@ -125,7 +131,7 @@ function configureOTPort() {
     # The following configuration knobs needs to be set at a minimum:
     # opentsdb.conf:tsd.network.port = 4242
 
-    if [ ! -z ${nodeport} -a -w ${NEW_OT_CONF_FILE} ]; then
+    if [ ! -z "${nodeport}" -a -w ${NEW_OT_CONF_FILE} ]; then
         sed -i 's/\(tsd.network.port = \).*/\1'$nodeport'/g' $NEW_OT_CONF_FILE
     fi
 }
@@ -189,7 +195,7 @@ function createTSDBHbaseTables() {
 #
 # Parse the arguments
 
-usage="usage: $0 -nodeCount <cnt> -OT \"ip:port,ip1:port,\" -nodePort <port> -nodeZkCount <zkCnt> -Z \"ip:port,ip1:port,\" -nodeZkPort <zkPort> [-R]"
+usage="usage: $0 [-nodeCount <cnt>] [-nodePort <port> -nodeZkCount <zkCnt>] [-nodeZkPort <zkPort>] [-R]-OT \"ip:port,ip1:port,\" -Z \"ip:port,ip1:port,\" "
 if [ ${#} -gt 1 ]; then
     # we have arguments - run as as standalone - need to get params and
     # XXX why do we need the -o to make this work?
@@ -246,7 +252,8 @@ fi
 
 # make sure we have what we need
 # we don't really need the OT list at the moment, nor do we use the two counts
-if [ -z "$nodeport" -o -z "$zk_nodelist" -o -z "$zk_nodeport" ]; then
+if [ -z "$nodelist" -o -z "$zk_nodelist" ]; then
+    echo "-OT and -Z options are required"
     echo "${usage}"
     return 2 2>/dev/null || exit 2
 fi
