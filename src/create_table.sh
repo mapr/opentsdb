@@ -1,113 +1,55 @@
 #!/bin/sh
 # Small script to setup the tables used by OpenTSDB.
 
-TSDB_TABLE=${TSDB_TABLE-'/tsdb'}
-UID_TABLE=${UID_TABLE-'/tsdb-uid'}
-TREE_TABLE=${TREE_TABLE-'/tsdb-tree'}
-META_TABLE=${META_TABLE-'/tsdb-meta'}
+TSDB_TABLE=${TSDB_TABLE:-'/tsdb'}
+UID_TABLE=${UID_TABLE:-'/tsdb-uid'}
+TREE_TABLE=${TREE_TABLE:-'/tsdb-tree'}
+META_TABLE=${META_TABLE:-'/tsdb-meta'}
+LOGFILE=${OT_HOME}/var/log/opentsdb/opentsdb_create_table_$$.log
 
-maprcli table info -path $TSDB_TABLE > /dev/null 2>&1
+for t in $TSDB_TABLE $UID_TABLE $TREE_TABLE $META_TABLE; do
+maprcli table info -path $t> $LOGFILE 2>&1
 RC1=$?
 if [ $RC1 -ne 0 ]; then
-  echo "Creating $TSDB_TABLE table..."
-  maprcli table create -path $TSDB_TABLE -defaultreadperm p -defaultwriteperm p -defaultappendperm p > /dev/null 2>&1
+  echo "Creating $t table..."
+  maprcli table create -path $t -defaultreadperm p -defaultwriteperm p -defaultappendperm p > $LOGFILE 2>&1
   RC2=$?
   if [ $RC2 -ne 0]; then
-    echo "Create table failed for $TSDB_TABLE"
-    return $RC2 2>/dev/null || exit $RC2
+    echo "Create table failed for $t"
+    return $RC2 2>$LOGFILE || exit $RC2
   else
     true 
   fi
-  maprcli table cf create -path $TSDB_TABLE -cfname t -maxversions 1 -inmemory false -compression lzf -ttl 0 > /dev/null 2>&1
-  RC2=$?
-  if [ $RC2 -ne 0]; then
-    echo "Create CF failed for table $TSDB_TABLE"
-    return $RC2 2>/dev/null || exit $RC2
-  else
-    true 
-  fi
-elif
-  echo "$TSDB_TABLE exists."
-fi
-
-maprcli table info -path $UID_TABLE > /dev/null 2>&1
-RC1=$?
-if [ $RC1 -ne 0 ]; then
-  echo "Creating $UID_TABLE table..."
-  maprcli table create -path $UID_TABLE -defaultreadperm p -defaultwriteperm p -defaultappendperm p > /dev/null 2>&1
-  RC2=$?
-  if [ $RC2 -ne 0]; then
-    echo "Create table failed for $UID_TABLE"
-    return $RC2 2>/dev/null || exit $RC2
-  else
-    true 
-  fi
-  maprcli table cf create -path $UID_TABLE -cfname id -maxversions 1 -inmemory true -compression lzf -ttl 0 > /dev/null 2>&1
-  RC2=$?
-  if [ $RC2 -ne 0]; then
-    echo "Create CF failed for $UID_TABLE"
-    return $RC2 2>/dev/null || exit $RC2
-  else
-    true 
-  fi
-  maprcli table cf create -path $UID_TABLE -cfname name -maxversions 1 -inmemory true -compression lzf -ttl 0 > /dev/null 2>&1
-  RC2=$?
-  if [ $RC2 -ne 0]; then
-    echo "Create CF failed for $UID_TABLE"
-    return $RC2 2>/dev/null || exit $RC2
-  else
-    true 
+  if [ "$t" == "$UID_TABLE" ]; then
+    for columnFamily in "id" "name"; do
+      echo "Creating CF $columnFamily for Table $t"
+      maprcli table cf create -path $t -cfname $columnFamily -maxversions 1 -inmemory true -compression lzf -ttl 0 > $LOGFILE 2>&1
+      RC2=$?
+      if [ $RC2 -ne 0]; then
+        echo "Create CF $columnFamily failed for table $t"
+        return $RC2 2>$LOGFILE || exit $RC2
+      else
+        true 
+      fi
+    done
+  elif
+    if [ "$t" == "$META_TABLE" ]; then
+      columnFamily="name"
+    elif
+      columnFamily="t"
+    fi
+    echo "Creating CF $columnFamily for Table $t"
+    maprcli table cf create -path $t -cfname $columnFamily -maxversions 1 -inmemory false -compression lzf -ttl 0 > $LOGFILE 2>&1
+    RC2=$?
+    if [ $RC2 -ne 0]; then
+      echo "Create CF $columnFamily failed for table $t"
+      return $RC2 2>$LOGFILE || exit $RC2
+    else
+      true 
+    fi
   fi
 elif
-    echo "$UID_TABLE exists."
-fi
-
-maprcli table info -path $TREE_TABLE > /dev/null 2>&1
-RC1=$?
-if [ $RC -ne 0 ]; then
-  echo "Creating $TREE_TABLE table..."
-  maprcli table create -path $TREE_TABLE -defaultreadperm p -defaultwriteperm p -defaultappendperm p > /dev/null 2>&1
-  RC2=$?
-  if [ $RC2 -ne 0]; then
-    echo "Create table failed for $TREE_TABLE"
-    return $RC2 2>/dev/null || exit $RC2
-  else
-    true 
-  fi
-  maprcli table cf create -path $TREE_TABLE -cfname t -maxversions 1 -inmemory false -compression lzf -ttl 0 > /dev/null 2>&1
-  RC2=$?
-  if [ $RC2 -ne 0]; then
-    echo "Create CF failed for $TREE_TABLE"
-    return $RC2 2>/dev/null || exit $RC2
-  else
-    true 
-  fi
-elif
-  echo "$TREE_TABLE exists."
-fi
-
-maprcli table info -path $META_TABLE > /dev/null 2>&1
-RC1=$?
-if [ $RC -ne 0 ]; then
-  echo "Creating $META_TABLE table..."
-  maprcli table create -path $META_TABLE -defaultreadperm p -defaultwriteperm p -defaultappendperm p > /dev/null 2>&1
-  RC2=$?
-  if [ $RC2 -ne 0]; then
-    echo "Create table failed for $META_TABLE"
-    return $RC2 2>/dev/null || exit $RC2
-  else
-    true 
-  fi
-  maprcli table cf create -path $META_TABLE -cfname name -maxversions 1 -inmemory false -compression lzf -ttl 0 > /dev/null 2>&1
-  RC2=$?
-  if [ $RC2 -ne 0]; then
-    echo "Create table failed for $META_TABLE"
-    return $RC2 2>/dev/null || exit $RC2
-  else
-    true 
-  fi
-elif
-  echo "$META_TABLE exists."
+  echo "$t exists."
 fi
 
 echo "Complete!"
