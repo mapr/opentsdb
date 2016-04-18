@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # Small script to setup the tables used by OpenTSDB.
 
 TSDB_TABLE=${TSDB_TABLE:-'/tsdb'}
@@ -14,9 +14,9 @@ for t in $TSDB_TABLE $UID_TABLE $TREE_TABLE $META_TABLE; do
     echo "Creating $t table..."
     maprcli table create -path $t -defaultreadperm p -defaultwriteperm p -defaultappendperm p > $LOGFILE 2>&1
     RC2=$?
-    if [ $RC2 -ne 0]; then
+    if [ $RC2 -ne 0 ]; then
       echo "Create table failed for $t"
-      return $RC2 2>/dev/null || exit $RC2
+      return $RC2 2> /dev/null || exit $RC2
     fi
     COLUMN_FLAG="false"
     if [ "$t" == "$UID_TABLE" ]; then
@@ -31,9 +31,9 @@ for t in $TSDB_TABLE $UID_TABLE $TREE_TABLE $META_TABLE; do
       echo "Creating CF $columnFamily for Table $t"
       maprcli table cf create -path $t -cfname $columnFamily -maxversions 1 -inmemory $COLUMN_FLAG -compression lzf -ttl 0 > $LOGFILE 2>&1
       RC2=$?
-      if [ $RC2 -ne 0]; then
+      if [ $RC2 -ne 0 ]; then
         echo "Create CF $columnFamily failed for table $t"
-        return $RC2 2>/dev/null || exit $RC2
+        return $RC2 2> /dev/null || exit $RC2
       fi
     done
   else
