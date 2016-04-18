@@ -5,7 +5,7 @@ TSDB_TABLE=${TSDB_TABLE:-'/tsdb'}
 UID_TABLE=${UID_TABLE:-'/tsdb-uid'}
 TREE_TABLE=${TREE_TABLE:-'/tsdb-tree'}
 META_TABLE=${META_TABLE:-'/tsdb-meta'}
-LOGFILE=${OT_HOME}/var/log/opentsdb/opentsdb_create_table_$$.log
+LOGFILE="__INSTALL__/var/log/opentsdb/opentsdb_create_table_$$.log"
 
 for t in $TSDB_TABLE $UID_TABLE $TREE_TABLE $META_TABLE; do
   maprcli table info -path $t> $LOGFILE 2>&1
