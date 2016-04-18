@@ -18,21 +18,18 @@ for t in $TSDB_TABLE $UID_TABLE $TREE_TABLE $META_TABLE; do
       echo "Create table failed for $t"
       return $RC2 2>/dev/null || exit $RC2
     fi
+    COLUMN_FLAG="false"
     if [ "$t" == "$UID_TABLE" ]; then
-      COLUMNS="id name"
+      OT_COLUMNS="id name"
+      COLUMN_FLAG="true"
     elif [ "$t" == "$META_TABLE" ]; then
-      COLUMNS="name"
+      OT_COLUMNS="name"
     else
-      COLUMNS="t"
+      OT_COLUMNS="t"
     fi
-    for columnFamily in $COLUMNS ; do
+    for columnFamily in $OT_COLUMNS ; do
       echo "Creating CF $columnFamily for Table $t"
-      if [ "$t" == "$UID_TABLE" ]; then
-        flag="true"
-      else
-        flag="false"
-      fi 
-      maprcli table cf create -path $t -cfname $columnFamily -maxversions 1 -inmemory $flag -compression lzf -ttl 0 > $LOGFILE 2>&1
+      maprcli table cf create -path $t -cfname $columnFamily -maxversions 1 -inmemory $COLUMN_FLAG -compression lzf -ttl 0 > $LOGFILE 2>&1
       RC2=$?
       if [ $RC2 -ne 0]; then
         echo "Create CF $columnFamily failed for table $t"
