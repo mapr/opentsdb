@@ -1,48 +1,46 @@
 #!/bin/sh
-# Small script to setup the HBase tables used by OpenTSDB.
+# Small script to setup the tables used by OpenTSDB.
 
-test -n "$HBASE_HOME" || {
-  echo >&2 'The environment variable HBASE_HOME must be set'
-  exit 1
-}
-test -d "$HBASE_HOME" || {
-  echo >&2 "No such directory: HBASE_HOME=$HBASE_HOME"
-  exit 1
-}
+TSDB_TABLE=${TSDB_TABLE:-'/tsdb'}
+UID_TABLE=${UID_TABLE:-'/tsdb-uid'}
+TREE_TABLE=${TREE_TABLE:-'/tsdb-tree'}
+META_TABLE=${META_TABLE:-'/tsdb-meta'}
+LOGFILE=${OT_HOME}/var/log/opentsdb/opentsdb_create_table_$$.log
 
-TSDB_TABLE=${TSDB_TABLE-'/tsdb'}
-UID_TABLE=${UID_TABLE-'/tsdb-uid'}
-TREE_TABLE=${TREE_TABLE-'/tsdb-tree'}
-META_TABLE=${META_TABLE-'/tsdb-meta'}
-BLOOMFILTER=${BLOOMFILTER-'ROW'}
-# LZO requires lzo2 64bit to be installed + the hadoop-gpl-compression jar.
-COMPRESSION=${COMPRESSION-'LZO'}
-# All compression codec names are upper case (NONE, LZO, SNAPPY, etc).
-COMPRESSION=`echo "$COMPRESSION" | tr a-z A-Z`
+for t in $TSDB_TABLE $UID_TABLE $TREE_TABLE $META_TABLE; do
+  maprcli table info -path $t> $LOGFILE 2>&1
+  RC1=$?
+  if [ $RC1 -ne 0 ]; then
+    echo "Creating $t table..."
+    maprcli table create -path $t -defaultreadperm p -defaultwriteperm p -defaultappendperm p > $LOGFILE 2>&1
+    RC2=$?
+    if [ $RC2 -ne 0]; then
+      echo "Create table failed for $t"
+      return $RC2 2>/dev/null || exit $RC2
+    fi
+    COLUMN_FLAG="false"
+    if [ "$t" == "$UID_TABLE" ]; then
+      OT_COLUMNS="id name"
+      COLUMN_FLAG="true"
+    elif [ "$t" == "$META_TABLE" ]; then
+      OT_COLUMNS="name"
+    else
+      OT_COLUMNS="t"
+    fi
+    for columnFamily in $OT_COLUMNS ; do
+      echo "Creating CF $columnFamily for Table $t"
+      maprcli table cf create -path $t -cfname $columnFamily -maxversions 1 -inmemory $COLUMN_FLAG -compression lzf -ttl 0 > $LOGFILE 2>&1
+      RC2=$?
+      if [ $RC2 -ne 0]; then
+        echo "Create CF $columnFamily failed for table $t"
+        return $RC2 2>/dev/null || exit $RC2
+      fi
+    done
+  else
+    echo "$t exists."
+  fi
+done
+echo "Complete!"
 
-case $COMPRESSION in
-  (NONE|LZO|GZIP|SNAPPY)  :;;  # Known good.
-  (*)
-    echo >&2 "warning: compression codec '$COMPRESSION' might not be supported."
-    ;;
-esac
+true
 
-# HBase scripts also use a variable named `HBASE_HOME', and having this
-# variable in the environment with a value somewhat different from what
-# they expect can confuse them in some cases.  So rename the variable.
-hbh=$HBASE_HOME
-unset HBASE_HOME
-MAPR_DAEMON=spyglass exec "$hbh/bin/hbase" shell <<EOF
-create '$UID_TABLE',
-  {NAME => 'id', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'},
-  {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
-
-create '$TSDB_TABLE',
-  {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
-  
-create '$TREE_TABLE',
-  {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
-  
-create '$META_TABLE',
-  {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
-EOF
