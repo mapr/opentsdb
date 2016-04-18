@@ -50,7 +50,7 @@ nodeport="4232"
 nodecount=0
 nodelist=""
 zk_nodecount=0
-zk_nodeport=7222
+zk_nodeport=5181
 zk_nodelist=""
 
 #############################################################################
