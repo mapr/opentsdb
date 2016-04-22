@@ -174,12 +174,11 @@ function createTSDBHbaseTables() {
     local rc=1
     # Create TSDB tables
     if [ $CLDB_RUNNING -eq 1 ]; then
-        HBASE_VERSION=`cat $MAPR_HOME/hbase/hbaseversion`
-        export COMPRESSION=NONE; export HBASE_HOME=$MAPR_HOME/hbase/hbase-$HBASE_VERSION; su -c ${OT_HOME}/share/opentsdb/tools/create_table.sh > ${OT_HOME}/var/log/opentsdb/opentsdb_install.log $MAPR_USER
+        su -c ${OT_HOME}/share/opentsdb/tools/create_table.sh > ${OT_HOME}/var/log/opentsdb/opentsdb_install.log $MAPR_USER
         rc=$?
     fi
     if [ $rc -ne 0 ]; then
-        echo "WARNING: Failed to create Hbase TSDB tables"
+        echo "WARNING: Failed to create TSDB tables"
     fi
     return $rc
 }
