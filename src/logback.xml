@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
   <!--<jmxConfigurator/>-->
+  <!-- comment out console logging
   <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
     <encoder>
       <pattern>
@@ -8,6 +9,7 @@
       </pattern>
     </encoder>
   </appender>
+  -->
   
   <!-- This appender is responsible for the /logs endpoint. It maintains MaxSize 
        lines of the log file in memory. If you don't need the endpoint, disable
