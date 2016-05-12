@@ -78,7 +78,7 @@ if test -d "$BASEMAPR/hadoop/hadoop-0.20.2/lib"; then
  CLASSPATH="$BASEMAPR/hadoop/hadoop-0.20.2/conf:$CLASSPATH"
  
  for jar in "$BASEMAPR"/hadoop/hadoop-0.20.2/lib/*.jar; do
-   if [ "`echo $jar | grep slf4j`" != "" ]; then
+   if [[ ( "`echo $jar | grep slf4j`" != "" ) || ( "`echo $jar | grep netty`" != "" ) ]]; then
      continue
    fi
    CLASSPATH="$CLASSPATH:$jar"
