@@ -157,7 +157,7 @@ APP_OPTS_2=""
 # Export APP specific variables here
 # Set a default value for JVMARGS
 : ${JVMXMX:=-Xmx6000m}
-: ${JVMARGS:=-DLOG_FILE_PREFIX=${APP_LOG_FILE} -enableassertions -enablesystemassertions $JVMXMX -XX:OnOutOfMemoryError=$APP_HOME_DIR/share/opentsdb/tools/opentsdb_restart.py}
+: ${JVMARGS:=-enableassertions -enablesystemassertions $JVMXMX } 
 export JVMARGS
 
 
