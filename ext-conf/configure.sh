@@ -184,6 +184,19 @@ function createTSDBHbaseTables() {
 }
 
 
+#############################################################################
+# Function to create cron job for purging old data from tables 
+#
+#############################################################################
+function createCronJob() {
+    CRONTAB="/var/spool/cron/$MAPR_USER"
+    if ! cat $CRONTAB | fgrep purgeData > /dev/null 2>&1 ; then
+        echo -e "SHELL=/bin/bash\n45 03 * * *      $OT_HOME/tsdb_cluster_mgmt.sh -purgeData >> $OT_HOME/var/log/opentsdb/purgeData.log 2>&1 " >> "$CRONTAB"
+        chown $MAPR_USER:$MAPR_GROUP "$CRONTAB"
+    fi
+    return 0
+}
+
 # typically called from master configure.sh with the following arguments
 #
 # configure.sh  -nodeCount ${otNodesCount} -OT "${otNodesList}" -nodePort ${otPort}
@@ -265,7 +278,7 @@ cp ${OT_CONF_FILE} ${NEW_OT_CONF_FILE}
 
 configureOTPort
 configureZKQuorum
-
+createCronJob
 #install our changes
 cp ${NEW_OT_CONF_FILE} ${OT_CONF_FILE}
 if [ $OT_CONF_ASSUME_RUNNING_CORE -eq 1 ]; then
