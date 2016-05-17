@@ -191,7 +191,7 @@ function createTSDBHbaseTables() {
 function createCronJob() {
     CRONTAB="/var/spool/cron/$MAPR_USER"
     if ! cat $CRONTAB | fgrep purgeData > /dev/null 2>&1 ; then
-        echo -e "SHELL=/bin/bash\n45 03 * * *      $OT_HOME/tsdb_cluster_mgmt.sh -purgeData >> $OT_HOME/var/log/opentsdb/purgeData.log 2>&1 " >> "$CRONTAB"
+        echo -e "SHELL=/bin/bash\n45 03 * * *      $OT_HOME/bin/tsdb_cluster_mgmt.sh -purgeData >> $OT_HOME/var/log/opentsdb/purgeData.log 2>&1 " >> "$CRONTAB"
         chown $MAPR_USER:$MAPR_GROUP "$CRONTAB"
     fi
     return 0
