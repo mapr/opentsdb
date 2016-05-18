@@ -155,8 +155,17 @@ function configureOTIp() {
 function checkCoreUp() {
    local rc=0
    local svc=""
-   local core_status_scripts="$MAPR_HOME/initscripts/zookeeper $MAPR_HOME/initscripts/mapr-warden \
-             $MAPR_HOME/initscripts/mapr-cldb"
+   local core_status_scripts="$MAPR_HOME/initscripts/mapr-warden"
+
+
+   # only add the checks for services configured locally
+   if [ -e "$MAPR_HOME/roles/zookeeper" ]; then
+       core_status_scripts="$core_status_scripts $MAPR_HOME/initscripts/zookeeper"
+   fi
+
+   if [ -e "$MAPR_HOME/roles/cldb" ]; then
+       core_status_scripts="$core_status_scripts $MAPR_HOME/initscripts/mapr-cldb"
+   fi
 
    # make sure sercices are up
    for svc in  $core_status_scripts; do
