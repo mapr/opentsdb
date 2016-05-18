@@ -146,7 +146,7 @@ else
     APP_PID_DIR="$APP_HOME_DIR/data"
 fi
 
-APP_LOCK_DIR=${APP_HOME_DIR}/var/lock/subsys
+APP_LOCK_DIR=$APP_HOME_DIR/var/lock/subsys
 APP_LOCK_FILE="$APP_LOCK_DIR/$APP"
 APP_LOG_FILE="$APP_LOG_DIR/${APP}-${APP_HOSTNAME}-"    # use this for apps own logging
 APP_LOG_START_FILE="$APP_LOG_DIR/${APP}_startup.log"   # use this for startup logging
@@ -241,8 +241,10 @@ check() {
                 # the command line looks like. When underlying services are execed,
                 # the string we need to grep for migh be very different than what we expect
                 #
-                # cat $file
-                grep -q $APP_MAIN $file 2> /dev/null && return
+                if [ $APP_SCRIPT_DEBUG -eq 1 ]; then
+                    cat $file >> "$APP_SCRIPT_DEBUG_FILE"
+                fi
+                grep -q $APP_MAIN $file > /dev/null 2>&1 && return
             fi
         fi
     fi
@@ -377,7 +379,7 @@ start() {
         echo $APP_PID > "$APP_PID_FILE"
     fi
     local i=1
-    until [ $i -eq 200 ]; do
+    until [ $i -eq 100 ]; do
         sleep 0.3
         if check && [ -s "$APP_PID_FILE" ]; then
             echo "$APP ($APP_PID) started with log $APP_LOG_START_FILE"
