@@ -71,7 +71,7 @@ APP_DOES_NOT_MANAGE_PID_FILE=1
 APP_ROTATES_OWN_LOG_FILE=1
 APP_ENABLE_GROUPLEADER=1
 APP_CREATE_MAPR_PID_SYMLINK=1
-
+APP_SCRIPT_DEBUG=0
 
 if [ $APP_ENABLE_GROUPLEADER -eq 1 ]; then
     KILL_GROUP="-- -"
@@ -87,6 +87,8 @@ SCRIPT_NAME=${0##*/}
 APP=$(basename $SCRIPT_NAME .sh | cut -d- -f2)
 APP_DIR=$(cd "$SCRIPT_DIR"; pwd)
 APP_SCRIPT="$APP_DIR/$SCRIPT_NAME"
+APP_SCRIPT_DEBUG_FILE="/tmp/$APP.debug.log"
+
 if [ $APP_RESOLVE_LINK -eq 1 ]; then
     ACTUAL_LOCATION=$(readlink -f "$APP_SCRIPT")
 else
@@ -157,7 +159,7 @@ APP_OPTS_2=""
 # Export APP specific variables here
 # Set a default value for JVMARGS
 : ${JVMXMX:=-Xmx6000m}
-: ${JVMARGS:=-enableassertions -enablesystemassertions $JVMXMX } 
+: ${JVMARGS:=-enableassertions -enablesystemassertions $JVMXMX }
 export JVMARGS
 
 
@@ -228,22 +230,21 @@ check() {
             if [ $APP_REQUIRE_JAVA -eq 1 ]; then
                 # For Java apps rely on jps to get around the 4k /proc/<pid>/cmdline limitation
                 # on older systems
+                if [ $APP_SCRIPT_DEBUG -eq 1 ]; then
+                    echo "$(date): looking for $APP_MAIN($APP_PID)" >> "$APP_SCRIPT_DEBUG_FILE"
+                    jps -l >> "$APP_SCRIPT_DEBUG_FILE"
+                fi
                 jps -l | grep -q "$APP_MAIN" > /dev/null 2>&1 && return
             else
                 local file=/proc/$APP_PID/cmdline
-                [ ! -f $file ] && return
                 # If you are having trouble with startup, uncomment this line to see what
                 # the command line looks like. When underlying services are execed,
                 # the string we need to grep for migh be very different than what we expect
                 #
                 # cat $file
-                grep -q $APP_MAIN $file && return
+                grep -q $APP_MAIN $file 2> /dev/null && return
             fi
         fi
-        if [ $APP_DOES_NOT_MANAGE_PID_FILE -eq 1 ]; then
-            rm -f $APP_PID_FILE
-        fi
-        rm -f $MAPR_APP_PID_FILE
     fi
     false
 }
@@ -329,6 +330,24 @@ start() {
         false || return
     fi
 
+    if [ -d "$APP_LOCK_DIR" -a -f "$APP_LOCK_FILE" ]; then
+        STATE=$(cat "$APP_LOCK_FILE")
+        case $STATE in
+           runnig)
+              echo "$APP stale lock file - fixing"
+              ;;
+           starting)
+              echo "$APP is already starting"
+              false || return
+              ;;
+           stopping)
+              echo "$APP is already stopping"
+              false || return
+              ;;
+        esac
+    fi
+    echo "starting"> "$APP_LOCK_FILE"
+
     # Manage logs
     rotate_log "$APP_LOG_START_FILE"
     touch "$APP_LOG_START_FILE"
@@ -352,17 +371,23 @@ start() {
     APP_PID=$!
     # do not overwrite service managed pid file and wait for process to write it
     if [ $APP_DOES_NOT_MANAGE_PID_FILE -eq 1 ]; then
+        if [ $APP_SCRIPT_DEBUG -eq 1 ]; then
+            echo "$(date): creating $APP_PID_FILE($APP_PID)" >> "$APP_SCRIPT_DEBUG_FILE"
+        fi
         echo $APP_PID > "$APP_PID_FILE"
     fi
     local i=1
-    until [ $i -eq 100 ]; do
+    until [ $i -eq 200 ]; do
         sleep 0.3
         if check && [ -s "$APP_PID_FILE" ]; then
             echo "$APP ($APP_PID) started with log $APP_LOG_START_FILE"
             if [ $APP_SELF_CONTAINED -o "$uid" = "root" ]; then
-                [ -d "$LOCK_DIR" ] && touch "$APP_LOCK_FILE"
+                [ -d "$APP_LOCK_DIR" ] && echo "running" > "$APP_LOCK_FILE"
             fi
             if [ $APP_CREATE_MAPR_PID_SYMLINK -eq 1 ]; then
+                if [ $APP_SCRIPT_DEBUG -eq 1 ]; then
+                    echo "$(date): creating $APP_MAPR_PID_FILE($APP_PID)" >> "$APP_SCRIPT_DEBUG_FILE"
+                fi
                 ln -s $APP_PID_FILE $MAPR_APP_PID_FILE > /dev/null 2>&1
             fi
             true && return
@@ -372,7 +397,10 @@ start() {
     check TERM && sleep 2 && check KILL
     wait $APP_PID
     echo "$APP ($APP_PID) start failed ($?). See $APP_LOG_START_FILE for details"
-    rm -f $APP_PID_FILE $MAPR_APP_PID_FILE
+    if [ $APP_SCRIPT_DEBUG -eq 1 ]; then
+        echo "$(date): removing $APP_PID_FILE($APP_PID) and $MAPR_APP_PID_FILE" >> "$APP_SCRIPT_DEBUG_FILE"
+    fi
+    rm -f $APP_PID_FILE $MAPR_APP_PID_FILE $APP_LOCK_FILE
     false
 }
 
@@ -390,6 +418,7 @@ status() {
 
 stop() {
     if check; then
+        echo "stopping" > "$APP_LOCK_FILE"
         check TERM
         echo "$APP ($APP_PID) stopping"
         local i=1
@@ -399,7 +428,10 @@ stop() {
             i=$((i+1))
         done
         check KILL
-        rm -f "$APP_LOCK_FILE" >/dev/null 2>&1
+        if [ $APP_SCRIPT_DEBUG -eq 1 ]; then
+            echo "$(date): removing $APP_PID_FILE($APP_PID), $MAPR_APP_PID_FILE, $APP_LOCKFILE " >> "$APP_SCRIPT_DEBUG_FILE"
+        fi
+        rm -f "$APP_LOCK_FILE" "$APP_PID_FILE" "$MAPR_APP_PID_FILE" >/dev/null 2>&1
         true && return
     elif [ -n "$APP_PID" ]; then
         echo "$APP ($APP_PID) not running"
