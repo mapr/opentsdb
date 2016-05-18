@@ -6,7 +6,7 @@
 # Script to configure opentTsdb
 #
 # __INSTALL_ (double underscore at the end)  gets expanded to __INSTALL__ during pakcaging
-# set OT_HOME explicitly if running this in a source built env.
+# set OTSDB_HOME explicitly if running this in a source built env.
 #
 # This script is sourced from the master configure.sh, this way any variables
 # we need are available to us.
@@ -33,8 +33,8 @@
 # -nodeZkPort   the port Zookeeper is listening on
 
 # This gets fillled out at package time
-OT_HOME="${OT_HOME:-__INSTALL__}"
-OT_CONF_FILE="${OT_CONF_FILE:-${OT_HOME}/etc/opentsdb/opentsdb.conf}"
+OTSDB_HOME="${OTSDB_HOME:-__INSTALL__}"
+OT_CONF_FILE="${OT_CONF_FILE:-${OTSDB_HOME}/etc/opentsdb/opentsdb.conf}"
 NEW_OT_CONF_FILE=${NEW_OT_CONF_FILE:-${OT_CONF_FILE}.progress}
 MAPR_HOME=${MAPR_HOME:-/opt/mapr}
 MAPR_CONF_DIR="${MAPR_HOME}/conf/conf.d"
@@ -64,7 +64,7 @@ function installWardenConfFile() {
     fi
 
     # Copy warden conf
-    cp ${OT_HOME}/etc/conf/warden.opentsdb.conf ${MAPR_CONF_DIR}
+    cp ${OTSDB_HOME}/etc/conf/warden.opentsdb.conf ${MAPR_CONF_DIR}
     if [ $? -ne 0 ]; then
         echo "WARNING: Failed to install Warden conf file for service - service will not start"
     fi
@@ -108,7 +108,7 @@ function installAsyncHbaseJar() {
             verify_ver=$(echo $jar_ver | cut -d. -f1,2)
             # verify the two most significant
             if [ -n "$verify_ver" -a "$verify_ver" = "$ASYNCVER" ]; then
-                cp  "$asyncHbaseJar" ${OT_HOME}/share/opentsdb/lib/asynchbase-"$jar_ver".jar
+                cp  "$asyncHbaseJar" ${OTSDB_HOME}/share/opentsdb/lib/asynchbase-"$jar_ver".jar
                 rc=$?
             else
                 echo "ERROR: Incompatible asynchbase jar found"
@@ -149,6 +149,25 @@ function configureOTIp() {
 }
 
 #############################################################################
+# Function to check to make sure core is running
+#
+#############################################################################
+function checkCoreUp() {
+   local rc=0
+   local svc=""
+   local core_status_scripts="$MAPR_HOME/initscripts/zookeeper $MAPR_HOME/initscripts/mapr-warden \
+             $MAPR_HOME/initscripts/mapr-cldb"
+
+   # make sure sercices are up
+   for svc in  $core_status_scripts; do
+       $svc status
+       rc=$?
+       [ $rc -ne 0 ] && break
+   done
+   return $rc
+}
+
+#############################################################################
 # Function to wait for cldb to come up
 #
 #############################################################################
@@ -174,7 +193,7 @@ function createTSDBHbaseTables() {
     local rc=1
     # Create TSDB tables
     if [ $CLDB_RUNNING -eq 1 ]; then
-        su -c ${OT_HOME}/share/opentsdb/tools/create_table.sh > ${OT_HOME}/var/log/opentsdb/opentsdb_install.log $MAPR_USER
+        su -c ${OTSDB_HOME}/share/opentsdb/tools/create_table.sh > ${OTSDB_HOME}/var/log/opentsdb/opentsdb_install.log $MAPR_USER
         rc=$?
     fi
     if [ $rc -ne 0 ]; then
@@ -191,7 +210,7 @@ function createTSDBHbaseTables() {
 function createCronJob() {
     CRONTAB="/var/spool/cron/$MAPR_USER"
     if ! cat $CRONTAB | fgrep purgeData > /dev/null 2>&1 ; then
-        echo -e "SHELL=/bin/bash\n45 03 * * *      $OT_HOME/bin/tsdb_cluster_mgmt.sh -purgeData >> $OT_HOME/var/log/opentsdb/purgeData.log 2>&1 " >> "$CRONTAB"
+        echo -e "SHELL=/bin/bash\n45 03 * * *      $OTSDB_HOME/bin/tsdb_cluster_mgmt.sh -purgeData >> $OTSDB_HOME/var/log/opentsdb/purgeData.log 2>&1 " >> "$CRONTAB"
         chown $MAPR_USER:$MAPR_GROUP "$CRONTAB"
     fi
     return 0
@@ -282,6 +301,13 @@ createCronJob
 #install our changes
 cp ${NEW_OT_CONF_FILE} ${OT_CONF_FILE}
 if [ $OT_CONF_ASSUME_RUNNING_CORE -eq 1 ]; then
+
+    checkCoreUp
+    RC=$?
+    if [ $RC -ne 0 ]; then
+        echo "WARNING: core services are not up - not running -R configuration"
+        return 3 2> /dev/null || exit 3
+    fi
 
     installAsyncHbaseJar
     RC=$?
