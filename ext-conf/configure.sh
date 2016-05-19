@@ -218,7 +218,7 @@ function createTSDBHbaseTables() {
 #############################################################################
 function createCronJob() {
     CRONTAB="/var/spool/cron/$MAPR_USER"
-    if ! cat $CRONTAB | fgrep purgeData > /dev/null 2>&1 ; then
+    if ! cat $CRONTAB 2> /dev/null | fgrep purgeData > /dev/null 2>&1 ; then
         echo -e "SHELL=/bin/bash\n45 03 * * *      $OTSDB_HOME/bin/tsdb_cluster_mgmt.sh -purgeData >> $OTSDB_HOME/var/log/opentsdb/purgeData.log 2>&1 " >> "$CRONTAB"
         chown $MAPR_USER:$MAPR_GROUP "$CRONTAB"
     fi
@@ -310,13 +310,6 @@ createCronJob
 #install our changes
 cp ${NEW_OT_CONF_FILE} ${OT_CONF_FILE}
 if [ $OT_CONF_ASSUME_RUNNING_CORE -eq 1 ]; then
-
-    checkCoreUp
-    RC=$?
-    if [ $RC -ne 0 ]; then
-        echo "WARNING: core services are not up - not running -R configuration"
-        return 3 2> /dev/null || exit 3
-    fi
 
     installAsyncHbaseJar
     RC=$?
