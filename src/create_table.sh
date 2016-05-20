@@ -8,11 +8,11 @@ META_TABLE=${META_TABLE:-'/tsdb-meta'}
 LOGFILE="__INSTALL__/var/log/opentsdb/opentsdb_create_table_$$.log"
 
 for t in $TSDB_TABLE $UID_TABLE $TREE_TABLE $META_TABLE; do
-    maprcli table info -path $t> $LOGFILE 2>&1
+    maprcli table info -path $t > $LOGFILE 2>&1
     RC1=$?
     if [ $RC1 -ne 0 ]; then
         echo "Creating $t table..."
-        maprcli table create -path $t -defaultreadperm p -defaultwriteperm p -defaultappendperm p > $LOGFILE 2>&1
+        maprcli table create -path $t -defaultreadperm p -defaultwriteperm p -defaultappendperm p >> $LOGFILE 2>&1
         RC2=$?
         if [ $RC2 -ne 0 ]; then
             # check if another node beat us too it
@@ -34,7 +34,7 @@ for t in $TSDB_TABLE $UID_TABLE $TREE_TABLE $META_TABLE; do
         fi
         for columnFamily in $OT_COLUMNS ; do
             echo "Creating CF $columnFamily for Table $t"
-            maprcli table cf create -path $t -cfname $columnFamily -maxversions 1 -inmemory $COLUMN_FLAG -compression lzf -ttl 0 > $LOGFILE 2>&1
+            maprcli table cf create -path $t -cfname $columnFamily -maxversions 1 -inmemory $COLUMN_FLAG -compression lzf -ttl 0 >> $LOGFILE 2>&1
             RC2=$?
             if [ $RC2 -ne 0 ]; then
                 echo "Create CF $columnFamily failed for table $t"
