@@ -39,7 +39,7 @@ NEW_OT_CONF_FILE=${NEW_OT_CONF_FILE:-${OT_CONF_FILE}.progress}
 MAPR_HOME=${MAPR_HOME:-/opt/mapr}
 MAPR_CONF_DIR="${MAPR_HOME}/conf/conf.d"
 MAPR_USER=${MAPR_USER:-mapr}
-NOW=`date "+%Y%m%d_%H%M%S"`
+NOW=$(date "+%Y%m%d_%H%M%S")
 CLDB_RETRIES=24
 CLDB_RETRY_DLY=5
 CLDB_RUNNING=0
@@ -54,6 +54,21 @@ zk_nodeport=5181
 zk_nodelist=""
 
 #############################################################################
+# Function to log messages
+#
+# if $logFile is set the message gets logged there too
+#
+#############################################################################
+function logMsg() {
+    local msg
+    msg="$(date): $1"
+    echo $msg
+    if [ -n "$logFile" ] ; then
+        echo $msg >> $logFile
+    fi
+}
+
+#############################################################################
 # Function to install Warden conf file
 #
 #############################################################################
@@ -66,7 +81,7 @@ function installWardenConfFile() {
     # Copy warden conf
     cp ${OTSDB_HOME}/etc/conf/warden.opentsdb.conf ${MAPR_CONF_DIR}
     if [ $? -ne 0 ]; then
-        echo "WARNING: Failed to install Warden conf file for service - service will not start"
+        logMsg "WARNING: Failed to install Warden conf file for service - service will not start"
     fi
 }
 
@@ -111,13 +126,13 @@ function installAsyncHbaseJar() {
                 cp  "$asyncHbaseJar" ${OTSDB_HOME}/share/opentsdb/lib/asynchbase-"$jar_ver".jar
                 rc=$?
             else
-                echo "ERROR: Incompatible asynchbase jar found"
+                logMsg "ERROR: Incompatible asynchbase jar found"
             fi
         fi
     fi
 
     if [ $rc -eq 1 ]; then
-        echo "ERROR: Failed to install asyncHbase Jar file"
+        logMsg "ERROR: Failed to install asyncHbase Jar file"
     fi
     return $rc
 }
@@ -206,7 +221,7 @@ function createTSDBHbaseTables() {
         rc=$?
     fi
     if [ $rc -ne 0 ]; then
-        echo "WARNING: Failed to create TSDB tables"
+        logMsg "WARNING: Failed to create TSDB tables - need to rerun configure.sh -R or run create_table.sh as $MAPR_USER"
     fi
     return $rc
 }
@@ -235,7 +250,7 @@ function createCronJob() {
 #
 # Parse the arguments
 
-usage="usage: $0 [-nodeCount <cnt>] [-nodePort <port> -nodeZkCount <zkCnt>] [-nodeZkPort <zkPort>] [-R]-OT \"ip:port,ip1:port,\" -Z \"ip:port,ip1:port,\" "
+usage="usage: $0 [-nodeCount <cnt>] [-nodePort <port> -nodeZkCount <zkCnt>] [-nodeZkPort <zkPort>] [-R] -OT \"ip:port,ip1:port,\" -Z \"ip:port,ip1:port,\" "
 if [ ${#} -gt 1 ]; then
     # we have arguments - run as as standalone - need to get params and
     # XXX why do we need the -o to make this work?
@@ -315,7 +330,7 @@ if [ $OT_CONF_ASSUME_RUNNING_CORE -eq 1 ]; then
     RC=$?
     if [ $RC -ne 0 ]; then
         # If we couldn't install the jar file - report early
-        echo "WARNING: opentsdb - failed to install asynchbase jar"
+        logMsg "WARNING: opentsdb - failed to install asynchbase jar"
         return $RC 2>/dev/null || exit $RC
     fi
     # if warden isn't running, nothing else will - likely uninstall
@@ -325,7 +340,7 @@ if [ $OT_CONF_ASSUME_RUNNING_CORE -eq 1 ]; then
         if [ $? -eq 0 ]; then
             installWardenConfFile
         else
-            echo "WARNING: opentsdb service not enabled - failed to setup hbase tables"
+            logMsg "WARNING: opentsdb service not enabled - failed to setup hbase tables"
         fi
     fi
 fi
