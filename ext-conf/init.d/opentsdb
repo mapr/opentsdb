@@ -225,7 +225,8 @@ check() {
         else
             KILL_ARGS="-$sig $KILL_GROUP$APP_PID"
         fi
-        if kill $KILL_ARGS > /dev/null 2>&1; then
+        # need to use /bin/kill since dash builtin doesn't understand - prefix for process group
+        if /bin/kill $KILL_ARGS > /dev/null 2>&1; then
             # check if it is truly $APP
             if [ $APP_REQUIRE_JAVA -eq 1 ]; then
                 # For Java apps rely on jps to get around the 4k /proc/<pid>/cmdline limitation
