@@ -232,12 +232,22 @@ function createTSDBHbaseTables() {
 #
 #############################################################################
 function createCronJob() {
+    local CRONTAB
+    local min
+    local hour
+
+    min=$RANDOM
+    hour=$RANDOM
+
+    let "min %= 60"
+    let "hour %= 6"  # Try to do this at low usage time
+
     CRONTAB="/var/spool/cron/$MAPR_USER"
-    if ! cat $CRONTAB 2> /dev/null | fgrep purgeData > /dev/null 2>&1 ; then
-        if ! cat $CRONTAB | fgrep -q SHELL && [ ! -s $CRONTAB ]; then
+    if ! cat $CRONTAB 2> /dev/null | fgrep -q purgeData > /dev/null 2>&1 ; then
+        if ! cat $CRONTAB 2> /dev/null | fgrep -q SHELL && [ ! -s $CRONTAB ]; then
             echo "SHELL=/bin/bash" >> "$CRONTAB"
         fi
-        echo "45 03 * * *      $OTSDB_HOME/bin/tsdb_cluster_mgmt.sh -purgeData >> $OTSDB_HOME/var/log/opentsdb/purgeData.log 2>&1 " >> "$CRONTAB"
+        echo "$min $hour * * *      $OTSDB_HOME/bin/tsdb_cluster_mgmt.sh -purgeData >> $OTSDB_HOME/var/log/opentsdb/purgeData.log 2>&1 " >> "$CRONTAB"
         chown $MAPR_USER:$MAPR_GROUP "$CRONTAB"
     fi
     return 0
