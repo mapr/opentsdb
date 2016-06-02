@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 # Small script to setup the tables used by OpenTSDB.
 
-TSDB_TABLE=${TSDB_TABLE:-'/tsdb'}
-UID_TABLE=${UID_TABLE:-'/tsdb-uid'}
-TREE_TABLE=${TREE_TABLE:-'/tsdb-tree'}
-META_TABLE=${META_TABLE:-'/tsdb-meta'}
-LOGFILE="__INSTALL__/var/log/opentsdb/opentsdb_create_table_$$.log"
-
+TSDB_TABLE=${TSDB_TABLE:-'/monitoring/tsdb'}
+UID_TABLE=${UID_TABLE:-'/monitoring/tsdb-uid'}
+TREE_TABLE=${TREE_TABLE:-'/monitoring/tsdb-tree'}
+META_TABLE=${META_TABLE:-'/monitoring/tsdb-meta'}
+LOGFILE=${OT_HOME}/var/log/opentsdb/opentsdb_create_table_$$.log
+# Create monitoring volume before creating tables
+maprcli volume create -name monitoring -path /monitoring > $LOGFILE 2>&1
+RC0=$?
+if [ $RC0 -ne 0 ]; then
+  echo "Create volume failed for /monitoring"
+  return $RC0 2> /dev/null || exit $RC0
+fi
 for t in $TSDB_TABLE $UID_TABLE $TREE_TABLE $META_TABLE; do
     maprcli table info -path $t > $LOGFILE 2>&1
     RC1=$?
