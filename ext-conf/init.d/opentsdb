@@ -96,6 +96,9 @@ else
 fi
 ACTUAL_SCRIPT_NAME="${ACTUAL_LOCATION##*/}"
 APP_HOSTNAME=$(hostname --fqdn)
+if [ -z "$APP_HOSTNAME" ]; then
+    APP_HOSTNAME=$(hostname)
+fi
 
 #if MAPR_HOME isn't set figure it out
 # You need to alter the /*/*/etc/init.d and /etc/init.d patterns here if your structure
