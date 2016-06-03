@@ -1,19 +1,25 @@
 #!/usr/bin/env bash
 # Small script to setup the tables used by OpenTSDB.
 
-MONITORING_VOLUME_NAME=${MONITORING_VOLUME_NAME:-'monitoring'}
-MONITORING_TSDB_TABLE=${MONITORING_TSDB_TABLE:-'/$MONITORING_VOLUME_NAME/tsdb'}
-MONITORING_UID_TABLE=${MONITORING_UID_TABLE:-'/$MONITORING_VOLUME_NAME/tsdb-uid'}
-MONITORING_TREE_TABLE=${MONITORING_TREE_TABLE:-'/$MONITORING_VOLUME_NAME/tsdb-tree'}
-MONITORING_META_TABLE=${MONITORING_META_TABLE:-'/$MONITORING_VOLUME_NAME/tsdb-meta'}
-LOGFILE=${OTSDB_HOME}/var/log/opentsdb/opentsdb_create_table_$$.log
+MONITORING_VOLUME_NAME=${MONITORING_VOLUME_NAME:-"monitoring"}
+MONITORING_TSDB_TABLE=${MONITORING_TSDB_TABLE:-"/$MONITORING_VOLUME_NAME/tsdb"}
+MONITORING_UID_TABLE=${MONITORING_UID_TABLE:-"/$MONITORING_VOLUME_NAME/tsdb-uid"}
+MONITORING_TREE_TABLE=${MONITORING_TREE_TABLE:-"/$MONITORING_VOLUME_NAME/tsdb-tree"}
+MONITORING_META_TABLE=${MONITORING_META_TABLE:-"/$MONITORING_VOLUME_NAME/tsdb-meta"}
+LOGFILE="__INSTALL__/var/log/opentsdb/opentsdb_create_table_$$.log"
 # Create $MONITORING_VOLUME_NAME volume before creating tables
-maprcli volume create -name $MONITORING_VOLUME_NAME -path /$MONITORING_VOLUME_NAME > $LOGFILE 2>&1
-RC0=$?
-if [ $RC0 -ne 0 ]; then
-  echo "Create volume failed for /$MONITORING_VOLUME_NAME"
-  return $RC0 2> /dev/null || exit $RC0
+maprcli volume info -name $MONITORING_VOLUME_NAME > $LOGFILE 2>&1
+RC=$?
+if [ $RC -ne 0 ]; then
+  echo "Creating volume $MONITORING_VOLUME_NAME"
+  maprcli volume create -name $MONITORING_VOLUME_NAME -path /$MONITORING_VOLUME_NAME > $LOGFILE 2>&1
+  RC0=$?
+  if [ $RC0 -ne 0 ]; then
+    echo "Create volume failed for /$MONITORING_VOLUME_NAME"
+    return $RC0 2> /dev/null || exit $RC0
+  fi
 fi
+
 for t in $MONITORING_TSDB_TABLE $MONITORING_UID_TABLE $MONITORING_TREE_TABLE $MONITORING_META_TABLE; do
     maprcli table info -path $t > $LOGFILE 2>&1
     RC1=$?
