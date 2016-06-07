@@ -9,8 +9,10 @@ MONITORING_META_TABLE=${MONITORING_META_TABLE:-"/$MONITORING_VOLUME_NAME/tsdb-me
 LOGFILE="__INSTALL__/var/log/opentsdb/opentsdb_create_table_$$.log"
 # Create $MONITORING_VOLUME_NAME volume before creating tables
 maprcli volume info -name $MONITORING_VOLUME_NAME > $LOGFILE 2>&1
-RC=$?
-if [ $RC -ne 0 ]; then
+RC00=$?
+maprcli volume info -path /$MONITORING_VOLUME_NAME > $LOGFILE 2>&1
+RC01=$?
+if [ $RC00 -ne 0 -a $RC01 -ne 0 ]; then
   echo "Creating volume $MONITORING_VOLUME_NAME"
   maprcli volume create -name $MONITORING_VOLUME_NAME -path /$MONITORING_VOLUME_NAME > $LOGFILE 2>&1
   RC0=$?
@@ -18,6 +20,9 @@ if [ $RC -ne 0 ]; then
     echo "Create volume failed for /$MONITORING_VOLUME_NAME"
     return $RC0 2> /dev/null || exit $RC0
   fi
+elif [ $RC00 -eq 0 -o $RC01 -eq 0 ]; then
+  echo "$MONITORING_VOLUME_NAME exists or another volume is already mounted at location /$MONITORING_VOLUME_NAME"
+  return $RC00 2> /dev/null || exit $RC00  
 fi
 
 for t in $MONITORING_TSDB_TABLE $MONITORING_UID_TABLE $MONITORING_TREE_TABLE $MONITORING_META_TABLE; do
