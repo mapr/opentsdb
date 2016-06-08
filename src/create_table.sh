@@ -20,7 +20,7 @@ if [ $RC00 -ne 0 -a $RC01 -ne 0 ]; then
     echo "Create volume failed for /$MONITORING_VOLUME_NAME"
     return $RC0 2> /dev/null || exit $RC0
   fi
-elif [ $RC00 -eq 0 -o $RC01 -eq 0 ]; then
+elif [ $RC00 -ne $RC01 ]; then
   echo "$MONITORING_VOLUME_NAME exists or another volume is already mounted at location /$MONITORING_VOLUME_NAME"
   return $RC00 2> /dev/null || exit $RC00  
 fi
