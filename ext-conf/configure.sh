@@ -234,6 +234,11 @@ function createTSDBHbaseTables() {
 #############################################################################
 function createCronJob() {
     local CRONTAB
+    local OS
+    local OSNAME
+    local OSVER
+    local SUSE_OSVER
+    local OSPATCHLVL
     local min
     local hour
 
@@ -243,7 +248,35 @@ function createCronJob() {
     let "min %= 60"
     let "hour %= 6"  # Try to do this at low usage time
 
-    CRONTAB="/var/spool/cron/$MAPR_USER"
+    if [ -f /etc/redhat-release ]; then
+        OS=redhat
+        OSNAME=$(cut -d' ' -f1 < /etc/redhat-release)
+        OSVER=$(grep -o -P '[0-9\.]+' /etc/redhat-release | cut -d. -f1,2)
+    elif [ -f /etc/SuSE-release ]; then
+        OS=suse
+        OSVER=$(grep VERSION_ID /etc/os-release | cut -d\" -f2)
+        OSPATCHLVL=$(grep PATCHLEVEL /etc/SuSE-release | cut -d' ' -f3)
+        if [ -n "$OSPATCHLVL" ]; then
+            SUSE_OSVER=$OSVER.$PATCHLVL
+        else
+            SUSE_OSVER=$OSVER
+        fi
+    elif [ -f /etc/lsb-release ] && grep -q DISTRIB_ID=Ubuntu /etc/lsb-release; then
+        OS=ubuntu
+        OSVER=$(grep DISTRIB_RELEASE /etc/lsb-release | cut -d= -f2)
+    fi
+    case "$OS" in
+        redhat)
+            CRONTAB="/var/spool/cron/$MAPR_USER"
+            ;;
+        suse)
+            CRONTAB="/var/spool/cron/tabs/$MAPR_USER"
+            ;;
+        ubuntu)
+            CRONTAB="/var/spool/cron/crontabs/$MAPR_USER"
+            ;;
+    esac
+
     if ! cat $CRONTAB 2> /dev/null | fgrep -q purgeData > /dev/null 2>&1 ; then
         if ! cat $CRONTAB 2> /dev/null | fgrep -q SHELL && [ ! -s $CRONTAB ]; then
             echo "SHELL=/bin/bash" >> "$CRONTAB"
