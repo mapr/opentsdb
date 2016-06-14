@@ -72,12 +72,12 @@ function createTSDB() {
 
 # Try to create lock file - with 5 retries
 i=0
-while [[ $i < 5 ]]; do
-	hadoop fs -touchz $LOCKFILE
+while [[ $i < 30 ]]; do
+	hadoop fs -mkdir $LOCKFILE
 	RC=$?
 	if [ $RC -ne 0 ]; then
 	  echo "Unable to create lock file $LOCKFILE"
-	  sleep 30
+	  sleep 2
 	else
 		break
   fi
@@ -85,7 +85,7 @@ while [[ $i < 5 ]]; do
 done
 
 # Failed after retries - exit
-if [[ $i == 5 ]]; then
+if [[ $i == 30 ]]; then
   echo "Failed to create lock file after $i attempts."
 	exit 1 
 fi
@@ -95,12 +95,12 @@ RC1=$?
 
 # Try to remove lock file - with 5 retries
 i=0
-while [[ $i < 5 ]]; do
-	hadoop fs -rm $LOCKFILE
+while [[ $i < 30 ]]; do
+	hadoop fs -rm -r $LOCKFILE
 	RC=$?
 	if [ $RC -ne 0 ]; then
 	  echo "Unable to remove lock file $LOCKFILE"
-	  sleep 30
+	  sleep 2
 	else
 		break
 	fi
@@ -108,7 +108,7 @@ while [[ $i < 5 ]]; do
 done
 
 # Failed after retries - exit
-if [[ $i == 5 ]]; then
+if [[ $i == 30 ]]; then
   echo "Failed to remove lock file after $i attempts."
 	exit 1 
 fi
