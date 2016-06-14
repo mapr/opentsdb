@@ -75,7 +75,7 @@ i=0
 while [[ i < 5 ]]; do
 	hadoop fs -touchz $LOCKFILE
 	RC=$?
-	if [ $RC =ne 0 ]; then
+	if [ $RC -ne 0 ]; then
 	  echo "Unable to create lock file $LOCKFILE"
 	  sleep 30
 	else
@@ -98,7 +98,7 @@ i=0
 while [[ i < 5 ]]; do
 	hadoop fs -rm $LOCKFILE
 	RC=$?
-	if [ $RC =ne 0 ]; then
+	if [ $RC -ne 0 ]; then
 	  echo "Unable to remove lock file $LOCKFILE"
 	  sleep 30
 	else
