@@ -88,7 +88,7 @@ if [[ $i -eq 30 ]]; then
   echo "Failed to create lock file $MONITORING_LOCK_DIR after $i attempts."
   exit 1 
 fi
-
+export MAPR_DAEMON=spyglass
 createTSDB
 RC1=$?
 
