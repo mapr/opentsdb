@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-HADOOP_VERSION := 2.7.0-mapr-1506
+HADOOP_VERSION := 2.7.0-mapr-1607
 HADOOP := third_party/hadoop/hadoop-common-$(HADOOP_VERSION).jar
 HADOOP_BASE_URL := $(MAPR_MAVEN_REPO)/org/apache/hadoop/hadoop-common/$(HADOOP_VERSION)
 
