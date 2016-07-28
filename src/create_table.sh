@@ -2,10 +2,10 @@
 # Small script to setup the tables used by OpenTSDB.
 
 MONITORING_VOLUME_NAME=${MONITORING_VOLUME_NAME:-"mapr.monitoring"}
-MONITORING_TSDB_TABLE=${MONITORING_TSDB_TABLE:-"/$MONITORING_VOLUME_NAME/tsdb"}
-MONITORING_UID_TABLE=${MONITORING_UID_TABLE:-"/$MONITORING_VOLUME_NAME/tsdb-uid"}
-MONITORING_TREE_TABLE=${MONITORING_TREE_TABLE:-"/$MONITORING_VOLUME_NAME/tsdb-tree"}
-MONITORING_META_TABLE=${MONITORING_META_TABLE:-"/$MONITORING_VOLUME_NAME/tsdb-meta"}
+MONITORING_TSDB_TABLE=${MONITORING_TSDB_TABLE:-"/var/mapr/$MONITORING_VOLUME_NAME/tsdb"}
+MONITORING_UID_TABLE=${MONITORING_UID_TABLE:-"/var/mapr/$MONITORING_VOLUME_NAME/tsdb-uid"}
+MONITORING_TREE_TABLE=${MONITORING_TREE_TABLE:-"/var/mapr/$MONITORING_VOLUME_NAME/tsdb-tree"}
+MONITORING_META_TABLE=${MONITORING_META_TABLE:-"/var/mapr/$MONITORING_VOLUME_NAME/tsdb-meta"}
 LOGFILE="__INSTALL__/var/log/opentsdb/opentsdb_create_table_$$.log"
 MONITORING_LOCK_DIR=${MONITORING_LOCK_DIR:-"/tmp/otLockFile"}
 
@@ -13,18 +13,18 @@ function createTSDB() {
   # Create $MONITORING_VOLUME_NAME volume before creating tables
   maprcli volume info -name $MONITORING_VOLUME_NAME > $LOGFILE 2>&1
   RC00=$?
-  maprcli volume info -path /$MONITORING_VOLUME_NAME > $LOGFILE 2>&1
+  maprcli volume info -path /var/mapr/$MONITORING_VOLUME_NAME > $LOGFILE 2>&1
   RC01=$?
   if [ $RC00 -ne 0 -a $RC01 -ne 0 ]; then
     echo "Creating volume $MONITORING_VOLUME_NAME"
-    maprcli volume create -name $MONITORING_VOLUME_NAME -path /$MONITORING_VOLUME_NAME > $LOGFILE 2>&1
+    maprcli volume create -name $MONITORING_VOLUME_NAME -path /var/mapr/$MONITORING_VOLUME_NAME > $LOGFILE 2>&1
     RC0=$?
     if [ $RC0 -ne 0 ]; then
-      echo "Create volume failed for /$MONITORING_VOLUME_NAME"
+      echo "Create volume failed for /var/mapr/$MONITORING_VOLUME_NAME"
       return $RC0
     fi
   elif [ $RC00 -ne $RC01 ]; then
-    echo "$MONITORING_VOLUME_NAME exists or another volume is already mounted at location /$MONITORING_VOLUME_NAME"
+    echo "$MONITORING_VOLUME_NAME exists or another volume is already mounted at location /var/mapr/$MONITORING_VOLUME_NAME"
     return $RC00
   fi
   for t in $MONITORING_TSDB_TABLE $MONITORING_UID_TABLE $MONITORING_TREE_TABLE $MONITORING_META_TABLE; do
