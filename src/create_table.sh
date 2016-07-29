@@ -8,6 +8,11 @@ MONITORING_TREE_TABLE=${MONITORING_TREE_TABLE:-"/var/mapr/$MONITORING_VOLUME_NAM
 MONITORING_META_TABLE=${MONITORING_META_TABLE:-"/var/mapr/$MONITORING_VOLUME_NAME/tsdb-meta"}
 LOGFILE="__INSTALL__/var/log/opentsdb/opentsdb_create_table_$$.log"
 MONITORING_LOCK_DIR=${MONITORING_LOCK_DIR:-"/tmp/otLockFile"}
+BLOOMFILTER=${BLOOMFILTER-'ROW'}
+# LZO requires lzo2 64bit to be installed + the hadoop-gpl-compression jar.
+COMPRESSION=${COMPRESSION-'LZO'}
+# All compression codec names are upper case (NONE, LZO, SNAPPY, etc).
+COMPRESSION=`echo "$COMPRESSION" | tr a-z A-Z`
 
 function createTSDB() {
   # Create $MONITORING_VOLUME_NAME volume before creating tables
@@ -27,47 +32,35 @@ function createTSDB() {
     echo "$MONITORING_VOLUME_NAME exists or another volume is already mounted at location /var/mapr/$MONITORING_VOLUME_NAME"
     return $RC00
   fi
-  for t in $MONITORING_TSDB_TABLE $MONITORING_UID_TABLE $MONITORING_TREE_TABLE $MONITORING_META_TABLE; do
-    maprcli table info -path $t > $LOGFILE 2>&1
-    RC1=$?
-    if [ $RC1 -ne 0 ]; then
-      echo "Creating $t table..."
-      maprcli table create -path $t -defaultreadperm p -defaultwriteperm p -defaultappendperm p >> $LOGFILE 2>&1
-      RC2=$?
-      if [ $RC2 -ne 0 ]; then
-        # check if another node beat us too it
-	if ! tail -1 $LOGFILE | fgrep $t | fgrep 'File exists' > /dev/null 2>&1 ; then
-	  echo "Create table failed for $t"
-	  return $RC2
-	else
-	  continue
-	fi
-      fi
-      COLUMN_FLAG="false"
-      if [ "$t" == "$MONITORING_UID_TABLE" ]; then
-        OT_COLUMNS="id name"
-	COLUMN_FLAG="true"
-      elif [ "$t" == "$MONITORING_META_TABLE" ]; then
-	OT_COLUMNS="name"
-      else
-	OT_COLUMNS="t"
-      fi
-      for columnFamily in $OT_COLUMNS ; do
-	echo "Creating CF $columnFamily for Table $t"
-	maprcli table cf create -path $t -cfname $columnFamily -maxversions 1 -inmemory $COLUMN_FLAG -compression lzf -ttl 0 >> $LOGFILE 2>&1
-	RC2=$?
-	if [ $RC2 -ne 0 ]; then
-	  echo "Create CF $columnFamily failed for table $t"
-	  return $RC2
-	fi
-      done
-    else
-      echo "$t exists."
-    fi
-  done
+
+
+  case $COMPRESSION in
+    (NONE|LZO|GZIP|SNAPPY)  :;;  # Known good.
+    (*)
+      echo >&2 "warning: compression codec '$COMPRESSION' might not be supported."
+      ;;
+  esac
+
+  # HBase scripts also use a variable named `HBASE_HOME', and having this
+  # variable in the environment with a value somewhat different from what
+  # they expect can confuse them in some cases.  So rename the variable.
+  hbh=$HBASE_HOME
+  unset HBASE_HOME
+  MAPR_DAEMON=spyglass exec "$hbh/bin/hbase" shell <<EOF!!
+  create '$MONITORING_UID_TABLE',
+    {NAME => 'id', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'},
+    {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
+
+  create '$MONITORING_TSDB_TABLE',
+    {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
+
+  create '$MONITORING_TREE_TABLE',
+    {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
+
+  create '$MONITORING_META_TABLE',
+    {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
+EOF!!
 }
-
-
 
 # Try to create lock file - with 5 retries
 i=0
@@ -88,7 +81,6 @@ if [[ $i -eq 30 ]]; then
   echo "Failed to create lock file $MONITORING_LOCK_DIR after $i attempts."
   exit 1 
 fi
-export MAPR_DAEMON=spyglass
 createTSDB
 RC1=$?
 
