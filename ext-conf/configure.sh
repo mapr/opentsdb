@@ -384,6 +384,7 @@ if [ $OT_CONF_ASSUME_RUNNING_CORE -eq 1 ]; then
     # if warden isn't running, nothing else will - likely uninstall
     if ${MAPR_HOME}/initscripts/mapr-warden status > /dev/null 2>&1 ; then
         waitForCLDB
+        export MAPR_TICKETFILE_LOCATION=${MAPR_HOME}/conf/mapruserticket
         createTSDBHbaseTables
         if [ $? -eq 0 ]; then
             installWardenConfFile
