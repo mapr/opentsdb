@@ -65,7 +65,7 @@ EOF!!
 # Try to create lock file - with 5 retries
 i=0
 while [[ $i -lt 30 ]]; do
-  hadoop fs -mkdir $MONITORING_LOCK_DIR
+  hadoop fs -mkdir $MONITORING_LOCK_DIR 2> /dev/null
   RC=$?
   if [ $RC -ne 0 ]; then
     #echo "Unable to create lock file $MONITORING_LOCK_DIR"
