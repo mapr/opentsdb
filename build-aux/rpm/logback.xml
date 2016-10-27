@@ -19,11 +19,11 @@
   
   <!-- Appender to write OpenTSDB data to a set of rotating log files -->
   <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-    <file>/var/log/opentsdb/opentsdb.log</file>
+    <file>__INSTALL__/var/log/opentsdb/opentsdb_daemon.log</file>
     <append>true</append>
     
     <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
-      <fileNamePattern>/var/log/opentsdb/opentsdb.log.%i</fileNamePattern>
+      <fileNamePattern>__INSTALL__/var/log/opentsdb/opentsdb_daemon.log.%i</fileNamePattern>
       <minIndex>1</minIndex>
       <maxIndex>3</maxIndex>
     </rollingPolicy>
@@ -33,18 +33,18 @@
     </triggeringPolicy>
 
     <encoder>
-      <pattern>%d{HH:mm:ss.SSS} %-5level [%logger{0}.%M] - %msg%n</pattern>
+      <pattern>%d{yyyy-MM-dd} %d{HH:mm:ss.SSS} %-5level [%logger{0}.%M] - %msg%n</pattern>
     </encoder>
   </appender>
   
   <!-- Appender for writing full and completed queries to a log file. To use it, make
        sure to set the "level" to "INFO" in QueryLog below. -->
   <appender name="QUERY_LOG" class="ch.qos.logback.core.rolling.RollingFileAppender">
-    <file>/var/log/opentsdb/queries.log</file>
+    <file>__INSTALL__/var/log/opentsdb/queries.log</file>
     <append>true</append>
 
     <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
-        <fileNamePattern>/var/log/opentsdb/queries.log.%i</fileNamePattern>
+        <fileNamePattern>__INSTALL__/var/log/opentsdb/queries.log.%i</fileNamePattern>
         <minIndex>1</minIndex>
         <maxIndex>4</maxIndex>
     </rollingPolicy>
@@ -67,7 +67,7 @@
   
   <!-- Fallthrough root logger and router -->
   <root level="INFO">
-    <appender-ref ref="STDOUT"/>
+    <!-- <appender-ref ref="STDOUT"/> -->
     <appender-ref ref="CYCLIC"/>
     <appender-ref ref="FILE"/>
   </root>
