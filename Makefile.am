@@ -96,6 +96,8 @@ tsdb_SRC := \
 	src/tools/MetaPurge.java	\
 	src/tools/MetaSync.java	\
 	src/tools/Search.java	\
+	src/tools/StreamsConsumer.java	\
+	src/tools/Metric.java	\
 	src/tools/TSDMain.java	\
 	src/tools/TextImporter.java	\
 	src/tools/TreeSync.java	\
@@ -163,7 +165,9 @@ tsdb_DEPS = \
 	$(JACKSON_CORE)	\
 	$(JACKSON_DATABIND)	\
 	$(MAPR)	\
-	$(NETTY)	\
+	$(MAPR_STREAMS)	\
+	$(KAFKA)	\
+        $(NETTY)	\
 	$(PROTOBUF)	\
 	$(SLF4J_API)	\
 	$(SUASYNC)	\
@@ -680,6 +684,7 @@ pom.xml: pom.xml.in Makefile
 	    -e 's/@LOGBACK_CLASSIC_VERSION@/$(LOGBACK_CLASSIC_VERSION)/' \
 	    -e 's/@LOGBACK_CORE_VERSION@/$(LOGBACK_CORE_VERSION)/' \
 	    -e 's/@MAPR_VERSION@/$(MAPR_VERSION)/' \
+	    -e 's/@KAFKA_VERSION@/$(KAFKA_VERSION)/' \
 	    -e 's/@MOCKITO_VERSION@/$(MOCKITO_VERSION)/' \
 	    -e 's/@NETTY_VERSION@/$(NETTY_VERSION)/' \
 	    -e 's/@OBJENESIS_VERSION@/$(OBJENESIS_VERSION)/' \

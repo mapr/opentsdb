@@ -14,6 +14,7 @@ package net.opentsdb.tsd;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -39,7 +40,7 @@ import net.opentsdb.stats.StatsCollector;
 import net.opentsdb.uid.NoSuchUniqueName;
 
 /** Implements the "put" telnet-style command. */
-final class PutDataPointRpc implements TelnetRpc, HttpRpc {
+final public class PutDataPointRpc implements TelnetRpc, HttpRpc {
   private static final Logger LOG = LoggerFactory.getLogger(PutDataPointRpc.class);
   private static final ArrayList<Boolean> EMPTY_DEFERREDS = 
       new ArrayList<Boolean>(0);
@@ -75,6 +76,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
           return "report error to channel";
         }
       }
+      //LOG.info("Spyglass RPC: "+Arrays.toString(cmd));
       return importDataPoint(tsdb, cmd).addErrback(new PutErrback());
     } catch (NumberFormatException x) {
       errmsg = "put: invalid value: " + x.getMessage() + '\n';
@@ -118,7 +120,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
           "Method not allowed", "The HTTP method [" + query.method().getName() +
           "] is not permitted for this endpoint");
     }
-    
+    LOG.info("Spyglass: HTTP "+query.getContent());
     final List<IncomingDataPoint> dps = query.serializer().parsePutV1();
     if (dps.size() < 1) {
       throw new BadRequestException("No datapoints found in content");
@@ -426,7 +428,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @throws IllegalArgumentException if any other argument is invalid.
    * @throws NoSuchUniqueName if the metric isn't registered.
    */
-  private Deferred<Object> importDataPoint(final TSDB tsdb, final String[] words) {
+  public static Deferred<Object> importDataPoint(final TSDB tsdb, final String[] words) {
     words[0] = null; // Ditch the "put".
     if (words.length < 5) {  // Need at least: metric timestamp value tag
       //               ^ 5 and not 4 because words[0] is "put".
@@ -472,7 +474,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @param words The array of strings representing a data point
    * @return An incoming data point object.
    */
-  final private IncomingDataPoint getDataPointFromString(final String[] words) {
+  final public static IncomingDataPoint getDataPointFromString(final String[] words) {
     final IncomingDataPoint dp = new IncomingDataPoint();
     dp.setMetric(words[1]);
     
@@ -516,7 +518,7 @@ final class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @param dp The data point to process
    * @param e The exception that caused this
    */
-  void handleStorageException(final TSDB tsdb, final IncomingDataPoint dp, 
+  public static void handleStorageException(final TSDB tsdb, final IncomingDataPoint dp,
       final Exception e) {
     final StorageExceptionHandler handler = tsdb.getStorageExceptionHandler();
     if (handler != null) {
