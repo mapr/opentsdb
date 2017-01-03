@@ -16,16 +16,30 @@
 
 PATH=/bin:/usr/bin:/sbin:/usr/sbin
 NAME=opentsdb
-TSD_USER=opentsdb
-TSD_GROUP=opentsdb
-DAEMON=/usr/share/opentsdb/bin/tsdb
-DAEMON_OPTS=tsd
-PID_FILE=/var/run/$NAME.pid
+TSD_USER=mapr
+TSD_GROUP=mapr
+
+# Default directories
+LOG_DIR=__INSTALL__/var/log/opentsdb
+LOCK_DIR=__INSTALL__/var/lock/subsys
+PID_DIR=__INSTALL__/var/run/opentsdb
+
+DAEMON=__INSTALL__/share/opentsdb/bin/tsdb
+CONFIG=__INSTALL__/etc/opentsdb/${NAME}.conf
+DAEMON_OPTS="tsd --config=${CONFIG}"
+
+HOSTNAME=$(hostname --fqdn)
+LOG_FILE=${LOG_DIR}/${NAME-$HOSTNAME}-
+PID_FILE=${PID_DIR}/$NAME.pid
+LOCK_FILE=${LOCK_DIR}/${NAME}
 
 # Maximum number of open files
-MAX_OPEN_FILES=65535
+#MAX_OPEN_FILES=65535
+MAX_OPEN_FILES=64000
 
-. /lib/lsb/init-functions
+if [ -f /lib/lsb/init-functions ]; then
+    . /lib/lsb/init-functions
+fi
 
 # The first existing directory is used for JAVA_HOME
 # (if JAVA_HOME is not defined in $DEFAULT)
@@ -68,10 +82,43 @@ start)
       ulimit -n $MAX_OPEN_FILES
     fi
 
-    # start the daemon
-    start-stop-daemon --start -b --user "$TSD_USER" -c "$TSD_USER" \
-      --make-pidfile --pidfile "$PID_FILE" \
-      --exec /bin/bash -- -c "$DAEMON $DAEMON_OPTS"
+    curulimit="`ulimit -n`"
+    if [ "$curulimit" -lt $MAX_OPEN_FILES ] ; then
+      echo "'ulimit -n' must be greater than or equal to $MAX_OPEN_FILES, is $curulimit"
+      return 1
+    fi
+
+    # Set a default value for JVMARGS
+    : ${JVMXMX:=-Xmx6000m}
+    : ${JVMARGS:=-DLOG_FILE_PREFIX=${LOG_FILE} -enableassertions -enablesystemassertions $JVMXMX -XX:OnOutOfMemoryError=__INSTALL__/share/opentsdb/tools/opentsdb_restart.py}
+    export JVMARGS
+
+
+    if [ "`id -u -n`" = "root" ] ; then
+      # Changes the owner of the log directory to allow non-root OpenTSDB
+      # daemons to create and rename log files.
+      chown $TSD_USER: $LOG_DIR > /dev/null 2>&1
+      chown $TSD_USER: ${LOG_FILE}*opentsdb.log > /dev/null 2>&1
+      chown $TSD_USER: ${LOG_FILE}opentsdb.out > /dev/null 2>&1
+      chown $TSD_USER: ${LOG_FILE}opentsdb.err > /dev/null 2>&1
+
+      # Changes the owner of the lock, and the pid files to allow
+      # non-root OpenTSDB daemons to run __INSTALL__/share/opentsdb/bin/opentsdb_restart.py.
+      touch $LOCK_FILE && chown $TSD_USER: $LOCK_FILE
+      touch $PID_FILE && chown $TSD_USER: $PID_FILE
+      start-stop-daemon --start  -b --user "$TSD_USER" -c "$TSD_USER" \
+        --make-pidfile --pidfile "$PID_FILE" \
+        --startas /bin/bash -- -c "$DAEMON $DAEMON_OPTS" 
+    else
+      # Don't have to change user.
+      start-stop-daemon --start  -b --user "$TSD_USER" -c "$TSD_USER" \
+        --make-pidfile --pidfile "$PID_FILE" \
+        --startas /bin/bash -- -c "$DAEMON $DAEMON_OPTS "
+    fi
+    retval=$?
+    sleep 2
+    echo
+    [ $retval -eq 0 ] && touch $LOCK_FILE
 
     log_end_msg $?
   fi
@@ -91,6 +138,7 @@ stop)
       exit 1
     fi
     rm -f "$PID_FILE"
+    rm -f "$LOCK_FILE"
   else
     log_action_cont_msg "TSD was not running"
   fi
@@ -109,7 +157,7 @@ status)
   status_of_proc -p "$PID_FILE" "$DAEMON" "$NAME"
   ;;
 *)
-  echo "Usage: /etc/init.d/opentsdb {start|stop|restart|status}"
+  echo "Usage: __INSTALL__/etc/init.d/opentsdb {start|stop|restart|status}"
   exit 1
   ;;
 esac
