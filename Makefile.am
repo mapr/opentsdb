@@ -604,6 +604,7 @@ install-data-tools: $(tsdb_DEPS) $(jar)
 	echo " $(mkdir_p) $$destdatatoolsdir"; \
 	$(mkdir_p) "$$destdatatoolsdir" || exit 1; \
 	tools="$$tools $(top_srcdir)/tools/*" ; \
+	tools="`echo $$tools | sed sx$(top_srcdir)/tools/dockerxx`" ; \
 	tools="$$tools $(top_srcdir)/src/create_table.sh" ; \
 	tools="$$tools $(top_srcdir)/src/upgrade_1to2.sh" ; \
 	echo " $(INSTALL_SCRIPT)" $$tools "$$destdatatoolsdir" ; \
