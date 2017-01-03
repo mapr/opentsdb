@@ -10,11 +10,14 @@ import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.apache.kafka.clients.consumer.*;
+import org.apache.kafka.clients.consumer.internals.NoOpConsumerRebalanceListener;
 import org.apache.kafka.common.TopicPartition;
+
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
@@ -30,7 +33,7 @@ import net.opentsdb.core.TSDB;
 public class StreamsConsumer implements Runnable {
 
   private String streamName;
-  private String topicName;
+  private String consumerGroup;
   private TSDB tsdb;
   private KafkaConsumer<String,String> consumer;
   private Logger log;
@@ -38,7 +41,7 @@ public class StreamsConsumer implements Runnable {
   public StreamsConsumer(TSDB tsdb, String streamName, String topicName) {
     this.tsdb = tsdb;
     this.streamName = streamName;
-    this.topicName = topicName;
+    this.consumerGroup = topicName;
     this.log = LoggerFactory.getLogger(StreamsConsumer.class);
   }
 
@@ -65,26 +68,28 @@ public class StreamsConsumer implements Runnable {
       errmsg = "put: unknown metric: " + x.getMessage() + '\n';
     }
     if (errmsg != null) {
-      log.error("Failed to write metrics to TSDB with error: "+errmsg);
+      log.error("Failed to write metrics to TSDB with error: "+errmsg+" metrics "+Arrays.toString(metricTokens));
     }
     return Deferred.fromResult(null);
   }
 
   @Override
   public void run() {
-    Thread.currentThread().setName("StreamsConsumer-"+this.topicName);
+    Thread.currentThread().setName("StreamsConsumer-"+this.consumerGroup);
     Properties props = new Properties();
     props.put("key.deserializer",
         "org.apache.kafka.common.serialization.StringDeserializer");
     props.put("value.deserializer",
         "org.apache.kafka.common.serialization.StringDeserializer");
-    props.put("group.id", this.topicName);
+    props.put("group.id", this.consumerGroup);
     props.put("auto.offset.reset", "earliest");
     try {
       this.consumer = new KafkaConsumer<String, String>(props);
-      this.consumer.subscribe(Arrays.asList(this.streamName+":"+this.topicName));
+      // Subscribe to all topics in this stream
+      this.consumer.subscribe(Pattern.compile(this.streamName+":.+"), new NoOpConsumerRebalanceListener());
+      //this.consumer.subscribe(Arrays.asList(this.streamName+":"+this.topicName));
       long pollTimeOut = 10000;
-      log.info("Started Thread: "+this.topicName);
+      log.info("Started Thread: "+this.consumerGroup);
       while (true) {
         // Request unread messages from the topic.
         ConsumerRecords<String, String> consumerRecords = consumer.poll(pollTimeOut);
@@ -94,7 +99,8 @@ public class StreamsConsumer implements Runnable {
             ConsumerRecord<String, String> record = iterator.next();
             // Iterate through returned records, extract the value
             // of each message, and print the value to standard output.
-            //log.info(" Consumed Record: " + record.value());
+            //log.info(" Consumed Record Key: " + record.value());
+            //log.info(" Consumed Record Value: " + record.value());
             String[] metricTokens = record.value().toString().trim().split(" ");
             //Metric metric = mapper.readValue(record.value(), Metric.class);
             //String[] metricTokens = new String[] { "put", "streams."+metric.getPlugin()+"."+metric.getType(), String.valueOf(metric.getTimeStamp()), 
@@ -106,11 +112,11 @@ public class StreamsConsumer implements Runnable {
         }
       }
     } catch (Exception e) {
-      log.error("Thread for topic: "+this.topicName+" failed with exception: "+e.getCause());
+      log.error("Thread for topic: "+this.consumerGroup+" failed with exception: "+e.getCause());
       log.error(e.getMessage());
     }
     finally {
-      log.info("Closing this thread: "+this.topicName);
+      log.info("Closing this thread: "+this.consumerGroup);
       consumer.close();
     }
   }

@@ -209,12 +209,15 @@ final class TSDMain {
       server.bind(addr);
       log.info("Ready to serve on " + addr);
 
-      // Get the default stream name from config
-      String streamName = config.getString("tsd.default.stream");
-      if (streamName == null || streamName.isEmpty()) streamName = "/var/mapr/mapr.monitoring/spyglass";
-      String topicName = config.getString("tsd.default.topic");
-      if (topicName == null || topicName.isEmpty()) topicName = "metrics";
-      startConsumers(tsdb, streamName, topicName, streamsConsumerExecutor);
+      boolean useStreams = config.getBoolean("tsd.default.usestreams");
+      if (useStreams) {
+        // Get the default stream name from config
+        String streamName = config.getString("tsd.default.stream");
+        if (streamName == null || streamName.isEmpty()) streamName = "/var/mapr/mapr.monitoring/spyglass";
+        String consumerGroup = config.getString("tsd.default.consumergroup");
+        if (consumerGroup == null || consumerGroup.isEmpty()) consumerGroup = "metrics";
+        startConsumers(tsdb, streamName, consumerGroup, streamsConsumerExecutor);
+      }
 
       log.info("Starting.");
     } catch (Throwable e) {
@@ -230,34 +233,12 @@ final class TSDMain {
     // The server is now running in separate threads, we can exit main.
   }
 
-  private static void startConsumers(TSDB tsdb, String streamName, String topicName, ExecutorService executor) {
+  private static void startConsumers(TSDB tsdb, String streamName, String consumerGroup, ExecutorService executor) {
     try {
 
-      // Get all the topics in the stream
-      List<String> topicsList = new ArrayList<String>();
       final Configuration conf = new Configuration();
-      StreamsConsumer consumer = new StreamsConsumer(tsdb, streamName, topicName);
+      StreamsConsumer consumer = new StreamsConsumer(tsdb, streamName, consumerGroup);
       executor.submit(consumer); // TODO - Add reconnect logic and a way to monitor the consumers
-      topicsList.add(topicName);
-
-      //final Map<String, List<TopicFeedInfo>> topicsMap;
-      //Admin admin = Streams.newAdmin(conf);
-      //MarlinAdminImpl madmin = (MarlinAdminImpl)admin;
-      //topicsMap = madmin.listTopics(streamName);
-      //Iterator entries = topicsMap.entrySet().iterator();
-      //while (entries.hasNext()) {
-        //Map.Entry entry = (Map.Entry) entries.next();
-        //String topicName = (String) entry.getKey();
-        //StreamsConsumer consumer = new StreamsConsumer(tsdb, streamName, topicName); -- TODO Revert this
-        //StreamsConsumer consumer = new StreamsConsumer(tsdb, streamName, topicName);
-        //executor.submit(consumer); // TODO - Add reconnect logic and a way to monitor the consumers
-        //topicsList.add(topicName);
-      //}
-
-      LoggerFactory.getLogger(TSDMain.class).info("Topics list: "+topicsList);
-
-//    } catch (IOException ie) {
-//      LoggerFactory.getLogger(TSDMain.class).error("Failed to get topics list from stream with error: "+ie.getMessage());
     } catch (Exception e) {
       LoggerFactory.getLogger(TSDMain.class).error("Failed to create consumer with error: "+e.getMessage());
     }
