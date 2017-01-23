@@ -135,7 +135,6 @@ tsdb_SRC := \
 	src/tools/Search.java	\
 	src/tools/StartupPlugin.java \
 	src/tools/StreamsConsumer.java	\
-	src/tools/Metric.java	\
 	src/tools/TSDMain.java	\
 	src/tools/TextImporter.java	\
 	src/tools/TreeSync.java	\
