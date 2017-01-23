@@ -212,7 +212,7 @@ tsdb_DEPS = \
 	$(MAPR)	\
 	$(MAPR_STREAMS)	\
 	$(KAFKA)	\
-        $(NETTY)	\
+	$(NETTY)	\
 	$(SLF4J_API)	\
 	$(SUASYNC)	\
 	$(APACHE_MATH)
