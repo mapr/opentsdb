@@ -213,7 +213,7 @@ final class TSDMain {
       if (useStreams) {
         // Get the default stream name from config
         String streamName = config.getString("tsd.default.stream");
-        if (streamName == null || streamName.isEmpty()) streamName = "/var/mapr/mapr.monitoring/spyglass";
+        if (streamName == null || streamName.isEmpty()) streamName = "/var/mapr/mapr.monitoring/spyglass"; //TODO - Change this
         String consumerGroup = config.getString("tsd.default.consumergroup");
         if (consumerGroup == null || consumerGroup.isEmpty()) consumerGroup = "metrics";
         startConsumers(tsdb, streamName, consumerGroup, streamsConsumerExecutor);
