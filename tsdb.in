@@ -85,6 +85,12 @@ if test -d "$BASEMAPR/hadoop/hadoop-0.20.2/lib"; then
  done
 fi
 
+for jar in "$BASEMAPR"/lib/*.jar; do
+   if [[ ( "`echo $jar | grep mapr-streams`" != "" ) || ( "`echo $jar | grep kafka-clients`" != "" ) ]]; then
+     CLASSPATH="$CLASSPATH:$jar"
+   fi
+done
+
 # Remove any leading colon.
 CLASSPATH="${CLASSPATH#:}"
 
