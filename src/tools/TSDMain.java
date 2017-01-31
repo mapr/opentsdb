@@ -14,7 +14,6 @@ package net.opentsdb.tools;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
-
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Callable;
@@ -57,6 +56,7 @@ import com.mapr.streams.Admin;
 import com.mapr.streams.Streams;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -252,12 +252,14 @@ final class TSDMain {
 
       boolean useStreams = config.getBoolean("tsd.default.usestreams");
       if (useStreams) {
-        // Get the default stream name from config
-        String streamName = config.getString("tsd.default.stream");
-        if (streamName == null || streamName.isEmpty()) streamName = "/var/mapr/mapr.monitoring/spyglass"; //TODO - Change this
+        // Get the list of stream names from config
+        String streamNames = config.getString("tsd.streams");
+        if (streamNames == null || streamNames.isEmpty()) {
+          throw new RuntimeException("Failed to get MapR Streams information from config file.");
+        }
         String consumerGroup = config.getString("tsd.default.consumergroup");
         if (consumerGroup == null || consumerGroup.isEmpty()) consumerGroup = "metrics";
-        startConsumers(tsdb, streamName, consumerGroup, streamsConsumerExecutor);
+        startConsumers(tsdb, streamNames, consumerGroup, streamsConsumerExecutor);
       }
 
       log.info("Starting.");
@@ -313,12 +315,15 @@ final class TSDMain {
     return startup;
   }
 
-  private static void startConsumers(TSDB tsdb, String streamName, String consumerGroup, ExecutorService executor) {
+  private static void startConsumers(TSDB tsdb, String streamNames, String consumerGroup, ExecutorService executor) {
     try {
 
       final Configuration conf = new Configuration();
-      StreamsConsumer consumer = new StreamsConsumer(tsdb, streamName, consumerGroup);
-      executor.submit(consumer); // TODO - Add reconnect logic and a way to monitor the consumers
+      List<String> streams = Arrays.asList(streamNames.split("\\s*,\\s*"));
+      for (String streamName: streams) {
+        StreamsConsumer consumer = new StreamsConsumer(tsdb, streamName, consumerGroup);
+        executor.submit(consumer);
+      }// TODO - Add reconnect logic and a way to monitor the consumers
     } catch (Exception e) {
       LoggerFactory.getLogger(TSDMain.class).error("Failed to create consumer with error: "+e.getMessage());
     }
