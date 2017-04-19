@@ -50,6 +50,7 @@ RC=0
 nodeport="4242"
 nodecount=0
 nodelist=""
+streamslist=""
 zk_nodecount=0
 zk_nodeport=5181
 zk_nodelist=""
@@ -106,6 +107,19 @@ function configureZKQuorum() {
     fi
 }
 
+
+#############################################################################
+# Function to configure input Streams
+#
+#############################################################################
+function configureInputStreams() {
+    if [ -n "$streamslist" ]; then
+        sed -i 's/(^#)?\(tsd.streams = \).*/\2'"$streamslist"'/g' $NEW_OT_CONF_FILE
+        sed -i 's/(^#)?\(tsd.default.usestreams = \).*/\2'"true"'/g' $NEW_OT_CONF_FILE
+    else
+        sed -i 's/(^#)?\(tsd.default.usestreams = \).*/\2'"false"'/g' $NEW_OT_CONF_FILE
+    fi
+}
 
 #############################################################################
 # Function to install AsyncHbaseJar
@@ -302,7 +316,7 @@ usage="usage: $0 [-nodeCount <cnt>] [-nodePort <port> -nodeZkCount <zkCnt>] [-no
 if [ ${#} -gt 1 ]; then
     # we have arguments - run as as standalone - need to get params and
     # XXX why do we need the -o to make this work?
-    OPTS=`getopt -a -o h -l nodeCount: -l nodePort: -l OT: -l nodeZkCount: -l nodeZkPort: -l Z: -l R -- "$@"`
+    OPTS=`getopt -a -o h -l nodeCount: -l nodePort: -l IS: -l OT: -l nodeZkCount: -l nodeZkPort: -l Z: -l R -- "$@"`
     if [ $? != 0 ]; then
         echo ${usage}
         return 2 2>/dev/null || exit 2
@@ -317,6 +331,10 @@ if [ ${#} -gt 1 ]; then
                 ;;
             --nodeZkCount)
                 zk_nodecount="$2";
+                shift 2
+                ;;
+            --IS) 
+                streamslist="$2";
                 shift 2
                 ;;
             --OT) # not used at the moment
@@ -355,8 +373,8 @@ fi
 
 # make sure we have what we need
 # we don't really need the OT list at the moment, nor do we use the two counts
-if [ -z "$nodelist" -o -z "$zk_nodelist" ]; then
-    echo "-OT and -Z options are required"
+if [ \( -z "$nodelist" -a -z "$streamslist" \) -o -z "$zk_nodelist" ]; then
+    echo "-OT or -IS, and -Z options are required"
     echo "${usage}"
     return 2 2>/dev/null || exit 2
 fi
@@ -369,6 +387,7 @@ cp ${OT_CONF_FILE} ${NEW_OT_CONF_FILE}
 
 configureOTPort
 configureZKQuorum
+configureInputStreams
 createCronJob
 #install our changes
 cp ${NEW_OT_CONF_FILE} ${OT_CONF_FILE}
