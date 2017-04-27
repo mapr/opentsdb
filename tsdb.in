@@ -83,13 +83,20 @@ if test -d "$BASEMAPR/hadoop/hadoop-0.20.2/lib"; then
    fi
    CLASSPATH="$CLASSPATH:$jar"
  done
-fi
 
-for jar in "$BASEMAPR"/lib/*.jar; do
-   if [[ ( "`echo $jar | grep mapr-streams`" != "" ) || ( "`echo $jar | grep kafka-clients`" != "" ) ]]; then
-     CLASSPATH="$CLASSPATH:$jar"
-   fi
-done
+  for jar in "$BASEMAPR"/lib/*.jar; do
+     if [[ ( "`echo $jar | grep mapr-streams`" != "" ) || ( "`echo $jar | grep kafka-clients`" != "" ) ]]; then
+       CLASSPATH="$CLASSPATH:$jar"
+     fi
+  done
+else
+  # we are running mapr 6.0 or higher 
+  hadoopver=$(cat "$BASEMAPR/hadoop/hadoopversion")
+  # for core-site.xml
+  CLASSPATH="$BASEMAPR/hadoop/hadoop-${hadoopver}/etc/hadoop:$CLASSPATH"
+  # no need to exclude slf4j or netty as the OT ones are earlier in the classpath
+  CLASSPATH="$CLASSPATH:$BASEMAPR/lib"
+fi
 
 # Remove any leading colon.
 CLASSPATH="${CLASSPATH#:}"
