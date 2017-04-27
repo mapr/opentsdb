@@ -114,11 +114,11 @@ function configureZKQuorum() {
 #############################################################################
 function configureInputStreams() {
     if [ -n "$streamslist" ]; then
-        sed -i 's/(^#)?\(tsd.streams = \).*/\2'"$streamslist"'/g' $NEW_OT_CONF_FILE
-        sed -i 's/(^#)?\(tsd.default.usestreams = \).*/\2'"true"'/g' $NEW_OT_CONF_FILE
-        sed -i 's/(^#)?\(tsd.default.consumergroup = \).*/\2'"metrics"'/g' $NEW_OT_CONF_FILE
+        sed -ei 's/\(^\s*#*\s*\)\(tsd.streams = \).*/\2'"$streamslist"'/g' $NEW_OT_CONF_FILE
+        sed -ei 's/\(^\s*#*\s*\)\(tsd.default.usestreams = \).*/\2'"true"'/g' $NEW_OT_CONF_FILE
+        sed -ei 's/\(^\s*#*\s*\)(tsd.default.consumergroup = \).*/\2'"metrics"'/g' $NEW_OT_CONF_FILE
     else
-        sed -i 's/(^#)?\(tsd.default.usestreams = \).*/\2'"false"'/g' $NEW_OT_CONF_FILE
+        sed -ei 's/\(^\s*#*\s*\)\(tsd.default.usestreams = \).*/\2'"false"'/g' $NEW_OT_CONF_FILE
     fi
 }
 
