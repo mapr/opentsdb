@@ -72,31 +72,10 @@ fi
 # Base of MapR installation
 BASEMAPR=${MAPR_HOME:-/opt/mapr}
  
-# Add MapR hadoop jars to classpath
-if test -d "$BASEMAPR/hadoop/hadoop-0.20.2/lib"; then
- # hadoop conf directory to beginning of classpath (for core-site.xml)
- CLASSPATH="$BASEMAPR/hadoop/hadoop-0.20.2/conf:$CLASSPATH"
- 
- for jar in "$BASEMAPR"/hadoop/hadoop-0.20.2/lib/*.jar; do
-   if [[ ( "`echo $jar | grep slf4j`" != "" ) || ( "`echo $jar | grep netty`" != "" ) ]]; then
-     continue
-   fi
-   CLASSPATH="$CLASSPATH:$jar"
- done
-
-  for jar in "$BASEMAPR"/lib/*.jar; do
-     if [[ ( "`echo $jar | grep mapr-streams`" != "" ) || ( "`echo $jar | grep kafka-clients`" != "" ) ]]; then
-       CLASSPATH="$CLASSPATH:$jar"
-     fi
-  done
-else
-  # we are running mapr 6.0 or higher 
-  hadoopver=$(cat "$BASEMAPR/hadoop/hadoopversion")
-  # for core-site.xml
-  CLASSPATH="$BASEMAPR/hadoop/hadoop-${hadoopver}/etc/hadoop:$CLASSPATH"
-  # no need to exclude slf4j or netty as the OT ones are earlier in the classpath
-  CLASSPATH="$CLASSPATH:$BASEMAPR/lib"
-fi
+# we do get slf4j and netty jars included twice by specifying all the jars 
+# in the director below, but since the appear last in the path - it doesn't
+# matter
+CLASSPATH="$CLASSPATH:$BASEMAPR/lib/*"
 
 # Remove any leading colon.
 CLASSPATH="${CLASSPATH#:}"
