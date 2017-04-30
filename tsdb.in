@@ -80,8 +80,6 @@ for jar in "$BASEMAPR"/lib/*.jar; do
    fi
 done
 
-CLASSPATH="$CLASSPATH:$BASEMAPR/lib/*"
-
 # Remove any leading colon.
 CLASSPATH="${CLASSPATH#:}"
 
