@@ -72,10 +72,13 @@ fi
 # Base of MapR installation
 BASEMAPR=${MAPR_HOME:-/opt/mapr}
  
-# we do get slf4j and netty jars included twice by specifying all the jars 
-# in the director below, but since the appear last in the path - it doesn't
-# matter
-CLASSPATH="$CLASSPATH:$BASEMAPR/lib/*"
+# OT will not function correctly if we allow slf4j and netty jars included twice by 
+# only adding ${MAPR_HOME}/lib/* to the classpath, We have to filter them out
+for jar in "$BASEMAPR"/lib/*.jar; do
+   if ! [[ ( "`echo $jar | grep slf4j`" != "" ) || ( "`echo $jar | grep netty`" != "" ) ]]; then
+     CLASSPATH="$CLASSPATH:$jar"
+   fi
+done
 
 # Remove any leading colon.
 CLASSPATH="${CLASSPATH#:}"
