@@ -153,13 +153,14 @@ if [ $SUCCESS -eq 1 ] ; then
        case "$POST_PROCESSING_OP" in
            "purgeData")
                for metric in $(echo "$RESP" | sed -e 's/\[//;s/\]//;s/\,/ /g;s/"//g' ); do
-                   echo "Purging old data for $metric"
+                   echo "$(date) Purging old data for $metric"
                    $OT_HOME/bin/tsdb scan --delete 2000/01/01 $(date --date='2 weeks ago' +'%Y/%m/%d') sum $metric
                done
                ;;
+       SUCCESS=1
        esac
        if [ $SUCCESS -eq 1 ]; then
-           echo "$OT_MSG"
+           echo "$(date) $OT_MSG"
        fi
    fi
 else 
