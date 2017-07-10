@@ -120,7 +120,7 @@ final public class PutDataPointRpc implements TelnetRpc, HttpRpc {
           "Method not allowed", "The HTTP method [" + query.method().getName() +
           "] is not permitted for this endpoint");
     }
-    LOG.info("Spyglass: HTTP "+query.getContent());
+    //LOG.info("Spyglass: HTTP "+query.getContent());
     final List<IncomingDataPoint> dps = query.serializer().parsePutV1();
     if (dps.size() < 1) {
       throw new BadRequestException("No datapoints found in content");

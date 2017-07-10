@@ -259,7 +259,7 @@ final class TSDMain {
         }
         String consumerGroup = config.getString("tsd.default.consumergroup");
         if (consumerGroup == null || consumerGroup.isEmpty()) consumerGroup = "metrics";
-        startConsumers(tsdb, streamNames, consumerGroup, streamsConsumerExecutor);
+        startConsumers(tsdb, streamNames.trim(), consumerGroup.trim(), streamsConsumerExecutor);
       }
 
       log.info("Starting.");

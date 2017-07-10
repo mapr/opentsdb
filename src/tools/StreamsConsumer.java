@@ -101,6 +101,7 @@ public class StreamsConsumer implements Runnable {
             // of each message, and print the value to standard output.
             //log.info(" Consumed Record Key: " + record.value());
             //log.info(" Consumed Record Value: " + record.value());
+            //log.info("Consumer Record: "+record.toString());
             String[] metricTokens = record.value().toString().trim().split(" ");
             //Metric metric = mapper.readValue(record.value(), Metric.class);
             //String[] metricTokens = new String[] { "put", "streams."+metric.getPlugin()+"."+metric.getType(), String.valueOf(metric.getTimeStamp()), 
