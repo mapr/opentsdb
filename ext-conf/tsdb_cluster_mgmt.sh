@@ -156,8 +156,8 @@ if [ $SUCCESS -eq 1 ] ; then
                    echo "$(date) Purging old data for $metric"
                    $OT_HOME/bin/tsdb scan --delete 2000/01/01 $(date --date='2 weeks ago' +'%Y/%m/%d') sum $metric
                done
+               SUCCESS=1
                ;;
-       SUCCESS=1
        esac
        if [ $SUCCESS -eq 1 ]; then
            echo "$(date) $OT_MSG"
