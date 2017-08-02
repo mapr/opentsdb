@@ -114,11 +114,12 @@ function configureZKQuorum() {
 #############################################################################
 function configureInputStreams() {
     if [ -n "$streamslist" ]; then
-        sed -ie 's/\(^\s*#*\s*\)\(tsd.streams = \).*/\2'"$streamslist"'/g' $NEW_OT_CONF_FILE
-        sed -ie 's/\(^\s*#*\s*\)\(tsd.default.usestreams = \).*/\2'"true"'/g' $NEW_OT_CONF_FILE
-        sed -ie 's/\(^\s*#*\s*\)(tsd.default.consumergroup = \).*/\2'"metrics"'/g' $NEW_OT_CONF_FILE
+        sed -i -e 's/\(^\s*#*\s*\)\(tsd.streams = \).*/\2'"$streamslist"'/g' $NEW_OT_CONF_FILE
+        sed -i -e 's/\(^\s*#*\s*\)\(tsd.default.usestreams = \).*/\2'"true"'/g' $NEW_OT_CONF_FILE
+        sed -i -e 's/\(^\s*#*\s*\)\(tsd.mode = ro\).*/\2/g' $NEW_OT_CONF_FILE
+        sed -i -e 's/\(^\s*#*\s*\)\(tsd.default.consumergroup = \).*/\2'"metrics"'/g' $NEW_OT_CONF_FILE
     else
-        sed -ie 's/\(^\s*#*\s*\)\(tsd.default.usestreams = \).*/\2'"false"'/g' $NEW_OT_CONF_FILE
+        sed -i -e 's/\(^\s*#*\s*\)\(tsd.default.usestreams = \).*/\2'"false"'/g' $NEW_OT_CONF_FILE
     fi
 }
 
@@ -313,7 +314,7 @@ function createCronJob() {
 #
 # Parse the arguments
 
-usage="usage: $0 [-nodeCount <cnt>] [-nodePort <port> -nodeZkCount <zkCnt>] [-nodeZkPort <zkPort>] [-R] -OT \"ip:port,ip1:port,\" -Z \"ip:port,ip1:port,\" "
+usage="usage: $0 [-nodeCount <cnt>] [-nodePort <port> -nodeZkCount <zkCnt>] [-nodeZkPort <zkPort>] [-IS \"inputstream1,inputstream2..\" ] [-R] -OT \"ip:port,ip1:port..\" -Z \"ip:port,ip1:port..\" "
 if [ ${#} -gt 1 ]; then
     # we have arguments - run as as standalone - need to get params and
     # XXX why do we need the -o to make this work?
@@ -413,4 +414,5 @@ if [ $OT_CONF_ASSUME_RUNNING_CORE -eq 1 ]; then
         fi
     fi
 fi
+rm -f "${NEW_OT_CONF_FILE}"
 true
