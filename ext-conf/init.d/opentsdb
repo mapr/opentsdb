@@ -1,0 +1,503 @@
+#!/bin/sh
+
+# Generic start script that can be used for services that are running under warden
+
+# Assumptions:
+#
+# The script will be located in the etc/init.d directory
+# It is also assumed that the directory structure is something like:
+# /opt/mapr/app/app-vers/etc/init.d/app
+# If you have something different change the expression in the line below that
+# computes MAPR_HOME
+#
+# This script is assumed to be named using the application name or name with a .sh
+# if you change that, change how the APP variable is set below.
+#
+# There are two defines for log files APP_LOG_FILE and APP_LOG_START_FILE. The first
+# one is used when you pass the log file name into the application, the latter one
+# is used for this script to log the startup events.
+#
+# Set APP_REQUIRE_JAVA=1 if the app requires java
+#
+# Set APP_STARTS_WITH_JAVA=1 if the is started using java directly
+#
+# Set APP_SELF_CONTAINED=1 if the has its on var/run, var/log, var/lock structure
+# like ecos, instead of using the system /var/log for example
+#
+# Set APP_RESOLVE_LINK=1 if you don't need the script to follow link to script to resolve
+# location
+#
+# Set APP_WARDEN_CONTROLLED=1 if this app is run under warden
+#
+# Set APP_DAEMONIZES=1 if this app forks itself
+#
+# Set APP_DOES_NOT_MANAGE_PID_FILE=1 if this app does not create its own pidfile
+#
+# Set APP_ROTATES_OWN_LOG_FILE=1 if this app has its own way of rotating logs
+#
+# Set APP_CREATE_MAPR_PID_SYMLINK=1 if you want a symlink to the pid file created in $MAPR_HOME/pid
+#
+# **********************  PLEASE READ CAREFULLY ****************
+# Set APP_ENABLE_GROUPLEADER=1 if you want use a hammer to make sure the daemon
+# and all its children go away. It does not allow the daemon to manage this on his own.
+#
+# ----- Use with care!!!!!.
+# **********************  PLEASE READ CAREFULLY ****************
+#
+#
+# NB: Make sure you set APP_MAIN to something that is recongizable and distict
+# form the process command line. This string is used to verify that the pid matches
+# the process. For Java apps, this variable should be set to the name of the main class
+# even if this script doesn't start the app directly.
+# For regular processes the app name usually suffice, $APP_DAEMON should work fine
+#
+# If you are having trouble with the startup, it is often because we don't find the
+# string expected in /proc/<pid>/cmdline. Uncomment the line in check() that cats out
+# the cmdline so you can verify that we are grepping for the right pattern
+#
+# Look for "Set to fit app" for section that you may want to edit for new app
+
+# Variables
+
+# Behaviour knobs
+# CHOOSE BEHAVOR: Set to fit app
+APP_REQUIRE_JAVA=1
+APP_STARTS_WITH_JAVA=0
+APP_SELF_CONTAINED=1
+APP_RESOLVE_LINK=0
+APP_WARDEN_CONTROLLED=1
+APP_DAEMONIZES=0
+APP_DOES_NOT_MANAGE_PID_FILE=1
+APP_ROTATES_OWN_LOG_FILE=1
+APP_ENABLE_GROUPLEADER=1
+APP_CREATE_MAPR_PID_SYMLINK=1
+APP_SCRIPT_DEBUG=0
+
+if [ $APP_ENABLE_GROUPLEADER -eq 1 ]; then
+    KILL_GROUP="-- -"
+    SETSID="setsid "
+else
+    KILL_GROUP=""
+    SETSID=""
+fi
+
+SCRIPT_DIR=$(dirname $0)
+SCRIPT_NAME=${0##*/}
+
+APP=$(basename $SCRIPT_NAME .sh | cut -d- -f2)
+APP_DIR=$(cd "$SCRIPT_DIR"; pwd)
+APP_SCRIPT="$APP_DIR/$SCRIPT_NAME"
+APP_SCRIPT_DEBUG_FILE="/tmp/$APP.debug.log"
+
+if [ $APP_RESOLVE_LINK -eq 1 ]; then
+    ACTUAL_LOCATION=$(readlink -f "$APP_SCRIPT")
+else
+    ACTUAL_LOCATION="$APP_SCRIPT"
+fi
+ACTUAL_SCRIPT_NAME="${ACTUAL_LOCATION##*/}"
+APP_HOSTNAME=$(hostname --fqdn)
+if [ -z "$APP_HOSTNAME" ]; then
+    APP_HOSTNAME=$(hostname)
+fi
+
+#if MAPR_HOME isn't set figure it out
+# You need to alter the /*/*/etc/init.d and /etc/init.d patterns here if your structure
+# is different
+MAPR_HOME="${MAPR_HOME:-${ACTUAL_LOCATION%/*/*/etc/init.d/${ACTUAL_SCRIPT_NAME}}}"
+APP_HOME_DIR="${ACTUAL_LOCATION%/etc/init.d/${ACTUAL_SCRIPT_NAME}}"
+APP_DATA_DIR_PERM=0700
+APP_WARDEN_DAEMON_CONF_FILE="$MAPR_HOME/conf/daemon.conf"
+MAPR_APP_PID_FILE="$MAPR_HOME/pid/$APP.pid"
+
+# APP_SYSTEM_PARAMS: Set to fit app
+APP_ULIMIT_MAX_OPEN_FILES="64000"
+APP_ULIMIT_MAX_LOCKED_MEMORY=""
+APP_KERN_MAX_MAP_COUNT=""
+
+# CHOOSE BEHAVOR: Set to fit app if you need something different - should fit most scenarios
+if [ $APP_WARDEN_CONTROLLED -eq 1 ]; then
+    APP_ENV_SCRIPT="$MAPR_HOME/conf/env.sh"
+else
+    APP_ENV_SCRIPT="$APP_HOME_DIR/bin/env.sh"
+fi
+
+# Need to run this early so that things like JAVA_HOME is setup early
+if [ -f "$APP_ENV_SCRIPT" ]; then
+    # exit if we don't find a complete and compatible JDK -
+    # this is only for our env.sh, and may need altering for something different
+    JDK_REQUIRED=1
+    . "$APP_ENV_SCRIPT"
+    if [ -n "$JAVA_HOME" -a -x "$JAVA_HOME/bin/java" ]; then
+        JAVA="$JAVA_HOME/bin/java"
+        PATH="$JAVA_HOME/bin:$PATH"; export PATH
+    fi
+else
+    echo "could not locate env.sh"
+    exit 1
+fi
+
+# CHOOSE BEHAVOR: Set to fit app if you need something different - should fit most scenarios
+if [ $APP_SELF_CONTAINED -eq 1 ]; then
+    APP_LOG_DIR="$APP_HOME_DIR/var/log/$APP"
+    APP_CONF_DIR="$APP_HOME_DIR/etc/$APP"
+    APP_CONF_FILE="$APP_CONF_DIR/$APP.conf"
+    APP_DATA_DIR="$APP_HOME_DIR/var/db/$APP"
+    APP_PID_DIR="$APP_HOME_DIR/var/run/$APP"
+else
+    APP_LOG_DIR="$APP_HOME_DIR/logs"
+    APP_DATA_DIR="$APP_HOME_DIR/data"
+    APP_PID_DIR="$APP_HOME_DIR/data"
+fi
+
+APP_LOCK_DIR=$APP_HOME_DIR/var/lock/subsys
+APP_LOCK_FILE="$APP_LOCK_DIR/$APP"
+APP_LOG_FILE="$APP_LOG_DIR/${APP}-${APP_HOSTNAME}-"    # use this for apps own logging
+APP_LOG_START_FILE="$APP_LOG_DIR/${APP}_startup.log"   # use this for startup logging
+APP_PID_FILE="$APP_PID_DIR/$APP.pid"
+
+# CHOOSE BEHAVOR: Set to fit app
+APP_OPTS_1="tsd --config=${APP_CONF_FILE}"
+APP_OPTS_2=""
+
+# Export APP specific variables here
+# Set a default value for JVMARGS
+: ${JVMXMX:=-Xmx6000m}
+: ${JVMARGS:=-enableassertions -enablesystemassertions $JVMXMX }
+export JVMARGS
+
+
+# CHOOSE BEHAVOR: Set to fit app
+if [ $APP_REQUIRE_JAVA -eq 1 -a $APP_STARTS_WITH_JAVA -eq 1 ]; then
+    APP_JAVA_LIBRARY_PATH="$APP_HOME_DIR/lib"
+    APP_CLASSPATH="$APP_HOME_DIR/data:$APP_HOME_DIR/conf:$APP_JAVA_LIBRARY_PATH/*"
+    APP_PROPERTIES_FILE="$APP_DATA_DIR/properties.json"
+else
+    APP_DAEMON="$APP_HOME_DIR/bin/tsdb" # FILL IN executable name
+fi
+
+# FILL IN java main class - like com.mapr.installer.InstallerApplication if it is a
+# java app, otherwise set it to APP_DAEMON(usually)
+
+APP_MAIN="net.opentsdb.tools.TSDMain"
+
+set_ulimit() {
+    local ulim_opt=$1
+    local ulim_msg=$2
+    local ulim_val=$3
+    if [ -n "$ulim_val" ]; then
+        if [ $ulim_val -gt $(ulimit $ulim_opt) ]; then
+            if [ $(id -u) -eq 0 ]; then
+                ulimit -n $ulim_val
+            else
+                echo "Must be root to alter ulimit for $ulim_msg"
+                exit 1
+            fi
+        fi
+    fi
+}
+
+set_kernel_opts() {
+    local kern_opt_path=$1
+    local kern_opt_name=$2
+    local kern_opt_val=$3
+    if [ $(id -u) -eq 0 ]; then
+        if [ -n "$kern_opt_val" -a -f "$kern_opt_path" ]; then
+            sysctl -q -w $kern_opt_name=$kern_opt_val
+        fi
+    fi
+}
+
+check_and_setup_system() {
+
+    set_ulimit "-n" "max open files" $APP_ULIMIT_MAX_OPEN_FILES
+    set_ulimit "-l" "max locked memory" $APP_ULIMIT_MAX_LOCKED_MEMORY
+    set_kernel_opts "/proc/sys/vm/max_map_count" "vm.max_map_count" $APP_KERN_MAX_MAP_COUNT
+}
+
+check() {
+    local sig=$1
+    [ -z "$sig" ] && sig=0
+    if [ ! -r "$APP_PID_DIR" ]; then
+        echo "$APP permission denied"
+    elif [ $APP_DAEMONIZES -eq 1 ]; then
+        APP_PID=$(cat $APP_PID_FILE 2> /dev/null)
+    fi
+    if [ -n "$APP_PID" ]; then
+        if [ "$sig" = "0" ]; then
+            KILL_ARGS="-$sig $APP_PID"
+        else
+            KILL_ARGS="-$sig $KILL_GROUP$APP_PID"
+        fi
+        # need to use /bin/kill since dash builtin doesn't understand - prefix for process group
+        if /bin/kill $KILL_ARGS > /dev/null 2>&1; then
+            # check if it is truly $APP
+            if [ $APP_REQUIRE_JAVA -eq 1 ]; then
+                # For Java apps rely on jps to get around the 4k /proc/<pid>/cmdline limitation
+                # on older systems
+                if [ $APP_SCRIPT_DEBUG -eq 1 ]; then
+                    echo "$(date): looking for $APP_MAIN($APP_PID)" >> "$APP_SCRIPT_DEBUG_FILE"
+                    jps -l >> "$APP_SCRIPT_DEBUG_FILE"
+                fi
+                jps -l | grep -q "$APP_MAIN" > /dev/null 2>&1 && return
+            else
+                local file=/proc/$APP_PID/cmdline
+                # If you are having trouble with startup, uncomment this line to see what
+                # the command line looks like. When underlying services are execed,
+                # the string we need to grep for migh be very different than what we expect
+                #
+                if [ $APP_SCRIPT_DEBUG -eq 1 ]; then
+                    cat $file >> "$APP_SCRIPT_DEBUG_FILE"
+                fi
+                grep -q $APP_MAIN $file > /dev/null 2>&1 && return
+            fi
+        fi
+    fi
+    false
+}
+
+rotate_log() {
+    local log=$1;
+    local num=10;
+    [ -n "$2" ] && num=$2
+    if [ -s "$log" ]; then
+        while [ $num -gt 1 ]; do
+            prev=$(expr $num - 1)
+            [ -f "$log.$prev" ] && mv "$log.$prev" "$log.$num"
+            num=$prev
+        done
+        mv "$log" "$log.$num";
+    fi
+}
+
+setEffectiveIds() {
+    # Chose user ID to run as
+    uid=$(id -nu)
+    gid=$(id -ng)
+    if [ -f "$APP_PROPERTIES_FILE" ]; then
+        euid=$(grep cluster_admin_id "$APP_PROPERTIES_FILE" | cut -d\" -f4)
+        egid=$(grep cluster_admin_group "$APP_PROPERTIES_FILE" | cut -d\" -f4)
+    elif [ -f "$APP_WARDEN_DAEMON_CONF_FILE" -a $APP_WARDEN_CONTROLLED -eq 1 ]; then
+        euid=$(grep mapr.daemon.user "$APP_WARDEN_DAEMON_CONF_FILE" | cut -d= -f2)
+        egid=$(grep mapr.daemon.group "$APP_WARDEN_DAEMON_CONF_FILE" | cut -d= -f2)
+    fi
+    euid=${euid:-$uid}
+    egid=${egid:-$gid}
+}
+
+createDirectoriesAndFiles() {
+    case $1 in
+        start)
+            # Setup required directories and files
+            mkdir -m $APP_DATA_DIR_PERM -p "$APP_DATA_DIR"
+            mkdir -p "$APP_LOG_DIR" "$APP_PID_DIR"
+
+            # update ownership/permissions
+            if [ "$euid" != "$uid" -a "$uid" = "root" ]; then
+                if [ -O "$APP_HOME_DIR" -o -G "$APP_HOME_DIR" ]; then
+                    chown -R $euid:$egid "$APP_HOME_DIR"
+                else
+                    chown -R $euid:$egid "$APP_DATA_DIR" "$APP_LOG_DIR" "$APP_PID_DIR"
+                fi
+            fi
+    esac
+}
+
+execAsUser() {
+    local cmd
+
+    cmd=$1
+    shift 1
+    # Restart as required user
+    if [ $euid != $uid ]; then
+        # re-run as non-root user because sudo could require a tty
+        if [ -d "$(getent passwd $euid | cut -d: -f6)" ]; then
+            exec su - $euid -- "$APP_SCRIPT" $cmd $*
+        else
+            exec su $euid -- "$APP_SCRIPT" $cmd $*
+        fi
+    fi
+}
+
+isStaleLockFile() {
+    MOD_TIME=$(stat -c%y $APP_LOCK_FILE)
+    EPOC_MOD_TIME=$(date +%s -d"$MOD_TIME")
+    NOW_EPOC=$(date +%s)
+    DIFF_SEC=$(expr $NOW_EPOC - $EPOC_MOD_TIME)
+    if [ $DIFF_SEC -gt 300 ]; then
+        echo "found stale lock file ... removing - trying again"
+        return 0
+    else
+        return 1
+    fi
+}
+
+
+reload() {
+    if check HUP; then
+        echo "$APP ($APP_PID) reloaded"
+        true && return
+    elif [ -n "$APP_PID" ]; then
+        echo "$APP ($APP_PID) not running"
+    else
+        echo "$APP not running"
+    fi
+    false
+}
+
+start() {
+    if check; then
+        echo "$APP ($APP_PID) already running"
+        false || return
+    fi
+
+    if [ -d "$APP_LOCK_DIR" -a -f "$APP_LOCK_FILE" ]; then
+        STATE=$(cat "$APP_LOCK_FILE")
+        case $STATE in
+           runnig)
+              echo "$APP stale lock file - fixing"
+              ;;
+           starting)
+              if ! isStaleLockFile; then
+                   echo "$APP is already starting"
+                   false || return
+              fi
+              ;;
+           stopping)
+              if ! isStaleLockFile; then
+                  echo "$APP is already stopping"
+                  false || return
+              fi
+              ;;
+        esac
+    fi
+    echo "starting"> "$APP_LOCK_FILE"
+
+    # Manage logs
+    rotate_log "$APP_LOG_START_FILE"
+    touch "$APP_LOG_START_FILE"
+
+    if [ $APP_ROTATES_OWN_LOG_FILE -eq 0 ]; then
+        rotate_log "$APP_LOG_FILE"
+        touch "$APP_LOG_FILE"
+    fi
+
+    # make sure ulimits/kernel options are set
+    check_and_setup_system
+
+    cd $APP_HOME_DIR
+    if [ $APP_STARTS_WITH_JAVA -eq 1 ]; then
+        "$SETSID $JAVA" -Dlog.file="$APP_LOG_FILE" -Djava.library.path="$APP_JAVA_LIBRARY_PATH" \
+            -classpath "$APP_CLASSPATH" $APP_OPTS_1 $APP_OPTS_2 $MAPR_SSL_OPTS \
+           "$APP_MAIN" $* >> "$APP_LOG_START_FILE" 2>&1 < /dev/null &
+    else
+        $SETSID $APP_DAEMON $APP_OPTS_1 $APP_OPTS_2 $* >> "$APP_LOG_START_FILE" 2>&1 < /dev/null &
+    fi
+    APP_PID=$!
+    # do not overwrite service managed pid file and wait for process to write it
+    if [ $APP_DOES_NOT_MANAGE_PID_FILE -eq 1 ]; then
+        if [ $APP_SCRIPT_DEBUG -eq 1 ]; then
+            echo "$(date): creating $APP_PID_FILE($APP_PID)" >> "$APP_SCRIPT_DEBUG_FILE"
+        fi
+        echo $APP_PID > "$APP_PID_FILE"
+    fi
+    local i=1
+    until [ $i -eq 100 ]; do
+        sleep 0.3
+        if check && [ -s "$APP_PID_FILE" ]; then
+            echo "$APP ($APP_PID) started with log $APP_LOG_START_FILE"
+            if [ $APP_SELF_CONTAINED -o "$uid" = "root" ]; then
+                [ -d "$APP_LOCK_DIR" ] && echo "running" > "$APP_LOCK_FILE"
+            fi
+            if [ $APP_CREATE_MAPR_PID_SYMLINK -eq 1 ]; then
+                if [ $APP_SCRIPT_DEBUG -eq 1 ]; then
+                    echo "$(date): creating $APP_MAPR_PID_FILE($APP_PID)" >> "$APP_SCRIPT_DEBUG_FILE"
+                fi
+                ln -s $APP_PID_FILE $MAPR_APP_PID_FILE > /dev/null 2>&1
+            fi
+            true && return
+        fi
+        i=$((i+1))
+    done
+    check TERM && sleep 2 && check KILL
+    wait $APP_PID
+    echo "$APP ($APP_PID) start failed ($?). See $APP_LOG_START_FILE for details"
+    if [ $APP_SCRIPT_DEBUG -eq 1 ]; then
+        echo "$(date): removing $APP_PID_FILE($APP_PID) and $MAPR_APP_PID_FILE" >> "$APP_SCRIPT_DEBUG_FILE"
+    fi
+    rm -f $APP_PID_FILE $MAPR_APP_PID_FILE $APP_LOCK_FILE
+    false
+}
+
+status() {
+    if check; then
+        echo "$APP ($APP_PID) running"
+        true && return
+    elif [ -n "$APP_PID" ]; then
+        echo "$APP ($APP_PID) not running"
+    else
+        echo "$APP not running"
+    fi
+    false
+}
+
+stop() {
+    if check; then
+        echo "stopping" > "$APP_LOCK_FILE"
+        check TERM
+        echo "$APP ($APP_PID) stopping"
+        local i=1
+        while [ $i -le 33 ]; do
+            check || break
+            sleep 0.3
+            i=$((i+1))
+        done
+        check KILL
+        if [ $APP_SCRIPT_DEBUG -eq 1 ]; then
+            echo "$(date): removing $APP_PID_FILE($APP_PID), $MAPR_APP_PID_FILE, $APP_LOCKFILE " >> "$APP_SCRIPT_DEBUG_FILE"
+        fi
+        rm -f "$APP_LOCK_FILE" "$APP_PID_FILE" "$MAPR_APP_PID_FILE" >/dev/null 2>&1
+        true && return
+    elif [ -n "$APP_PID" ]; then
+        echo "$APP ($APP_PID) not running"
+    else
+        echo "$APP not running"
+    fi
+    false
+}
+
+if [ $APP_DOES_NOT_MANAGE_PID_FILE -eq 1 -a $APP_DAEMONIZES -eq 1 ]; then
+    echo "We have no way of managing the pid file"
+    exit 3
+fi
+
+if [ -z "APP_MAIN" ]; then
+    echo "ERROR: Need to set APP_MAIN else the script will hang"
+    exit 4
+fi
+
+
+[ -s "$APP_PID_FILE" ] && APP_PID=$(cat "$APP_PID_FILE")
+
+setEffectiveIds
+
+command=$1 && shift
+
+createDirectoriesAndFiles $command
+
+# switch user for all commands so that jps works correctly. As of jdk 1.8 jps -l will only list the mainClass if
+# the process is owned by the user running jps
+execAsUser $command "$@"
+
+case $command in
+    (condreload) ! check || reload ;;
+    (condrestart) check && stop && start "$@" ;;
+    (condstart) check || start "$@" ;;
+    (condstop) ! check || stop ;;
+    (reload) reload ;;
+    (restart) ! check || stop; start "$@" ;;
+    (start) start "$@" ;;
+    (status) status ;;
+    (stop) stop ;;
+    (*) echo "usage: $(basename $0) condreload|condrestart|condstart|condstop|reload|restart|start|stop|status" && exit 1 ;;
+esac
+

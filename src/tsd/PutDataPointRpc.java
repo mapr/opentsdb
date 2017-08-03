@@ -14,6 +14,7 @@ package net.opentsdb.tsd;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -783,7 +784,7 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @param dp The data point to process
    * @param e The exception that caused this
    */
-  void handleStorageException(final TSDB tsdb, final IncomingDataPoint dp, 
+  public static void handleStorageException(final TSDB tsdb, final IncomingDataPoint dp,
       final Exception e) {
     final StorageExceptionHandler handler = tsdb.getStorageExceptionHandler();
     if (handler != null) {
