@@ -384,6 +384,36 @@
     </dependency>
 
     <dependency>
+      <groupId>org.hbase</groupId>
+      <artifactId>asynchbase</artifactId>
+      <version>@ASYNCHBASE_VERSION@</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common</artifactId> 
+      <version>@HADOOP_VERSION@</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.mapr.hadoop</groupId>
+      <artifactId>maprfs-core</artifactId>
+      <version>@MAPR_VERSION@</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.mapr.streams</groupId>
+      <artifactId>mapr-streams</artifactId>
+      <version>@MAPR_VERSION@</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-clients</artifactId>
+      <version>@KAFKA_VERSION@</version>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-math3</artifactId>
       <version>@APACHE_MATH_VERSION@</version>
@@ -427,7 +457,8 @@
       <version>@LOGBACK_CLASSIC_VERSION@</version>
     </dependency>
 
-    <!-- test dependencies -->
+
+   <!-- test dependencies -->
 
     <dependency>
       <groupId>org.hamcrest</groupId>
