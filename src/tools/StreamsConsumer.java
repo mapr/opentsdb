@@ -52,7 +52,7 @@ public class StreamsConsumer implements Runnable {
         public Exception call(final Exception arg) {
           // we handle the storage exceptions here so as to avoid creating yet
           // another callback object on every data point.
-          PutDataPointRpc.handleStorageException(tsdb, PutDataPointRpc.getDataPointFromString(metricTokens), arg);
+          PutDataPointRpc.handleStorageException(tsdb, PutDataPointRpc.getDataPointFromString(tsdb, metricTokens), arg);
           return null;
         }
         public String toString() {
