@@ -689,7 +689,7 @@ public class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @throws IllegalArgumentException if any other argument is invalid.
    * @throws NoSuchUniqueName if the metric isn't registered.
    */
-  public Deferred<Object> importDataPoint(final TSDB tsdb, 
+  protected Deferred<Object> importDataPoint(final TSDB tsdb,
                                              final String[] words) {
     words[0] = null; // Ditch the "put".
     if (words.length < 5) {  // Need at least: metric timestamp value tag
@@ -739,7 +739,7 @@ public class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @param words The array of strings representing a data point
    * @return An incoming data point object.
    */
-  final public static IncomingDataPoint getDataPointFromString(final TSDB tsdb, 
+  protected IncomingDataPoint getDataPointFromString(final TSDB tsdb,
                                                      final String[] words) {
     final IncomingDataPoint dp = new IncomingDataPoint();
     dp.setMetric(words[1]);

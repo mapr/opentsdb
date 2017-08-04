@@ -24,13 +24,14 @@ import com.stumbleupon.async.Deferred;
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.tsd.PutDataPointRpc;
 import net.opentsdb.core.TSDB;
+import net.opentsdb.utils.Config;
 
 
 /**
  * @author ntirupattur
  *
  */
-public class StreamsConsumer implements Runnable {
+public class StreamsConsumer extends PutDataPointRpc implements Runnable {
 
   private String streamName;
   private String consumerGroup;
@@ -38,7 +39,8 @@ public class StreamsConsumer implements Runnable {
   private KafkaConsumer<String,String> consumer;
   private Logger log;
 
-  public StreamsConsumer(TSDB tsdb, String streamName, String topicName) {
+  public StreamsConsumer(TSDB tsdb, String streamName, String topicName, Config config) {
+    super(config);
     this.tsdb = tsdb;
     this.streamName = streamName;
     this.consumerGroup = topicName;
@@ -52,14 +54,14 @@ public class StreamsConsumer implements Runnable {
         public Exception call(final Exception arg) {
           // we handle the storage exceptions here so as to avoid creating yet
           // another callback object on every data point.
-          PutDataPointRpc.handleStorageException(tsdb, PutDataPointRpc.getDataPointFromString(tsdb, metricTokens), arg);
+          PutDataPointRpc.handleStorageException(tsdb, getDataPointFromString(tsdb, metricTokens), arg);
           return null;
         }
         public String toString() {
           return "report error to caller";
         }
       }
-      return PutDataPointRpc.importDataPoint(this.tsdb, metricTokens).addErrback(new PutErrback());
+      return importDataPoint(this.tsdb, metricTokens).addErrback(new PutErrback());
     } catch (NumberFormatException x) {
       errmsg = "put: invalid value: " + x.getMessage() + '\n';
     } catch (IllegalArgumentException x) {
