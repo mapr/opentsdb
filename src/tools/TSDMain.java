@@ -40,6 +40,7 @@ import net.opentsdb.tools.StreamsConsumer;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Const;
 import net.opentsdb.tsd.PipelineFactory;
+import net.opentsdb.tsd.PutDataPointRpc;
 import net.opentsdb.tsd.RpcManager;
 import net.opentsdb.utils.Config;
 import net.opentsdb.utils.Exceptions;
@@ -259,7 +260,7 @@ final class TSDMain {
         }
         String consumerGroup = config.getString("tsd.default.consumergroup");
         if (consumerGroup == null || consumerGroup.isEmpty()) consumerGroup = "metrics";
-        startConsumers(tsdb, streamNames.trim(), consumerGroup.trim(), streamsConsumerExecutor);
+        startConsumers(tsdb, streamNames.trim(), consumerGroup.trim(), streamsConsumerExecutor, config);
       }
 
       log.info("Starting.");
@@ -315,13 +316,11 @@ final class TSDMain {
     return startup;
   }
 
-  private static void startConsumers(TSDB tsdb, String streamNames, String consumerGroup, ExecutorService executor) {
+  private static void startConsumers(TSDB tsdb, String streamNames, String consumerGroup, ExecutorService executor, Config config) {
     try {
-
-      final Configuration conf = new Configuration();
       List<String> streams = Arrays.asList(streamNames.split("\\s*,\\s*"));
       for (String streamName: streams) {
-        StreamsConsumer consumer = new StreamsConsumer(tsdb, streamName, consumerGroup);
+        StreamsConsumer consumer = new StreamsConsumer(tsdb, streamName, consumerGroup, config);
         executor.submit(consumer);
       }// TODO - Add reconnect logic and a way to monitor the consumers
     } catch (Exception e) {
