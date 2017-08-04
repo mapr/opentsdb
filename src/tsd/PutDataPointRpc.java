@@ -783,7 +783,7 @@ public class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @param dp The data point to process
    * @param e The exception that caused this
    */
-  void handleStorageException(final TSDB tsdb, final IncomingDataPoint dp, 
+  public static void handleStorageException(final TSDB tsdb, final IncomingDataPoint dp, 
       final Exception e) {
     final StorageExceptionHandler handler = tsdb.getStorageExceptionHandler();
     if (handler != null) {
