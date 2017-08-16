@@ -14,7 +14,6 @@ package net.opentsdb.tsd;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -66,7 +65,7 @@ import net.opentsdb.utils.Config;
  * Note that this class can be subclassed to handle different types of 
  * data points such as Rollups or Pre-Aggregates
  */
-public class PutDataPointRpc implements TelnetRpc, HttpRpc {
+class PutDataPointRpc implements TelnetRpc, HttpRpc {
   protected static final Logger LOG = LoggerFactory.getLogger(PutDataPointRpc.class);
   protected static final ArrayList<Boolean> EMPTY_DEFERREDS = 
       new ArrayList<Boolean>(0);
@@ -689,7 +688,7 @@ public class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @throws IllegalArgumentException if any other argument is invalid.
    * @throws NoSuchUniqueName if the metric isn't registered.
    */
-  protected Deferred<Object> importDataPoint(final TSDB tsdb,
+  protected Deferred<Object> importDataPoint(final TSDB tsdb, 
                                              final String[] words) {
     words[0] = null; // Ditch the "put".
     if (words.length < 5) {  // Need at least: metric timestamp value tag
@@ -739,7 +738,7 @@ public class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @param words The array of strings representing a data point
    * @return An incoming data point object.
    */
-  protected IncomingDataPoint getDataPointFromString(final TSDB tsdb,
+  protected IncomingDataPoint getDataPointFromString(final TSDB tsdb, 
                                                      final String[] words) {
     final IncomingDataPoint dp = new IncomingDataPoint();
     dp.setMetric(words[1]);
@@ -784,7 +783,7 @@ public class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @param dp The data point to process
    * @param e The exception that caused this
    */
-  public static void handleStorageException(final TSDB tsdb, final IncomingDataPoint dp,
+  void handleStorageException(final TSDB tsdb, final IncomingDataPoint dp, 
       final Exception e) {
     final StorageExceptionHandler handler = tsdb.getStorageExceptionHandler();
     if (handler != null) {
