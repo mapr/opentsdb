@@ -254,13 +254,13 @@ final class TSDMain {
       boolean useStreams = config.getBoolean("tsd.default.usestreams");
       if (useStreams) {
         // Get the list of stream names from config
-        String streamNames = config.getString("tsd.streams");
-        if (streamNames == null || streamNames.isEmpty()) {
+        String streamsPath = config.getString("tsd.streams.path");
+        if (streamsPath == null || streamsPath.isEmpty()) {
           throw new RuntimeException("Failed to get MapR Streams information from config file.");
         }
         String consumerGroup = config.getString("tsd.default.consumergroup");
         if (consumerGroup == null || consumerGroup.isEmpty()) consumerGroup = "metrics";
-        startConsumers(tsdb, streamNames.trim(), consumerGroup.trim(), streamsConsumerExecutor, config);
+        startConsumers(tsdb, streamsPath.trim(), consumerGroup.trim(), streamsConsumerExecutor, config);
       }
 
       log.info("Starting.");
@@ -316,11 +316,11 @@ final class TSDMain {
     return startup;
   }
 
-  private static void startConsumers(TSDB tsdb, String streamNames, String consumerGroup, ExecutorService executor, Config config) {
+  private static void startConsumers(TSDB tsdb, String streamsPath, String consumerGroup, ExecutorService executor, Config config) {
     try {
-      List<String> streams = Arrays.asList(streamNames.split("\\s*,\\s*"));
-      for (String streamName: streams) {
-        StreamsConsumer consumer = new StreamsConsumer(tsdb, streamName, consumerGroup, config);
+    	// Create a consumer for each stream under streamsPath
+      for (int i=0;i<255;i++) {
+        StreamsConsumer consumer = new StreamsConsumer(tsdb, streamsPath+"/"+i, consumerGroup, config);  
         executor.submit(consumer);
       }// TODO - Add reconnect logic and a way to monitor the consumers
     } catch (Exception e) {
