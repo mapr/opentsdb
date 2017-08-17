@@ -320,7 +320,7 @@ final class TSDMain {
     try {
     	// Create a consumer for each stream under streamsPath
       for (int i=0;i<255;i++) {
-        StreamsConsumer consumer = new StreamsConsumer(tsdb, streamsPath+"/"+i, consumerGroup, config);  
+        StreamsConsumer consumer = new StreamsConsumer(tsdb, streamsPath+"/"+i, consumerGroup+"/"+i, config);
         executor.submit(consumer);
       }// TODO - Add reconnect logic and a way to monitor the consumers
     } catch (Exception e) {
