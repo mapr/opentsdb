@@ -50,7 +50,7 @@ RC=0
 nodeport="4242"
 nodecount=0
 nodelist=""
-streamslist=""
+useStreams=1
 zk_nodecount=0
 zk_nodeport=5181
 zk_nodelist=""
@@ -113,11 +113,11 @@ function configureZKQuorum() {
 #
 #############################################################################
 function configureInputStreams() {
-    if [ -n "$streamslist" ]; then
-        sed -i -e 's/\(^\s*#*\s*\)\(tsd.streams = \).*/\2'"$streamslist"'/g' $NEW_OT_CONF_FILE
+    if [ $useStreams -eq 1 ]; then
         sed -i -e 's/\(^\s*#*\s*\)\(tsd.default.usestreams = \).*/\2'"true"'/g' $NEW_OT_CONF_FILE
         sed -i -e 's/\(^\s*#*\s*\)\(tsd.mode = ro\).*/\2/g' $NEW_OT_CONF_FILE
         sed -i -e 's/\(^\s*#*\s*\)\(tsd.default.consumergroup = \).*/\2'"metrics"'/g' $NEW_OT_CONF_FILE
+        sed -i -e 's/\(^\s*#*\s*\)\(tsd.default.path = \).*/\2'"/var/mapr/mapr.monitoring/streams"'/g' $NEW_OT_CONF_FILE
     else
         sed -i -e 's/\(^\s*#*\s*\)\(tsd.default.usestreams = \).*/\2'"false"'/g' $NEW_OT_CONF_FILE
     fi
@@ -336,7 +336,7 @@ if [ ${#} -gt 1 ]; then
                 shift 2
                 ;;
             --IS) 
-                streamslist="$2";
+                useStreams=1;
                 shift 2
                 ;;
             --OT) # not used at the moment
@@ -375,7 +375,7 @@ fi
 
 # make sure we have what we need
 # we don't really need the OT list at the moment, nor do we use the two counts
-if [ \( -z "$nodelist" -a -z "$streamslist" \) -o -z "$zk_nodelist" ]; then
+if [ \( -z "$nodelist" -a -z "$useStreams" \) -o -z "$zk_nodelist" ]; then
     echo "-OT or -IS, and -Z options are required"
     echo "${usage}"
     return 2 2>/dev/null || exit 2
