@@ -14,18 +14,17 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
 MAPR_VERSION := 6.0.0-mapr
+KAFKA_VERSION := 0.9.0.0-mapr-1607-streams-6.0.0
 MAPR := third_party/mapr/maprfs-$(MAPR_VERSION).jar
 USE_SNAPSHORTS := 1
-if USE_SNAPSHOTS
+if USE_MAPR_SNAPSHOTS
     RELEASE_TYPE := "snapshots"
+    MAPR_VERSION_STR := "$(MAPR_VERSION)-SNAPSHOT"
+    KAFKA_VERSION_STR := "$(KAFKA_VERSION)-SNAPSHOT"
 else
     RELEASE_TYPE := "releases"
-endif
-
-if USE_SNAPSHOTS
-    MAPR_VERSION_STR := "$(MAPR_VERSION)-SNAPSHOT"
-else
     MAPR_VERSION_STR := "$(MAPR_VERSION)"
+    KAFKA_VERSION_STR := "$(KAFKA_VERSION)"
 endif
 
 #temporarily switch to snapshot for 6.0.0
@@ -40,12 +39,6 @@ MAPR_STREAMS_BASE_URL := http://maven.corp.maprtech.com/nexus/content/repositori
 $(MAPR_STREAMS):
 	set dummy "$(MAPR_STREAMS_BASE_URL)" "$(MAPR_STREAMS)"; shift; mvn org.apache.maven.plugins:maven-dependency-plugin:2.4:get -DrepoUrl=$(MAPR_MAVEN_REPO) -Dartifact=com.mapr.streams:mapr-streams:$(MAPR_VERSION_STR) -Ddest=$(MAPR_STREAMS)
 
-KAFKA_VERSION := 0.9.0.0-mapr-1607-streams-6.0.0
-if USE_SNAPSHOTS
-    KAFKA_VERSION_STR := "$(KAFKA_VERSION)-SNAPSHOT"
-else
-    KAFKA_VERSION_STR := "$(KAFKA_VERSION)"
-endif
 KAFKA := third_party/mapr/kafka-clients-$(KAFKA_VERSION_STR).jar
 KAFKA_BASE_URL := http://maven.corp.maprtech.com/nexus/content/repositories/${RELEASE_TYPE}/org/apache/kafka/kafka-clients/${KAFKA_VERSION_STR}/
 
