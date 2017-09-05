@@ -23,7 +23,7 @@ AC_CONFIG_FILES([
 ])
 AC_CONFIG_FILES([opentsdb.spec])
 AC_CONFIG_FILES([build-aux/fetchdep.sh], [chmod +x build-aux/fetchdep.sh])
-AM_CONDITIONAL(USE_MAPR_SNAPSHOT, true)
+AM_CONDITIONAL(USE_MAPR_SNAPSHOTS, true)
 
 AC_ARG_WITH([bigtable],
             [AS_HELP_STRING([--with-bigtable], [Enable Google's Bigtable backend])],
