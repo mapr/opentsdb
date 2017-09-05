@@ -15,31 +15,41 @@
 
 MAPR_VERSION := 6.0.0-mapr
 MAPR := third_party/mapr/maprfs-$(MAPR_VERSION).jar
-RELEASE_TYPE := "snapshots"
-ifeq ($(RELEASE_TYPE), "snapshots")
-    MAPR_VERSION := "$(MAPR_VERSION)-SNAPSHOT"
+USE_SNAPSHORTS := 1
+if USE_SNAPSHOTS
+    RELEASE_TYPE := "snapshots"
+else
+    RELEASE_TYPE := "releases"
+endif
+
+if USE_SNAPSHOTS
+    MAPR_VERSION_STR := "$(MAPR_VERSION)-SNAPSHOT"
+else
+    MAPR_VERSION_STR := "$(MAPR_VERSION)"
 endif
 
 #temporarily switch to snapshot for 6.0.0
-MAPR_BASE_URL := http://maven.corp.maprtech.com/nexus/content/repositories/${RELEASE_TYPE}/com/mapr/hadoop/maprfs/${MAPR_VERSION}/
+MAPR_BASE_URL := http://maven.corp.maprtech.com/nexus/content/repositories/${RELEASE_TYPE}/com/mapr/hadoop/maprfs/${MAPR_VERSION_STR}/
 
 $(MAPR):
-	set dummy "$(MAPR_BASE_URL)" "$(MAPR)"; shift; mvn -B org.apache.maven.plugins:maven-dependency-plugin:2.4:get -DrepoUrl=$(MAPR_MAVEN_REPO) -Dartifact=com.mapr.hadoop:maprfs:$(MAPR_VERSION) -Ddest=$(MAPR)
+	set dummy "$(MAPR_BASE_URL)" "$(MAPR)"; shift; mvn -B org.apache.maven.plugins:maven-dependency-plugin:2.4:get -DrepoUrl=$(MAPR_MAVEN_REPO) -Dartifact=com.mapr.hadoop:maprfs:$(MAPR_VERSION_STR) -Ddest=$(MAPR)
 
-MAPR_STREAMS := third_party/mapr/mapr-streams-$(MAPR_VERSION).jar
-MAPR_STREAMS_BASE_URL := http://maven.corp.maprtech.com/nexus/content/repositories/${RELEASE_TYPE}/com/mapr/streams/mapr-streams/${MAPR_VERSION}/
+MAPR_STREAMS := third_party/mapr/mapr-streams-$(MAPR_VERSION_STR).jar
+MAPR_STREAMS_BASE_URL := http://maven.corp.maprtech.com/nexus/content/repositories/${RELEASE_TYPE}/com/mapr/streams/mapr-streams/${MAPR_VERSION_STR}/
 
 $(MAPR_STREAMS):
-	set dummy "$(MAPR_STREAMS_BASE_URL)" "$(MAPR_STREAMS)"; shift; mvn org.apache.maven.plugins:maven-dependency-plugin:2.4:get -DrepoUrl=$(MAPR_MAVEN_REPO) -Dartifact=com.mapr.streams:mapr-streams:$(MAPR_VERSION) -Ddest=$(MAPR_STREAMS)
+	set dummy "$(MAPR_STREAMS_BASE_URL)" "$(MAPR_STREAMS)"; shift; mvn org.apache.maven.plugins:maven-dependency-plugin:2.4:get -DrepoUrl=$(MAPR_MAVEN_REPO) -Dartifact=com.mapr.streams:mapr-streams:$(MAPR_VERSION_STR) -Ddest=$(MAPR_STREAMS)
 
 KAFKA_VERSION := 0.9.0.0-mapr-1607-streams-6.0.0
-ifeq ($(RELEASE_TYPE), "snapshots")
-    KAFKA_VERSION := "$(KAFKA_VERSION)-SNAPSHOT"
+if USE_SNAPSHOTS
+    KAFKA_VERSION_STR := "$(KAFKA_VERSION)-SNAPSHOT"
+else
+    KAFKA_VERSION_STR := "$(KAFKA_VERSION)"
 endif
-KAFKA := third_party/mapr/kafka-clients-$(KAFKA_VERSION).jar
-KAFKA_BASE_URL := http://maven.corp.maprtech.com/nexus/content/repositories/${RELEASE_TYPE}/org/apache/kafka/kafka-clients/${KAFKA_VERSION}
+KAFKA := third_party/mapr/kafka-clients-$(KAFKA_VERSION_STR).jar
+KAFKA_BASE_URL := http://maven.corp.maprtech.com/nexus/content/repositories/${RELEASE_TYPE}/org/apache/kafka/kafka-clients/${KAFKA_VERSION_STR}/
 
 $(KAFKA):
-	set dummy "$(KAFKA_BASE_URL)" "$(KAFKA)"; shift; mvn org.apache.maven.plugins:maven-dependency-plugin:2.4:get -DrepoUrl=$(MAPR_MAVEN_REPO) -Dartifact=org.apache.kafka:kafka-clients:$(KAFKA_VERSION) -Ddest=$(KAFKA)
+	set dummy "$(KAFKA_BASE_URL)" "$(KAFKA)"; shift; mvn org.apache.maven.plugins:maven-dependency-plugin:2.4:get -DrepoUrl=$(MAPR_MAVEN_REPO) -Dartifact=org.apache.kafka:kafka-clients:$(KAFKA_VERSION_STR) -Ddest=$(KAFKA)
 
 THIRD_PARTY += $(MAPR) $(MAPR_STREAMS) $(KAFKA)
