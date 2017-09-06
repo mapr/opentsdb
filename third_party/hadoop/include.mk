@@ -16,6 +16,12 @@
 HADOOP_VERSION := 2.7.0-mapr-1506
 HADOOP := third_party/hadoop/hadoop-common-$(HADOOP_VERSION).jar
 HADOOP_BASE_URL := $(MAPR_MAVEN_REPO)/org/apache/hadoop/hadoop-common/$(HADOOP_VERSION)
+DIRECTORY := third_party/hadoop/apacheds-jdbm1-2.0.0-M2.jar
+DIRECTORY_VERSION := 2.0.0-M2
+DIRECTORY_BASE_URL := http://artifactory.devops.lab/artifactory/list/maven-corp-releases/org/apache/directory/jdbm/apacheds-jdbm1/$(DIRECTORY_VERSION)/
+
+$(DIRECTORY):
+	set dummy "$(DIRECTORY_BASE_URL)" "$(DIRECTORY)"; shift; mvn -B org.apache.maven.plugins:maven-dependency-plugin:2.4:get -DrepoUrl=$(DIRECTORY_BASE_URL) -Dartifact=org.apache.directory.jdbm/:apacheds-jdbm1:$(DIRECTORY_VERSION) -Ddest=$(DIRECTORY)
 
 $(HADOOP):
 	set dummy "$(HADOOP_BASE_URL)" "$(HADOOP)"; shift; mvn -B org.apache.maven.plugins:maven-dependency-plugin:2.4:get -DrepoUrl=$(MAPR_MAVEN_REPO) -Dartifact=org.apache.hadoop:hadoop-common:$(HADOOP_VERSION) -Ddest=$(HADOOP)
