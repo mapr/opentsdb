@@ -318,7 +318,7 @@ usage="usage: $0 [-nodeCount <cnt>] [-nodePort <port> -nodeZkCount <zkCnt>] [-no
 if [ ${#} -gt 1 ]; then
     # we have arguments - run as as standalone - need to get params and
     # XXX why do we need the -o to make this work?
-    OPTS=`getopt -a -o h -l nodeCount: -l nodePort: -l IS: -l OT: -l nodeZkCount: -l nodeZkPort: -l Z: -l R -- "$@"`
+    OPTS=`getopt -a -o h -l EC: -l nodeCount: -l nodePort: -l IS: -l OT: -l nodeZkCount: -l nodeZkPort: -l Z: -l R -l customSecure -l unsecure -- "$@"`
     if [ $? != 0 ]; then
         echo ${usage}
         return 2 2>/dev/null || exit 2
@@ -327,12 +327,8 @@ if [ ${#} -gt 1 ]; then
 
     for i ; do
         case "$i" in
-            --nodeCount)
-                nodecount="$2";
-                shift 2
-                ;;
-            --nodeZkCount)
-                zk_nodecount="$2";
+            --EC) 
+                ecOpts="$2";
                 shift 2
                 ;;
             --IS) 
@@ -343,8 +339,20 @@ if [ ${#} -gt 1 ]; then
                 nodelist="$2";
                 shift 2
                 ;;
+            --R)
+                OT_CONF_ASSUME_RUNNING_CORE=1
+                shift 1
+                ;;
             --Z)
                 zk_nodelist="$2";
+                shift 2
+                ;;
+            --nodeCount)
+                nodecount="$2";
+                shift 2
+                ;;
+            --nodeZkCount)
+                zk_nodecount="$2";
                 shift 2
                 ;;
             --nodePort)
@@ -355,8 +363,12 @@ if [ ${#} -gt 1 ]; then
                 zk_nodeport="$2";
                 shift 2
                 ;;
-            --R)
-                OT_CONF_ASSUME_RUNNING_CORE=1
+            --secure|--customSecure)
+                security=1
+                shift 1
+                ;;
+            --unsecure)
+                security=0
                 shift 1
                 ;;
             --h)
