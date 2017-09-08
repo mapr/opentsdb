@@ -314,13 +314,13 @@ function createCronJob() {
 #
 # Parse the arguments
 
-usage="usage: $0 [-nodeCount <cnt>] [-nodePort <port> -nodeZkCount <zkCnt>] [-nodeZkPort <zkPort>] [-IS \"inputstream1,inputstream2..\" ] [-R] -OT \"ip:port,ip1:port..\" -Z \"ip:port,ip1:port..\" "
+usage="usage: $0 [-EC <commonEcoOpts>] [-nodeCount <cnt>] [-nodePort <port>]\n\t[-nodeZkCount <zkCnt>] [-nodeZkPort <zkPort>] [-customSecure] [-secure] [-unsecure]\n\t[-IS \"inputstream1,inputstream2..\" ] [-R] -OT \"ip:port,ip1:port..\" -Z \"ip:port,ip1:port..\" "
 if [ ${#} -gt 1 ]; then
     # we have arguments - run as as standalone - need to get params and
     # XXX why do we need the -o to make this work?
     OPTS=`getopt -a -o h -l EC: -l nodeCount: -l nodePort: -l IS: -l OT: -l nodeZkCount: -l nodeZkPort: -l Z: -l R -l customSecure -l unsecure -- "$@"`
     if [ $? != 0 ]; then
-        echo ${usage}
+        echo -e ${usage}
         return 2 2>/dev/null || exit 2
     fi
     eval set -- "$OPTS"
@@ -372,7 +372,7 @@ if [ ${#} -gt 1 ]; then
                 shift 1
                 ;;
             --h)
-                echo ${usage}
+                echo -e ${usage}
                 return 2 2>/dev/null || exit 2
                 ;;
             --)
@@ -381,7 +381,7 @@ if [ ${#} -gt 1 ]; then
         esac
     done
 else
-    echo "${usage}"
+    echo -e "${usage}"
     return 2 2>/dev/null || exit 2
 fi
 
@@ -389,7 +389,7 @@ fi
 # we don't really need the OT list at the moment, nor do we use the two counts
 if [ \( -z "$nodelist" -a -z "$useStreams" \) -o -z "$zk_nodelist" ]; then
     echo "-OT or -IS, and -Z options are required"
-    echo "${usage}"
+    echo -e "${usage}"
     return 2 2>/dev/null || exit 2
 fi
 
