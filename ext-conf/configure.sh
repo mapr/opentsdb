@@ -58,6 +58,14 @@ else
 fi
 
 #############################################################################
+# Function to change ownership of our files to $MAPR_USER
+#
+#############################################################################
+function adjustOwnerShip() {
+    chown -R "$MAPR_USER":"$MAPR_GROUP" $OTSDB_HOME
+}
+
+#############################################################################
 # Function to install Warden conf file
 #
 #############################################################################
@@ -212,25 +220,6 @@ function checkCoreUp() {
    done
    return $rc
 }
-
-#############################################################################
-# Function to wait for cldb to come up
-#
-#############################################################################
-function waitForCLDB() {
-    local cldbretries
-    cldbretries=$CLDB_RETRIES   # give it two minutes
-    until [ $CLDB_RUNNING -eq 1 -o $cldbretries -lt 0 ]; do
-        $MAPR_HOME/bin/maprcli node cldbmaster > /dev/null 2>&1
-        [ $? -eq 0 ] && CLDB_RUNNING=1
-        [ $CLDB_RUNNING -ne 0 ] &&  sleep $CLDB_RETRY_DLY
-        let cldbretries=cldbretries-1
-    done
-    return $CLDB_RUNNING
-}
-
-
-
 
 
 #############################################################################
