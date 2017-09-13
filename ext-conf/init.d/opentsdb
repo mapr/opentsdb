@@ -284,6 +284,19 @@ setEffectiveIds() {
     egid=${egid:-$gid}
 }
 
+function createTSDBHbaseTables() {
+    local rc=1
+    # Create TSDB tables
+    HBASE_VERSION=`cat ${MAPR_HOME}/hbase/hbaseversion`
+    export MAPR_TICKETFILE_LOCATION=${MAPR_HOME}/conf/mapruserticket
+    export COMPRESSION=NONE; export HBASE_HOME=/opt/mapr/hbase/hbase-$HBASE_VERSION; ${APP_HOME_DIR}/share/opentsdb/tools/create_table.sh > ${APP_LOG_DIR}/opentsdb_install.log
+    rc=$?
+    if [ $rc -ne 0 ]; then
+        echo "Failed to create TSDB tables - need to rerun configure.sh -R or run create_table.sh"
+        exit 1
+    fi
+}
+
 createDirectoriesAndFiles() {
     case $1 in
         start)
@@ -487,6 +500,8 @@ createDirectoriesAndFiles $command
 # switch user for all commands so that jps works correctly. As of jdk 1.8 jps -l will only list the mainClass if
 # the process is owned by the user running jps
 execAsUser $command "$@"
+
+createTSDBHbaseTables
 
 case $command in
     (condreload) ! check || reload ;;

@@ -37,13 +37,7 @@ OTSDB_HOME="${OTSDB_HOME:-__INSTALL__}"
 OT_CONF_FILE="${OT_CONF_FILE:-${OTSDB_HOME}/etc/opentsdb/opentsdb.conf}"
 NEW_OT_CONF_FILE=${NEW_OT_CONF_FILE:-${OT_CONF_FILE}.progress}
 MAPR_HOME=${MAPR_HOME:-/opt/mapr}
-MAPR_CONF_DIR="${MAPR_HOME}/conf/conf.d"
-MAPR_USER=${MAPR_USER:-mapr}
-MAPR_GROUP=${MAPR_GROUP:-mapr}
 NOW=$(date "+%Y%m%d_%H%M%S")
-CLDB_RETRIES=24
-CLDB_RETRY_DLY=5
-CLDB_RUNNING=0
 ASYNCVER="1.7"   # two most significat version number of compatible asynchbase jar
 OT_CONF_ASSUME_RUNNING_CORE=${isOnlyRoles:-0}
 RC=0
@@ -54,21 +48,14 @@ useStreams=1
 zk_nodecount=0
 zk_nodeport=5181
 zk_nodelist=""
+secureCluster=0
 
-#############################################################################
-# Function to log messages
-#
-# if $logFile is set the message gets logged there too
-#
-#############################################################################
-function logMsg() {
-    local msg
-    msg="$(date): $1"
-    echo $msg
-    if [ -n "$logFile" ] ; then
-        echo $msg >> $logFile
-    fi
-}
+if [ -e "${MAPR_HOME}/server/common-ecosystem.sh" ]; then
+    . "${MAPR_HOME}/server/common-ecosystem.sh"
+else
+   echo "Failed to source common-ecosystem.sh"
+   exit 0
+fi
 
 #############################################################################
 # Function to install Warden conf file
@@ -83,7 +70,7 @@ function installWardenConfFile() {
     # Copy warden conf
     cp ${OTSDB_HOME}/etc/conf/warden.opentsdb.conf ${MAPR_CONF_DIR}
     if [ $? -ne 0 ]; then
-        logMsg "WARNING: Failed to install Warden conf file for service - service will not start"
+        logWarn "opentsdb - Failed to install Warden conf file for service - service will not start"
     fi
 }
 
@@ -143,13 +130,13 @@ function installAsyncHbaseJar() {
                 cp  "$asyncHbaseJar" ${OTSDB_HOME}/share/opentsdb/lib/asynchbase-"$jar_ver".jar
                 rc=$?
             else
-                logMsg "ERROR: Incompatible asynchbase jar found"
+                logErr "Incompatible asynchbase jar found"
             fi
         fi
     fi
 
     if [ $rc -eq 1 ]; then
-        logMsg "ERROR: Failed to install asyncHbase Jar file"
+        logErr "Failed to install asyncHbase Jar file"
     fi
     return $rc
 }
@@ -178,6 +165,24 @@ function configureOTIp() {
     # opentsdb.conf:# tsd.network.bind = 0.0.0.0
     # XXX Need to decide if we ant 0.0.0.0 or specific Interface
     :
+}
+
+#############################################################################
+# Function to check and register port availablilty
+#
+#############################################################################
+function registerOTPort() {
+    if checkNetworkPortAvailability $nodeport ; then
+        registerNetworkPort opentsdb $nodeport
+        if [ $? -ne 0 ]; then
+            logWarn "opentsdb - Failed to register port"
+        fi
+    else
+        service=$(whoHasNetworkPort $nodeport)
+        if [ "$service" != "opentsdb" ]; then
+            logWarn "opentsdb - port $nodeport in use by $service service"
+        fi
+    fi
 }
 
 #############################################################################
@@ -226,23 +231,6 @@ function waitForCLDB() {
 
 
 
-#############################################################################
-# Function to create TSDB tables in Hbase as the $MAPR_USER user
-#
-#############################################################################
-function createTSDBHbaseTables() {
-    local rc=1
-    # Create TSDB tables
-    if [ $CLDB_RUNNING -eq 1 ]; then
-       HBASE_VERSION=`cat /opt/mapr/hbase/hbaseversion`
-       export COMPRESSION=NONE; export HBASE_HOME=/opt/mapr/hbase/hbase-$HBASE_VERSION; su -c ${OTSDB_HOME}/share/opentsdb/tools/create_table.sh > ${OTSDB_HOME}/var/log/opentsdb/opentsdb_install.log $MAPR_USER
-       rc=$?
-    fi
-    if [ $rc -ne 0 ]; then
-        logMsg "WARNING: Failed to create TSDB tables - need to rerun configure.sh -R or run create_table.sh as $MAPR_USER"
-    fi
-    return $rc
-}
 
 
 #############################################################################
@@ -251,11 +239,6 @@ function createTSDBHbaseTables() {
 #############################################################################
 function createCronJob() {
     local CRONTAB
-    local OS
-    local OSNAME
-    local OSVER
-    local SUSE_OSVER
-    local OSPATCHLVL
     local min
     local hour
 
@@ -265,23 +248,8 @@ function createCronJob() {
     let "min %= 60"
     let "hour %= 6"  # Try to do this at low usage time
 
-    if [ -f /etc/redhat-release ]; then
-        OS=redhat
-        OSNAME=$(cut -d' ' -f1 < /etc/redhat-release)
-        OSVER=$(grep -o -P '[0-9\.]+' /etc/redhat-release | cut -d. -f1,2)
-    elif [ -f /etc/SuSE-release ]; then
-        OS=suse
-        OSVER=$(grep VERSION_ID /etc/os-release | cut -d\" -f2)
-        OSPATCHLVL=$(grep PATCHLEVEL /etc/SuSE-release | cut -d' ' -f3)
-        if [ -n "$OSPATCHLVL" ]; then
-            SUSE_OSVER=$OSVER.$PATCHLVL
-        else
-            SUSE_OSVER=$OSVER
-        fi
-    elif [ -f /etc/lsb-release ] && grep -q DISTRIB_ID=Ubuntu /etc/lsb-release; then
-        OS=ubuntu
-        OSVER=$(grep DISTRIB_RELEASE /etc/lsb-release | cut -d= -f2)
-    fi
+    # $OS is set by initCfgEnv
+    echo "OS= $OS"
     case "$OS" in
         redhat)
             CRONTAB="/var/spool/cron/$MAPR_USER"
@@ -312,24 +280,51 @@ function createCronJob() {
 # we need will use the roles file to know if this node is a RM. If this RM
 # is not the active one, we will be getting 0s for the stats.
 #
-# Parse the arguments
 
+#sets MAPR_USER/MAPR_GROUP/logfile
+initCfgEnv
+
+# Parse the arguments
 usage="usage: $0 [-EC <commonEcoOpts>] [-nodeCount <cnt>] [-nodePort <port>]\n\t[-nodeZkCount <zkCnt>] [-nodeZkPort <zkPort>] [-customSecure] [-secure] [-unsecure]\n\t[-IS \"inputstream1,inputstream2..\" ] [-R] -OT \"ip:port,ip1:port..\" -Z \"ip:port,ip1:port..\" "
 if [ ${#} -gt 1 ]; then
     # we have arguments - run as as standalone - need to get params and
     # XXX why do we need the -o to make this work?
-    OPTS=`getopt -a -o h -l EC: -l nodeCount: -l nodePort: -l IS: -l OT: -l nodeZkCount: -l nodeZkPort: -l Z: -l R -l customSecure -l unsecure -- "$@"`
+    OPTS=`getopt -a -o h -l EC: -l nodeCount: -l nodePort: -l IS: -l OT: -l nodeZkCount: -l nodeZkPort: -l Z: -l R -l customSecure -l unsecure -l secure -- "$@"`
     if [ $? != 0 ]; then
         echo -e ${usage}
         return 2 2>/dev/null || exit 2
     fi
     eval set -- "$OPTS"
 
-    for i ; do
-        case "$i" in
+    while true ; do
+        echo "Processing $1"
+        case "$1" in
             --EC) 
-                ecOpts="$2";
+                eval ecOpts=$2;
                 shift 2
+                #Parse Common options
+                #Ingore ones we don't care about
+                restOpts="$*"
+                eval set -- "$ecOpts --"
+                while true ; do
+                    echo "Processing inner $1"
+                    case "$1" in
+                        --OT|-OT)
+                            nodelist="$2"
+                            shift 2;;
+                        --R|-R)
+                            OT_CONF_ASSUME_RUNNING_CORE=1
+                            shift 1
+                            ;;
+                        --) shift
+                            break;;
+                        *)
+                            #Ignoring common option $1"
+                            shift 1;;
+                    esac
+                done
+                shift 2 
+                eval set -- "$restOpts"
                 ;;
             --IS) 
                 useStreams=1;
@@ -363,26 +358,44 @@ if [ ${#} -gt 1 ]; then
                 zk_nodeport="$2";
                 shift 2
                 ;;
-            --secure|--customSecure)
-                security=1
-                shift 1
-                ;;
+            --customSecure)
+                if [ -f "$OTSDB_HOME/etc/.not_configured_yet" ]; then
+                    # opentsdb added after secure 5.x cluster upgraded to customSecure
+                    # 6.0 cluster. Deal with this by assuming a regular --secure path
+                    :
+                else 
+                    # this is a little tricky. It either means a simpel configure.sh -R run
+                    # or it means that opentsdb was part of the 5.x to 6.0 upgrade
+                    # At the moment opentsdb knows of no other security settings besides jmx
+                    # and port numbers the jmx uses. Since we have no way of detecting what 
+                    # these ports are - we assume for now they don't change.
+                    :
+                fi
+                secureCluster=1;
+                shift 1;;
+            --secure)
+                secureCluster=1;
+                shift 1;;
             --unsecure)
-                security=0
-                shift 1
-                ;;
+                secureCluster=0;
+                shift 1;;
             --h)
                 echo -e ${usage}
                 return 2 2>/dev/null || exit 2
                 ;;
             --)
                 shift
+                break
                 ;;
         esac
     done
 else
     echo -e "${usage}"
     return 2 2>/dev/null || exit 2
+fi
+
+if [ -z "$zk_nodelist" ]; then
+    zk_nodelist=$(getZKServers)
 fi
 
 # make sure we have what we need
@@ -398,33 +411,21 @@ cp -p ${OT_CONF_FILE} ${OT_CONF_FILE}.${NOW}
 
 #create our new config file
 cp ${OT_CONF_FILE} ${NEW_OT_CONF_FILE}
-
 configureOTPort
+registerOTPort
 configureZKQuorum
 configureInputStreams
 createCronJob
 #install our changes
 cp ${NEW_OT_CONF_FILE} ${OT_CONF_FILE}
-if [ $OT_CONF_ASSUME_RUNNING_CORE -eq 1 ]; then
 
-    installAsyncHbaseJar
-    RC=$?
-    if [ $RC -ne 0 ]; then
-        # If we couldn't install the jar file - report early
-        logMsg "WARNING: opentsdb - failed to install asynchbase jar"
-        return $RC 2>/dev/null || exit $RC
-    fi
-    # if warden isn't running, nothing else will - likely uninstall
-    if ${MAPR_HOME}/initscripts/mapr-warden status > /dev/null 2>&1 ; then
-        waitForCLDB
-        export MAPR_TICKETFILE_LOCATION=${MAPR_HOME}/conf/mapruserticket
-        createTSDBHbaseTables
-        if [ $? -eq 0 ]; then
-            installWardenConfFile
-        else
-            logMsg "WARNING: opentsdb service not enabled - failed to setup hbase tables"
-        fi
-    fi
+installAsyncHbaseJar
+RC=$?
+if [ $RC -ne 0 ]; then
+    # If we couldn't install the jar file - report early
+    logWarn "opentsdb - failed to install asynchbase jar"
+    return $RC 2>/dev/null || exit $RC
 fi
+installWardenConfFile
 rm -f "${NEW_OT_CONF_FILE}"
 true
