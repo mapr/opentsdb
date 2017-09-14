@@ -71,12 +71,12 @@ function adjustOwnerShip() {
 #############################################################################
 function installWardenConfFile() {
     # make sure conf directory exist
-    if ! [ -d ${MAPR_CONF_DIR} ]; then
-        mkdir -p ${MAPR_CONF_DIR} > /dev/null 2>&1
+    if ! [ -d ${MAPR_CONF_DIR}/conf.d ]; then
+        mkdir -p ${MAPR_CONF_DIR}/conf.d > /dev/null 2>&1
     fi
 
     # Copy warden conf
-    cp ${OTSDB_HOME}/etc/conf/warden.opentsdb.conf ${MAPR_CONF_DIR}
+    cp ${OTSDB_HOME}/etc/conf/warden.opentsdb.conf ${MAPR_CONF_DIR}/conf.d/
     if [ $? -ne 0 ]; then
         logWarn "opentsdb - Failed to install Warden conf file for service - service will not start"
     fi
