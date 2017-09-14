@@ -289,14 +289,13 @@ if [ ${#} -gt 1 ]; then
         echo "Processing $1"
         case "$1" in
             --EC) 
-                eval ecOpts=$2;
+                eval "ecOpts=($2)";
                 shift 2
                 #Parse Common options
                 #Ingore ones we don't care about
                 restOpts="$*"
-                eval set -- "$ecOpts --"
+                eval set -- "${ecOpts[@]} --"
                 while true ; do
-                    echo "Processing inner $1"
                     case "$1" in
                         --OT|-OT)
                             nodelist="$2"
