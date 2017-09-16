@@ -238,7 +238,6 @@ function createCronJob() {
     let "hour %= 6"  # Try to do this at low usage time
 
     # $OS is set by initCfgEnv
-    echo "OS= $OS"
     case "$OS" in
         redhat)
             CRONTAB="/var/spool/cron/$MAPR_USER"
@@ -285,18 +284,17 @@ if [ ${#} -gt 1 ]; then
     fi
     eval set -- "$OPTS"
 
-    while true ; do
-        echo "Processing $1"
-        case "$1" in
+    for i in "$@" ; do
+        case "$i" in
             --EC) 
-                eval "ecOpts=($2)";
-                shift 2
                 #Parse Common options
                 #Ingore ones we don't care about
-                restOpts="$*"
+                ecOpts=($2);
+                shift 2
+                restOpts="$@"
                 eval set -- "${ecOpts[@]} --"
-                while true ; do
-                    case "$1" in
+                for j in "$@" ; do
+                    case "$j" in
                         --OT|-OT)
                             nodelist="$2"
                             shift 2;;
@@ -307,7 +305,7 @@ if [ ${#} -gt 1 ]; then
                         --) shift
                             break;;
                         *)
-                            #Ignoring common option $1"
+                            #echo "Ignoring common option $j"
                             shift 1;;
                     esac
                 done
