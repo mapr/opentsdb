@@ -1,6 +1,5 @@
 #!/bin/bash
 # Copyright (c) 2009 & onwards. MapR Tech, Inc., All rights reserved
-
 #############################################################################
 #
 # Script to configure opentTsdb
@@ -115,6 +114,7 @@ function configureInputStreams() {
         sed -i -e 's/\(^\s*#*\s*\)\(tsd.streams.path = \).*/\2'"\/var\/mapr\/mapr.monitoring\/streams"'/g' $NEW_OT_CONF_FILE
     else
         sed -i -e 's/\(^\s*#*\s*\)\(tsd.default.usestreams = \).*/\2'"false"'/g' $NEW_OT_CONF_FILE
+        sed -i -e 's/\(^tsd.mode = ro\).*/#\1/g' $NEW_OT_CONF_FILE
     fi
 }
 
@@ -273,11 +273,11 @@ function createCronJob() {
 initCfgEnv
 
 # Parse the arguments
-usage="usage: $0 [-EC <commonEcoOpts>] [-nodeCount <cnt>] [-nodePort <port>]\n\t[-nodeZkCount <zkCnt>] [-nodeZkPort <zkPort>] [-customSecure] [-secure] [-unsecure]\n\t[-IS \"inputstream1,inputstream2..\" ] [-R] -OT \"ip:port,ip1:port..\" -Z \"ip:port,ip1:port..\" "
+usage="usage: $0 [-EC <commonEcoOpts>] [-nodeCount <cnt>] [-nodePort <port>]\n\t[-nodeZkCount <zkCnt>] [-nodeZkPort <zkPort>] [-customSecure] [-secure] [-unsecure]\n\t[-IS] [-noStreams] [-R] -OT \"ip:port,ip1:port..\" -Z \"ip:port,ip1:port..\" "
 if [ ${#} -gt 1 ]; then
     # we have arguments - run as as standalone - need to get params and
     # XXX why do we need the -o to make this work?
-    OPTS=`getopt -a -o h -l EC: -l nodeCount: -l nodePort: -l IS: -l OT: -l nodeZkCount: -l nodeZkPort: -l Z: -l R -l customSecure -l unsecure -l secure -- "$@"`
+    OPTS=`getopt -a -o h -l EC: -l nodeCount: -l nodePort: -l IS -l OT: -l nodeZkCount: -l nodeZkPort: -l Z: -l R -l customSecure -l unsecure -l secure -l noStreams -- "$@"`
     if [ $? != 0 ]; then
         echo -e ${usage}
         return 2 2>/dev/null || exit 2
@@ -302,6 +302,10 @@ if [ ${#} -gt 1 ]; then
                             OT_CONF_ASSUME_RUNNING_CORE=1
                             shift 1
                             ;;
+                        --noStreams|-noStreams)
+                            useStreams=0;
+                            shift
+                            ;;
                         --) shift
                             break;;
                         *)
@@ -314,7 +318,7 @@ if [ ${#} -gt 1 ]; then
                 ;;
             --IS) 
                 useStreams=1;
-                shift 2
+                shift
                 ;;
             --OT) # not used at the moment
                 nodelist="$2";
@@ -327,6 +331,10 @@ if [ ${#} -gt 1 ]; then
             --Z)
                 zk_nodelist="$2";
                 shift 2
+                ;;
+            --noStreams)
+                useStreams=0;
+                shift
                 ;;
             --nodeCount)
                 nodecount="$2";
