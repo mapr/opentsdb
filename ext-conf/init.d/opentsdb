@@ -164,7 +164,7 @@ APP_OPTS_2=""
 : ${JVMXMX:=-Xmx6000m}
 : ${JVMARGS:=-enableassertions -enablesystemassertions $JVMXMX }
 export JVMARGS
-
+export MALLOC_ARENA_MAX=2
 
 # CHOOSE BEHAVOR: Set to fit app
 if [ $APP_REQUIRE_JAVA -eq 1 -a $APP_STARTS_WITH_JAVA -eq 1 ]; then
