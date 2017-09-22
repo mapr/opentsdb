@@ -36,14 +36,16 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
   private String streamName;
   private String consumerGroup;
   private TSDB tsdb;
+  private long consumerMemory;
   private KafkaConsumer<String,String> consumer;
   private Logger log;
 
-  public StreamsConsumer(TSDB tsdb, String streamName, String topicName, Config config) {
+  public StreamsConsumer(TSDB tsdb, String streamName, String topicName, Config config, long consumerMemory) {
     super(config);
     this.tsdb = tsdb;
     this.streamName = streamName;
     this.consumerGroup = topicName;
+    this.consumerMemory = consumerMemory;
     this.log = LoggerFactory.getLogger(StreamsConsumer.class);
   }
 
@@ -84,7 +86,7 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
     props.put("value.deserializer",
         "org.apache.kafka.common.serialization.StringDeserializer");
     props.put("group.id", this.consumerGroup);
-    props.put("streams.consumer.buffer.memory", "4194304"); // Defaul to 4 MB
+    props.put("streams.consumer.buffer.memory", consumerMemory); // Defaul to 4 MB
     props.put("auto.offset.reset", "earliest");
     try {
       this.consumer = new KafkaConsumer<String, String>(props);
