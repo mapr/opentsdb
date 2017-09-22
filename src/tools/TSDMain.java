@@ -250,7 +250,7 @@ final class TSDMain {
 
       boolean useStreams = false; // Default to false
       int streamsCount = 64; // Default to 64 streams
-      long consumerMemory = 2097152 // Default to 2 MB
+      long consumerMemory = 2097152; // Default to 2 MB
       useStreams = config.getBoolean("tsd.default.usestreams");
       if (useStreams) {
         // Get the list of stream names from config
