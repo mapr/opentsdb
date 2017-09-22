@@ -84,6 +84,7 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
     props.put("value.deserializer",
         "org.apache.kafka.common.serialization.StringDeserializer");
     props.put("group.id", this.consumerGroup);
+    props.put("streams.consumer.buffer.memory", "4194304"); // Defaul to 4 MB
     props.put("auto.offset.reset", "earliest");
     try {
       this.consumer = new KafkaConsumer<String, String>(props);
