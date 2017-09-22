@@ -216,9 +216,6 @@ final class TSDMain {
       // Make sure we don't even start if we can't find our tables.
       tsdb.checkNecessaryTablesExist().joinUninterruptibly();
       
-      // Start the executor service
-      ExecutorService streamsConsumerExecutor = Executors.newCachedThreadPool();
-      registerShutdownHook(streamsConsumerExecutor);
       final ServerBootstrap server = new ServerBootstrap(factory);
       
       // This manager is capable of lazy init, but we force an init
@@ -251,16 +248,22 @@ final class TSDMain {
       }
       log.info("Ready to serve on " + addr);
 
-      boolean useStreams = config.getBoolean("tsd.default.usestreams");
+      boolean useStreams = false; // Default to false
+      int streamsCount = 64; // Default to 64 streams
+      useStreams = config.getBoolean("tsd.default.usestreams");
       if (useStreams) {
         // Get the list of stream names from config
         String streamsPath = config.getString("tsd.streams.path");
         if (streamsPath == null || streamsPath.isEmpty()) {
           throw new RuntimeException("Failed to get MapR Streams information from config file.");
         }
+        streamsCount = Integer.parseInt(config.getString("tsd.streams.count"));
+        // Start the executor service
+        ExecutorService streamsConsumerExecutor = Executors.newFixedThreadPool(streamsCount);
+        registerShutdownHook(streamsConsumerExecutor);
         String consumerGroup = config.getString("tsd.default.consumergroup");
         if (consumerGroup == null || consumerGroup.isEmpty()) consumerGroup = "metrics";
-        startConsumers(tsdb, streamsPath.trim(), consumerGroup.trim(), streamsConsumerExecutor, config);
+        startConsumers(tsdb, streamsPath.trim(), consumerGroup.trim(), streamsConsumerExecutor, config, streamsCount);
       }
 
       log.info("Starting.");
@@ -316,10 +319,10 @@ final class TSDMain {
     return startup;
   }
 
-  private static void startConsumers(TSDB tsdb, String streamsPath, String consumerGroup, ExecutorService executor, Config config) {
+  private static void startConsumers(TSDB tsdb, String streamsPath, String consumerGroup, ExecutorService executor, Config config, int streamsCount) {
     try {
     	// Create a consumer for each stream under streamsPath
-      for (int i=0;i<255;i++) {
+      for (int i=0;i<streamsCount;i++) {
         StreamsConsumer consumer = new StreamsConsumer(tsdb, streamsPath+"/"+i, consumerGroup+"/"+i, config);
         executor.submit(consumer);
       }// TODO - Add reconnect logic and a way to monitor the consumers
