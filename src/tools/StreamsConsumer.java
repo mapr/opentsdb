@@ -113,9 +113,12 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
             //                                        String.valueOf(metric.getValues().get(0)),"fqdn="+metric.getHostName()
             //                                     };
             Deferred<Object> result = writeToTSDB(metricTokens);
-
+	    record = null;
+            metricTokens = null;
           }
         }
+        consumerRecords = null;
+        iterator = null;
       }
     } catch (Exception e) {
       log.error("Thread for topic: "+this.consumerGroup+" failed with exception: "+e.getCause());
