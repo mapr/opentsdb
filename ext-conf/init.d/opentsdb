@@ -362,7 +362,6 @@ start() {
         echo "$APP ($APP_PID) already running"
         false || return
     fi
-
     if [ -d "$APP_LOCK_DIR" -a -f "$APP_LOCK_FILE" ]; then
         STATE=$(cat "$APP_LOCK_FILE")
         case $STATE in
@@ -396,7 +395,7 @@ start() {
 
     # make sure ulimits/kernel options are set
     check_and_setup_system
-
+    createTSDBHbaseTables
     cd $APP_HOME_DIR
     if [ $APP_STARTS_WITH_JAVA -eq 1 ]; then
         "$SETSID $JAVA" -Dlog.file="$APP_LOG_FILE" -Djava.library.path="$APP_JAVA_LIBRARY_PATH" \
@@ -500,8 +499,6 @@ createDirectoriesAndFiles $command
 # switch user for all commands so that jps works correctly. As of jdk 1.8 jps -l will only list the mainClass if
 # the process is owned by the user running jps
 execAsUser $command "$@"
-
-createTSDBHbaseTables
 
 case $command in
     (condreload) ! check || reload ;;
