@@ -70,7 +70,7 @@ isStaleLockFile() {
     if [ $DIFF_SEC -gt 300 ]; then
         echo "found stale lock file ... removing - trying again"
         hadoop fs -rm -r $MONITORING_LOCK_DIR
-        return $?
+        return 0
     else
         return 1
     fi
@@ -78,8 +78,8 @@ isStaleLockFile() {
 
 # Remove stale lock file if present
 isStaleLockFile
-if [ $? -eq 0 ]; then
-    echo "Failed to remove stale lock file with error $?"
+if [ $? -ne 0 ]; then
+    echo "Failed to remove stale lock file $?"
 fi
 
 # Try to create lock file - with 5 retries
