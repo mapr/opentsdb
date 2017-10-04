@@ -254,7 +254,9 @@ function createCronJob() {
         if ! cat $CRONTAB 2> /dev/null | fgrep -q SHELL && [ ! -s $CRONTAB ]; then
             echo "SHELL=/bin/bash" >> "$CRONTAB"
         fi
-        echo "$min $hour * * *      $OTSDB_HOME/bin/tsdb_cluster_mgmt.sh -purgeData >> $OTSDB_HOME/var/log/opentsdb/purgeData.log 2>&1 " >> "$CRONTAB"
+        # We disable it for now due to what appears to be a signal racecondition in java that
+        # cause the OT scan process to not exit occationally - see OTSDB-25
+        echo "#$min $hour * * *      $OTSDB_HOME/bin/tsdb_cluster_mgmt.sh -purgeData >> $OTSDB_HOME/var/log/opentsdb/purgeData.log 2>&1 " >> "$CRONTAB"
         chown $MAPR_USER:$MAPR_GROUP "$CRONTAB"
     fi
     return 0
