@@ -62,6 +62,23 @@ function createTSDB() {
 EOF!!
 }
 
+isStaleLockFile() {
+    MOD_TIME=$(`hadoop fs -stat $MONITORING_LOCK_DIR`)
+    EPOC_MOD_TIME=$(date +%s -d"$MOD_TIME")
+    NOW_EPOC=$(date +%s)
+    DIFF_SEC=$(expr $NOW_EPOC - $EPOC_MOD_TIME)
+    if [ $DIFF_SEC -gt 300 ]; then
+        echo "found stale lock file ... removing - trying again"
+        hadoop fs -rm -r $MONITORING_LOCK_DIR
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Remove stale lock file if present
+isStaleLockFile
+
 # Try to create lock file - with 5 retries
 i=0
 while [[ $i -lt 30 ]]; do
