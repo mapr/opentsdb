@@ -121,8 +121,7 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
         iterator = null;
       }
     } catch (Exception e) {
-      log.error("Thread for topic: "+this.consumerGroup+" failed with exception: "+e.getCause());
-      e.printStackTrace();
+      log.error("Thread for topic: "+this.consumerGroup+" failed with exception: "+e);
     }
     finally {
       log.info("Closing this thread: "+this.consumerGroup);
