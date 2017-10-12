@@ -107,7 +107,7 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
             //log.info(" Consumed Record Key: " + record.value());
             //log.info(" Consumed Record Value: " + record.value());
             //log.info("Consumer Record: "+record.toString());
-            String[] metricTokens = record.value().toString().trim().split(" ");
+            String[] metricTokens = record.value().toString().trim().replaceAll(":","").split(" ");
             //Metric metric = mapper.readValue(record.value(), Metric.class);
             //String[] metricTokens = new String[] { "put", "streams."+metric.getPlugin()+"."+metric.getType(), String.valueOf(metric.getTimeStamp()), 
             //                                        String.valueOf(metric.getValues().get(0)),"fqdn="+metric.getHostName()
