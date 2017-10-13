@@ -88,6 +88,7 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
     props.put("group.id", this.consumerGroup);
     props.put("streams.consumer.buffer.memory", consumerMemory); // Defaul to 4 MB
     props.put("auto.offset.reset", "earliest");
+    props.put("auto.commit.interval.ms", 60000);
     try {
       this.consumer = new KafkaConsumer<String, String>(props);
       // Subscribe to all topics in this stream
