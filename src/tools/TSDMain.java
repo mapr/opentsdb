@@ -251,6 +251,7 @@ final class TSDMain {
       boolean useStreams = false; // Default to false
       int streamsCount = 64; // Default to 64 streams
       long consumerMemory = 2097152; // Default to 2 MB
+      long autoCommitInterval = 60000; //Default to 1 min
       useStreams = config.getBoolean("tsd.default.usestreams");
       if (useStreams) {
         // Get the list of stream names from config
@@ -260,12 +261,13 @@ final class TSDMain {
         }
         streamsCount = Integer.parseInt(config.getString("tsd.streams.count"));
         consumerMemory = Long.parseLong(config.getString("tsd.streams.consumer.memory"));
+        autoCommitInterval = Long.parseLong(config.getString("tsd.streams.autocommit.interval"));
         // Start the executor service
         ExecutorService streamsConsumerExecutor = Executors.newFixedThreadPool(streamsCount);
         registerShutdownHook(streamsConsumerExecutor);
         String consumerGroup = config.getString("tsd.default.consumergroup");
         if (consumerGroup == null || consumerGroup.isEmpty()) consumerGroup = "metrics";
-        startConsumers(tsdb, streamsPath.trim(), consumerGroup.trim(), streamsConsumerExecutor, config, streamsCount, consumerMemory);
+        startConsumers(tsdb, streamsPath.trim(), consumerGroup.trim(), streamsConsumerExecutor, config, streamsCount, consumerMemory, autoCommitInterval);
       }
 
       log.info("Starting.");
@@ -321,15 +323,15 @@ final class TSDMain {
     return startup;
   }
 
-  private static void startConsumers(TSDB tsdb, String streamsPath, String consumerGroup, ExecutorService executor, Config config, int streamsCount, long consumerMemory) {
+  private static void startConsumers(TSDB tsdb, String streamsPath, String consumerGroup, ExecutorService executor, Config config, int streamsCount, long consumerMemory, long autoCommitInterval) {
     try {
     	// Create a consumer for each stream under streamsPath
       for (int i=0;i<streamsCount;i++) {
-        StreamsConsumer consumer = new StreamsConsumer(tsdb, streamsPath+"/"+i, consumerGroup+"/"+i, config, consumerMemory);
+        StreamsConsumer consumer = new StreamsConsumer(tsdb, streamsPath+"/"+i, consumerGroup+"/"+i, config, consumerMemory, autoCommitInterval);
         executor.submit(consumer);
       }// TODO - Add reconnect logic and a way to monitor the consumers
     } catch (Exception e) {
-      LoggerFactory.getLogger(TSDMain.class).error("Failed to create consumer with error: "+e.getMessage());
+      LoggerFactory.getLogger(TSDMain.class).error("Failed to create consumer with error: "+e);
     }
   }
 

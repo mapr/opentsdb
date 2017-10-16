@@ -37,15 +37,17 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
   private String consumerGroup;
   private TSDB tsdb;
   private long consumerMemory;
+  private long autoCommitInterval;
   private KafkaConsumer<String,String> consumer;
   private Logger log;
 
-  public StreamsConsumer(TSDB tsdb, String streamName, String topicName, Config config, long consumerMemory) {
+  public StreamsConsumer(TSDB tsdb, String streamName, String topicName, Config config, long consumerMemory, long autoCommitInterval) {
     super(config);
     this.tsdb = tsdb;
     this.streamName = streamName;
     this.consumerGroup = topicName;
     this.consumerMemory = consumerMemory;
+    this.autoCommitInterval = autoCommitInterval;
     this.log = LoggerFactory.getLogger(StreamsConsumer.class);
   }
 
@@ -88,7 +90,7 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
     props.put("group.id", this.consumerGroup);
     props.put("streams.consumer.buffer.memory", consumerMemory); // Defaul to 4 MB
     props.put("auto.offset.reset", "earliest");
-    props.put("auto.commit.interval.ms", 60000);
+    props.put("auto.commit.interval.ms", autoCommitInterval);
     try {
       this.consumer = new KafkaConsumer<String, String>(props);
       // Subscribe to all topics in this stream
