@@ -64,10 +64,15 @@ EOF!!
 
 isStaleLockFile() {
     MOD_TIME=$(`hadoop fs -stat $MONITORING_LOCK_DIR`)
+    if [ $? -ne 0 ]; then
+        # the most common error is that the file doesn't exist and we get
+        # No such file or directory back.
+        return 0
+    fi
     EPOC_MOD_TIME=$(date +%s -d"$MOD_TIME")
     NOW_EPOC=$(date +%s)
-    DIFF_SEC=$(expr $NOW_EPOC - $EPOC_MOD_TIME)
-    if [ $DIFF_SEC -gt 300 ]; then
+    DIFF_SEC=$(expr "$NOW_EPOC" - "$EPOC_MOD_TIME")
+    if [ "$DIFF_SEC" -gt 300 ]; then
         echo "found stale lock file ... removing - trying again"
         hadoop fs -rm -r $MONITORING_LOCK_DIR
         return $?

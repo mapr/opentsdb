@@ -165,6 +165,10 @@ APP_OPTS_2=""
 : ${JVMARGS:=-enableassertions -enablesystemassertions $JVMXMX }
 export JVMARGS
 export MALLOC_ARENA_MAX=2
+export MAPR_TICKETFILE_LOCATION=${MAPR_HOME}/conf/mapruserticket
+STREAMSROOT="/var/mapr/mapr.monitoring/streams"
+RETRY_COUNT=24
+RETRY_DLY=5
 
 # CHOOSE BEHAVOR: Set to fit app
 if [ $APP_REQUIRE_JAVA -eq 1 -a $APP_STARTS_WITH_JAVA -eq 1 ]; then
@@ -190,6 +194,7 @@ set_ulimit() {
                 ulimit -n $ulim_val
             else
                 echo "Must be root to alter ulimit for $ulim_msg"
+                rm -f "$APP_LOCK_FILE" "$APP_PID_FILE" "$MAPR_APP_PID_FILE" >/dev/null 2>&1
                 exit 1
             fi
         fi
@@ -288,13 +293,32 @@ createTSDBHbaseTables() {
     local rc=1
     # Create TSDB tables
     HBASE_VERSION=`cat ${MAPR_HOME}/hbase/hbaseversion`
-    export MAPR_TICKETFILE_LOCATION=${MAPR_HOME}/conf/mapruserticket
     export COMPRESSION=NONE; export HBASE_HOME=/opt/mapr/hbase/hbase-$HBASE_VERSION; ${APP_HOME_DIR}/share/opentsdb/tools/create_table.sh > ${APP_LOG_DIR}/opentsdb_install.log
     rc=$?
     if [ $rc -ne 0 ]; then
         echo "Failed to create TSDB tables - need to rerun configure.sh -R or run create_table.sh"
+        rm -f "$APP_LOCK_FILE" "$APP_PID_FILE" "$MAPR_APP_PID_FILE" >/dev/null 2>&1
         exit 1
     fi
+}
+
+checkStreamsVolume() {
+   local count=0
+   # check to see if the streams directory exist yet
+   # the volume gets created by createsystemvolumes
+   while [ $count -lt $RETRY_COUNT ]; do
+       if ! hadoop fs -ls -d "$STREAMSROOT" > /dev/null 2>&1 ; then
+           sleep $RETRY_DLY
+           count=$(expr $count + 1)
+       else
+           break
+       fi
+   done
+   if [ $count -ge $RETRY_COUNT ]; then
+       echo "Streams Volume not available yet"
+       rm -f "$APP_LOCK_FILE" "$APP_PID_FILE" "$MAPR_APP_PID_FILE" >/dev/null 2>&1
+       exit 1
+   fi
 }
 
 createDirectoriesAndFiles() {
@@ -333,10 +357,14 @@ execAsUser() {
 
 isStaleLockFile() {
     MOD_TIME=$(stat -c%y $APP_LOCK_FILE)
+    if [ $? -ne 0 ]; then
+        # most common error here is that the lock file doesn't exist
+        return 0
+    fi
     EPOC_MOD_TIME=$(date +%s -d"$MOD_TIME")
     NOW_EPOC=$(date +%s)
-    DIFF_SEC=$(expr $NOW_EPOC - $EPOC_MOD_TIME)
-    if [ $DIFF_SEC -gt 300 ]; then
+    DIFF_SEC=$(expr "$NOW_EPOC" - "$EPOC_MOD_TIME")
+    if [ "$DIFF_SEC" -gt 300 ]; then
         echo "found stale lock file ... removing - trying again"
         return 0
     else
@@ -395,6 +423,7 @@ start() {
 
     # make sure ulimits/kernel options are set
     check_and_setup_system
+    checkStreamsVolume
     createTSDBHbaseTables
     cd $APP_HOME_DIR
     if [ $APP_STARTS_WITH_JAVA -eq 1 ]; then
@@ -446,8 +475,10 @@ status() {
         true && return
     elif [ -n "$APP_PID" ]; then
         echo "$APP ($APP_PID) not running"
+        rm -f "$APP_LOCK_FILE" "$APP_PID_FILE" "$MAPR_APP_PID_FILE" >/dev/null 2>&1
     else
         echo "$APP not running"
+        rm -f "$APP_LOCK_FILE" "$APP_PID_FILE" "$MAPR_APP_PID_FILE" >/dev/null 2>&1
     fi
     false
 }
@@ -471,8 +502,10 @@ stop() {
         true && return
     elif [ -n "$APP_PID" ]; then
         echo "$APP ($APP_PID) not running"
+        rm -f "$APP_LOCK_FILE" "$APP_PID_FILE" "$MAPR_APP_PID_FILE" >/dev/null 2>&1
     else
         echo "$APP not running"
+        rm -f "$APP_LOCK_FILE" "$APP_PID_FILE" "$MAPR_APP_PID_FILE" >/dev/null 2>&1
     fi
     false
 }
