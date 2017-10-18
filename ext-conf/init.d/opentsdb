@@ -366,6 +366,7 @@ isStaleLockFile() {
     DIFF_SEC=$(expr "$NOW_EPOC" - "$EPOC_MOD_TIME")
     if [ "$DIFF_SEC" -gt 300 ]; then
         echo "found stale lock file ... removing - trying again"
+        rm -f "${APP_LOCK_FILE}"
         return 0
     else
         return 1
