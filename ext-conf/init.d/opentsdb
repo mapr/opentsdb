@@ -356,16 +356,16 @@ execAsUser() {
 }
 
 isStaleLockFile() {
-    MOD_TIME=$(stat -c%y $APP_LOCK_FILE)
-    if [ $? -ne 0 ]; then
-        # most common error here is that the lock file doesn't exist
-        return 0
+    if ! [ -f "$APP_LOCK_FILE" ]; then
+        return 1
     fi
+    MOD_TIME=$(stat -c%y $APP_LOCK_FILE)
     EPOC_MOD_TIME=$(date +%s -d"$MOD_TIME")
     NOW_EPOC=$(date +%s)
     DIFF_SEC=$(expr "$NOW_EPOC" - "$EPOC_MOD_TIME")
     if [ "$DIFF_SEC" -gt 300 ]; then
         echo "found stale lock file ... removing - trying again"
+        rm -f "${APP_LOCK_FILE}"
         return 0
     else
         return 1
