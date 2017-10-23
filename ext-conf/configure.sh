@@ -428,4 +428,9 @@ if [ $RC -ne 0 ]; then
 fi
 installWardenConfFile
 rm -f "${NEW_OT_CONF_FILE}"
+# remove state file
+if [ -f "$OTSDB_HOME/etc/.not_configured_yet" ]; then
+    rm -f "$OTSDB_HOME/etc/.not_configured_yet"
+fi
+
 true
