@@ -278,27 +278,27 @@ function createCronJob() {
 initCfgEnv
 
 # Parse the arguments
-usage="usage: $0 [-EC <commonEcoOpts>] [-nodeCount <cnt>] [-nodePort <port>]\n\t[-nodeZkCount <zkCnt>] [-nodeZkPort <zkPort>] [-customSecure] [-secure] [-unsecure]\n\t[-IS] [-noStreams] [-R] -OT \"ip:port,ip1:port..\" -Z \"ip:port,ip1:port..\" "
+usage="usage: $0 [-help] [-EC <commonEcoOpts>] [-nodeCount <cnt>] [-nodePort <port>]\n\t[-nodeZkCount <zkCnt>] [-nodeZkPort <zkPort>] [-customSecure] [-secure] [-unsecure]\n\t[-IS] [-noStreams] [-R] -OT \"ip:port,ip1:port..\" -Z \"ip:port,ip1:port..\" "
 if [ ${#} -gt 1 ]; then
     # we have arguments - run as as standalone - need to get params and
-    OPTS=`getopt -a -l EC: -l help -l nodeCount: -l nodePort: -l IS -l OT: -l nodeZkCount: -l nodeZkPort: -l Z: -l R -l customSecure -l unsecure -l secure -l noStreams -- "$@"`
+    OPTS=$(getopt -a -o chn:p:suz:C:INO:P:RZ: -l EC: -l help -l nodeCount: -l nodePort: -l IS -l OT: -l nodeZkCount: -l nodeZkPort: -l Z: -l R -l customSecure -l unsecure -l secure -l noStreams -- "$@")
     if [ $? != 0 ]; then
         echo -e ${usage}
         return 2 2>/dev/null || exit 2
     fi
     eval set -- "$OPTS"
 
-    for i in "$@" ; do
-        case "$i" in
-            --EC) 
+    while (( $# )) ; do
+        case "$1" in
+            --EC|-C)
                 #Parse Common options
                 #Ingore ones we don't care about
                 ecOpts=($2);
                 shift 2
                 restOpts="$@"
                 eval set -- "${ecOpts[@]} --"
-                for j in "$@" ; do
-                    case "$j" in
+                while (( $# )) ; do
+                    case "$1" in
                         --OT|-OT)
                             nodelist="$2"
                             shift 2;;
@@ -311,7 +311,7 @@ if [ ${#} -gt 1 ]; then
                             shift
                             ;;
                         --) shift
-                            break;;
+                            ;;
                         *)
                             #echo "Ignoring common option $j"
                             shift 1;;
@@ -320,43 +320,43 @@ if [ ${#} -gt 1 ]; then
                 shift 2 
                 eval set -- "$restOpts"
                 ;;
-            --IS) 
+            --IS|-I)
                 useStreams=1;
                 shift
                 ;;
-            --OT) # not used at the moment
+            --OT|-O) # not used at the moment
                 nodelist="$2";
                 shift 2
                 ;;
-            --R)
+            --R|-R)
                 OT_CONF_ASSUME_RUNNING_CORE=1
                 shift 1
                 ;;
-            --Z)
+            --Z|-Z)
                 zk_nodelist="$2";
                 shift 2
                 ;;
-            --noStreams)
+            --noStreams|-N)
                 useStreams=0;
                 shift
                 ;;
-            --nodeCount)
+            --nodeCount|-n)
                 nodecount="$2";
                 shift 2
                 ;;
-            --nodeZkCount)
+            --nodeZkCount|-z)
                 zk_nodecount="$2";
                 shift 2
                 ;;
-            --nodePort)
+            --nodePort|-P)
                 nodeport="$2";
                 shift 2
                 ;;
-            --nodeZkPort)
+            --nodeZkPort|-p)
                 zk_nodeport="$2";
                 shift 2
                 ;;
-            --customSecure)
+            --customSecure|-c)
                 if [ -f "$OTSDB_HOME/etc/.not_configured_yet" ]; then
                     # opentsdb added after secure 5.x cluster upgraded to customSecure
                     # 6.0 cluster. Deal with this by assuming a regular --secure path
@@ -371,19 +371,23 @@ if [ ${#} -gt 1 ]; then
                 fi
                 secureCluster=1;
                 shift 1;;
-            --secure)
+            --secure|-s)
                 secureCluster=1;
                 shift 1;;
-            --unsecure)
+            --unsecure|-u)
                 secureCluster=0;
                 shift 1;;
-            --help)
+            --help|-h)
                 echo -e ${usage}
                 return 2 2>/dev/null || exit 2
                 ;;
             --)
                 shift
-                break
+                ;;
+            *)
+                echo "Unknown option $1"
+                echo -e ${usage}
+                return 2 2>/dev/null || exit 2
                 ;;
         esac
     done
