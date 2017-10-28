@@ -280,7 +280,7 @@ initCfgEnv
 
 # Parse the arguments
 usage="usage: $0 [-help] [-EC <commonEcoOpts>] [-nodeCount <cnt>] [-nodePort <port>]\n\t[-nodeZkCount <zkCnt>] [-nodeZkPort <zkPort>] [-customSecure] [-secure] [-unsecure]\n\t[-IS] [-noStreams] [-R] -OT \"ip:port,ip1:port..\" -Z \"ip:port,ip1:port..\" "
-if [ ${#} -gt 1 ]; then
+if [ ${#} -gt 0 ]; then
     # we have arguments - run as as standalone - need to get params and
     OPTS=$(getopt -a -o chn:p:suz:C:INO:P:RZ: -l EC: -l help -l nodeCount: -l nodePort: -l IS -l OT: -l nodeZkCount: -l nodeZkPort: -l Z: -l R -l customSecure -l unsecure -l secure -l noStreams -- "$@")
     if [ $? != 0 ]; then
@@ -392,9 +392,6 @@ if [ ${#} -gt 1 ]; then
                 ;;
         esac
     done
-else
-    echo -e "${usage}"
-    return 2 2>/dev/null || exit 2
 fi
 
 if [ -z "$zk_nodelist" ]; then
@@ -403,8 +400,8 @@ fi
 
 # make sure we have what we need
 # we don't really need the OT list at the moment, nor do we use the two counts
-if [ \( -z "$nodelist" -a -z "$useStreams" \) -o -z "$zk_nodelist" ]; then
-    echo "-OT or -IS, and -Z options are required"
+if [ \( -z "$nodelist" -a "$useStreams" -eq 0 \) -o -z "$zk_nodelist" ]; then
+    echo "-OT is required when not using streams"
     echo -e "${usage}"
     return 2 2>/dev/null || exit 2
 fi
