@@ -91,44 +91,49 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
     props.put("streams.consumer.buffer.memory", consumerMemory); // Defaul to 4 MB
     props.put("auto.offset.reset", "earliest");
     props.put("auto.commit.interval.ms", autoCommitInterval);
-    try {
-      this.consumer = new KafkaConsumer<String, String>(props);
-      // Subscribe to all topics in this stream
-      this.consumer.subscribe(Pattern.compile(this.streamName+":.+"), new NoOpConsumerRebalanceListener());
-      //this.consumer.subscribe(Arrays.asList(this.streamName+":"+this.topicName));
-      long pollTimeOut = 10000;
-      log.info("Started Thread: "+this.consumerGroup);
-      while (true) {
-        // Request unread messages from the topic.
-        ConsumerRecords<String, String> consumerRecords = consumer.poll(pollTimeOut);
-        Iterator<ConsumerRecord<String, String>> iterator = consumerRecords.iterator();
-        if (iterator.hasNext()) {
-          while (iterator.hasNext()) {
-            ConsumerRecord<String, String> record = iterator.next();
-            // Iterate through returned records, extract the value
-            // of each message, and print the value to standard output.
-            //log.info(" Consumed Record Key: " + record.value());
-            //log.info(" Consumed Record Value: " + record.value());
-            //log.info("Consumer Record: "+record.toString());
-            String[] metricTokens = record.value().toString().trim().replaceAll(":","").split(" ");
-            //Metric metric = mapper.readValue(record.value(), Metric.class);
-            //String[] metricTokens = new String[] { "put", "streams."+metric.getPlugin()+"."+metric.getType(), String.valueOf(metric.getTimeStamp()), 
-            //                                        String.valueOf(metric.getValues().get(0)),"fqdn="+metric.getHostName()
-            //                                     };
-            Deferred<Object> result = writeToTSDB(metricTokens);
-	    record = null;
-            metricTokens = null;
-          }
-        }
-        consumerRecords = null;
-        iterator = null;
+    while (true) {
+      if (consumer == null) {
+		    try {
+		      this.consumer = new KafkaConsumer<String, String>(props);
+		      // Subscribe to all topics in this stream
+		      this.consumer.subscribe(Pattern.compile(this.streamName+":.+"), new NoOpConsumerRebalanceListener());
+		      //this.consumer.subscribe(Arrays.asList(this.streamName+":"+this.topicName));
+		      long pollTimeOut = 10000;
+		      log.info("Started Thread: "+this.consumerGroup);
+		      while (true) {
+		        // Request unread messages from the topic.
+		        ConsumerRecords<String, String> consumerRecords = consumer.poll(pollTimeOut);
+		        Iterator<ConsumerRecord<String, String>> iterator = consumerRecords.iterator();
+		        if (iterator.hasNext()) {
+		          while (iterator.hasNext()) {
+		            ConsumerRecord<String, String> record = iterator.next();
+		            // Iterate through returned records, extract the value
+		            // of each message, and print the value to standard output.
+		            //log.info(" Consumed Record Key: " + record.value());
+		            //log.info(" Consumed Record Value: " + record.value());
+		            //log.info("Consumer Record: "+record.toString());
+		            String[] metricTokens = record.value().toString().trim().replaceAll(":","").split(" ");
+		            //Metric metric = mapper.readValue(record.value(), Metric.class);
+		            //String[] metricTokens = new String[] { "put", "streams."+metric.getPlugin()+"."+metric.getType(), String.valueOf(metric.getTimeStamp()), 
+		            //                                        String.valueOf(metric.getValues().get(0)),"fqdn="+metric.getHostName()
+		            //                                     };
+		            Deferred<Object> result = writeToTSDB(metricTokens);
+			    record = null;
+		            metricTokens = null;
+		          }
+		        }
+		        consumerRecords = null;
+		        iterator = null;
+		      }
+		    } catch (Exception e) {
+		      log.error("Thread for topic: "+this.consumerGroup+" failed with exception: "+e);
+		    }
+		    finally {
+		      log.info("Closing this thread: "+this.consumerGroup);
+		      consumer.close();
+		      consumer = null;
+		    }
       }
-    } catch (Exception e) {
-      log.error("Thread for topic: "+this.consumerGroup+" failed with exception: "+e);
-    }
-    finally {
-      log.info("Closing this thread: "+this.consumerGroup);
-      consumer.close();
     }
   }
 }
