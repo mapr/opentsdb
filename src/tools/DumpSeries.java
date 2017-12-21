@@ -100,16 +100,13 @@ final class DumpSeries {
                              final String[] args) throws Exception {
     final ArrayList<Query> queries = new ArrayList<Query>();
     CliQuery.parseCommandLineQuery(args, tsdb, queries, null, null);
-    LOG.info("DumpSeries: "+ Arrays.toString(args));
-    LOG.info("DumpSeries: "+ queries);
-    LOG.info("DumpSeries: delete "+ delete);
     final StringBuilder buf = new StringBuilder();
     for (final Query query : queries) {
       final List<Scanner> scanners = Internal.getScanners(query);
       for (Scanner scanner : scanners) {
         ArrayList<ArrayList<KeyValue>> rows;
         while ((rows = scanner.nextRows().joinUninterruptibly(10000)) != null) {
-          LOG.info("DumpSeries: rows "+ rows.size());
+          LOG.info("DumpSeries: rows size "+ rows.size());
           for (final ArrayList<KeyValue> row : rows) {
             buf.setLength(0);
             final byte[] key = row.get(0).key();
