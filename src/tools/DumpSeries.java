@@ -100,9 +100,6 @@ final class DumpSeries {
                              final String[] args) throws Exception {
     final ArrayList<Query> queries = new ArrayList<Query>();
     CliQuery.parseCommandLineQuery(args, tsdb, queries, null, null);
-    LOG.info("DumpSeries: "+ Arrays.toString(args));
-    LOG.info("DumpSeries: "+ queries);
-    LOG.info("DumpSeries: delete "+ delete);
     final StringBuilder buf = new StringBuilder();
     for (final Query query : queries) {
       final List<Scanner> scanners = Internal.getScanners(query);
