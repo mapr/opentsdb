@@ -106,7 +106,7 @@ final class DumpSeries {
       for (Scanner scanner : scanners) {
         ArrayList<ArrayList<KeyValue>> rows;
         while ((rows = scanner.nextRows().joinUninterruptibly(10000)) != null) {
-          LOG.info("DumpSeries: rows "+ rows.size());
+          LOG.info("DumpSeries: rows size "+ rows.size());
           for (final ArrayList<KeyValue> row : rows) {
             buf.setLength(0);
             final byte[] key = row.get(0).key();
