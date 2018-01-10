@@ -57,3 +57,5 @@ ASYNCBIGTABLE_VERSION = 0.0
 ASYNCCASSANDRA_VERSION = 0.0
 endif
 endif
+include third_party/hadoop/include.mk
+include third_party/mapr/include.mk

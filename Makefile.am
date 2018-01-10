@@ -172,6 +172,7 @@ tsdb_SRC := \
 	src/tools/MetaSync.java	\
 	src/tools/Search.java	\
 	src/tools/StartupPlugin.java \
+	src/tools/StreamsConsumer.java	\
 	src/tools/TSDMain.java	\
 	src/tools/TextImporter.java	\
 	src/tools/TreeSync.java	\
@@ -244,6 +245,7 @@ tsdb_DEPS = \
 	$(ASM)	\
 	$(COMMONS_LOGGING)	\
 	$(GUAVA)	\
+	$(HADOOP)	\
 	$(LOG4J_OVER_SLF4J)	\
 	$(LOGBACK_CLASSIC)	\
 	$(LOGBACK_CORE)	\
@@ -255,6 +257,9 @@ tsdb_DEPS = \
 	$(JGRAPHT)	\
 	$(KRYO)	\
 	$(MINLOG)	\
+	$(MAPR)	\
+	$(MAPR_STREAMS)	\
+	$(KAFKA)	\
 	$(NETTY)	\
 	$(REFLECTASM)	\
 	$(SLF4J_API)	\
@@ -667,6 +672,8 @@ install-data-tools: $(tsdb_DEPS) $(jar)
 	destdatatoolsdir="$(DESTDIR)$(pkgdatadir)/tools" ; \
 	echo " $(mkdir_p) $$destdatatoolsdir"; \
 	$(mkdir_p) "$$destdatatoolsdir" || exit 1; \
+	tools="$$tools $(top_srcdir)/tools/*" ; \
+	tools="`echo $$tools | sed sx$(top_srcdir)/tools/dockerxx`" ; \
 	tools="$$tools $(top_srcdir)/src/create_table.sh" ; \
 	tools="$$tools $(top_srcdir)/src/upgrade_1to2.sh" ; \
 	echo " $(INSTALL_SCRIPT)" $$tools "$$destdatatoolsdir" ; \
@@ -852,13 +859,16 @@ pom.xml: pom.xml.in Makefile
 	    -e 's/@GUAVA_VERSION@/$(GUAVA_VERSION)/' \
 	    -e 's/@GWT_VERSION@/$(GWT_VERSION)/' \
 	    -e 's/@GWT_THEME_VERSION@/$(GWT_THEME_VERSION)/' \
+	    -e 's/@HADOOP_VERSION@/$(HADOOP_VERSION)/' \
 	    -e 's/@HAMCREST_VERSION@/$(HAMCREST_VERSION)/' \
 	    -e 's/@JACKSON_VERSION@/$(JACKSON_VERSION)/' \
 	    -e 's/@JAVASSIST_VERSION@/$(JAVASSIST_VERSION)/' \
 	    -e 's/@JUNIT_VERSION@/$(JUNIT_VERSION)/' \
+	    -e 's/@KAFKA_VERSION@/$(KAFKA_VERSION)/' \
 	    -e 's/@LOG4J_OVER_SLF4J_VERSION@/$(LOG4J_OVER_SLF4J_VERSION)/' \
 	    -e 's/@LOGBACK_CLASSIC_VERSION@/$(LOGBACK_CLASSIC_VERSION)/' \
 	    -e 's/@LOGBACK_CORE_VERSION@/$(LOGBACK_CORE_VERSION)/' \
+	    -e 's/@MAPR_VERSION@/$(MAPR_VERSION)/' \
 	    -e 's/@MOCKITO_VERSION@/$(MOCKITO_VERSION)/' \
 	    -e 's/@NETTY_VERSION@/$(NETTY_VERSION)/' \
 	    -e 's/@OBJENESIS_VERSION@/$(OBJENESIS_VERSION)/' \

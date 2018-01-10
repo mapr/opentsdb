@@ -10,6 +10,17 @@ abs_srcdir='@abs_srcdir@'
 abs_builddir='@abs_builddir@'
 pkgdatadir='@pkgdatadir@'
 configdir='@configdir@'
+
+# we redirect output here since the different init.d functions 
+# vary in what they allow on the command line and it eliminates the extra
+# shell that causes stop and status not to work
+
+logfile='__INSTALL__/var/log/opentsdb/opentsdb.out'
+logerrfile='__INSTALL__/var/log/opentsdb/opentsdb.err'
+
+#redirect output
+exec > $logfile 2> $logerrfile
+
 # Either we've been installed and pkgdatadir exists, or we haven't been
 # installed and abs_srcdir / abs_builddir aren't empty.
 test -d "$pkgdatadir" || test -n "$abs_srcdir$abs_builddir" || {
@@ -57,6 +68,18 @@ else
   # Add the src dir so we can find logback.xml
   CLASSPATH="$CLASSPATH:$abs_srcdir/src"
 fi
+
+# Base of MapR installation
+BASEMAPR=${MAPR_HOME:-/opt/mapr}
+ 
+# OT will not function correctly if we allow slf4j and netty jars included twice by 
+# only adding ${MAPR_HOME}/lib/* to the classpath, We have to filter them out
+for jar in "$BASEMAPR"/lib/*.jar; do
+   if ! [[ ( "`echo $jar | grep slf4j`" != "" ) || ( "`echo $jar | grep netty`" != "" ) ]]; then
+     CLASSPATH="$CLASSPATH:$jar"
+   fi
+done
+
 # Remove any leading colon.
 CLASSPATH="${CLASSPATH#:}"
 

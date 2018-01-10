@@ -65,7 +65,7 @@ import net.opentsdb.utils.Config;
  * Note that this class can be subclassed to handle different types of 
  * data points such as Rollups or Pre-Aggregates
  */
-class PutDataPointRpc implements TelnetRpc, HttpRpc {
+public class PutDataPointRpc implements TelnetRpc, HttpRpc {
   protected static final Logger LOG = LoggerFactory.getLogger(PutDataPointRpc.class);
   protected static final ArrayList<Boolean> EMPTY_DEFERREDS = 
       new ArrayList<Boolean>(0);
@@ -783,7 +783,7 @@ class PutDataPointRpc implements TelnetRpc, HttpRpc {
    * @param dp The data point to process
    * @param e The exception that caused this
    */
-  void handleStorageException(final TSDB tsdb, final IncomingDataPoint dp, 
+  public static void handleStorageException(final TSDB tsdb, final IncomingDataPoint dp, 
       final Exception e) {
     final StorageExceptionHandler handler = tsdb.getStorageExceptionHandler();
     if (handler != null) {
