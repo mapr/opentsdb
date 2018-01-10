@@ -34,13 +34,16 @@ import net.opentsdb.core.Query;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.meta.Annotation;
 import net.opentsdb.utils.Config;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 /**
  * Tool to dump the data straight from HBase.
  * Useful for debugging data induced problems.
  */
 final class DumpSeries {
-
+	private static final Logger LOG = LoggerFactory.getLogger(DumpSeries.class);
   /** Prints usage and exits with the given retval. */
   private static void usage(final ArgP argp, final String errmsg,
                             final int retval) {
@@ -76,7 +79,7 @@ final class DumpSeries {
     Config config = CliOptions.getConfig(argp);
     
     final TSDB tsdb = new TSDB(config);
-    tsdb.checkNecessaryTablesExist().joinUninterruptibly();
+    tsdb.checkNecessaryTablesExist().joinUninterruptibly(10000);
     final byte[] table = config.getString("tsd.storage.hbase.data_table").getBytes();
     final boolean delete = argp.has("--delete");
     final boolean importformat = delete || argp.has("--import");
@@ -84,7 +87,8 @@ final class DumpSeries {
     try {
       doDump(tsdb, tsdb.getClient(), table, delete, importformat, args);
     } finally {
-      tsdb.shutdown().joinUninterruptibly();
+      LOG.info("DumpSeries: Finished for metric:  "+Arrays.toString(args));
+      tsdb.shutdown().joinUninterruptibly(10000);
     }
   }
 
@@ -96,13 +100,13 @@ final class DumpSeries {
                              final String[] args) throws Exception {
     final ArrayList<Query> queries = new ArrayList<Query>();
     CliQuery.parseCommandLineQuery(args, tsdb, queries, null, null);
-
     final StringBuilder buf = new StringBuilder();
     for (final Query query : queries) {
       final List<Scanner> scanners = Internal.getScanners(query);
       for (Scanner scanner : scanners) {
         ArrayList<ArrayList<KeyValue>> rows;
-        while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
+        while ((rows = scanner.nextRows().joinUninterruptibly(10000)) != null) {
+          LOG.info("DumpSeries: rows size "+ rows.size());
           for (final ArrayList<KeyValue> row : rows) {
             buf.setLength(0);
             final byte[] key = row.get(0).key();
@@ -141,8 +145,10 @@ final class DumpSeries {
             }
 
             if (delete) {
+              LOG.info("DumpSeries: Deleting for metric:  "+metric);
               final DeleteRequest del = new DeleteRequest(table, key);
               client.delete(del);
+              LOG.info("DumpSeries: Finished delete for metric:  "+metric);
             }
           }
         }

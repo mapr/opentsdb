@@ -14,13 +14,17 @@ package net.opentsdb.tools;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
-
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.Callable;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
@@ -32,15 +36,33 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.opentsdb.tools.BuildData;
+import net.opentsdb.tools.StreamsConsumer;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Const;
 import net.opentsdb.tsd.PipelineFactory;
+import net.opentsdb.tsd.PutDataPointRpc;
 import net.opentsdb.tsd.RpcManager;
 import net.opentsdb.utils.Config;
+import net.opentsdb.utils.Exceptions;
 import net.opentsdb.utils.FileSystem;
 import net.opentsdb.utils.Pair;
 import net.opentsdb.utils.PluginLoader;
 import net.opentsdb.utils.Threads;
+
+import org.apache.hadoop.conf.Configuration;
+
+import com.mapr.streams.impl.admin.TopicFeedInfo;
+import com.mapr.streams.impl.admin.MarlinAdminImpl;
+import com.mapr.streams.Admin;
+import com.mapr.streams.Streams;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+
 
 /**
  * Main class of the TSD, the Time Series Daemon.
@@ -194,7 +216,6 @@ final class TSDMain {
       // Make sure we don't even start if we can't find our tables.
       tsdb.checkNecessaryTablesExist().joinUninterruptibly();
       
-      registerShutdownHook();
       final ServerBootstrap server = new ServerBootstrap(factory);
       
       // This manager is capable of lazy init, but we force an init
@@ -226,6 +247,30 @@ final class TSDMain {
         startup.setReady(tsdb);
       }
       log.info("Ready to serve on " + addr);
+
+      boolean useStreams = false; // Default to false
+      int streamsCount = 64; // Default to 64 streams
+      long consumerMemory = 2097152; // Default to 2 MB
+      long autoCommitInterval = 60000; //Default to 1 min
+      useStreams = config.getBoolean("tsd.default.usestreams");
+      if (useStreams) {
+        // Get the list of stream names from config
+        String streamsPath = config.getString("tsd.streams.path");
+        if (streamsPath == null || streamsPath.isEmpty()) {
+          throw new RuntimeException("Failed to get MapR Streams information from config file.");
+        }
+        streamsCount = Integer.parseInt(config.getString("tsd.streams.count"));
+        consumerMemory = Long.parseLong(config.getString("tsd.streams.consumer.memory"));
+        autoCommitInterval = Long.parseLong(config.getString("tsd.streams.autocommit.interval"));
+        // Start the executor service
+        ExecutorService streamsConsumerExecutor = Executors.newFixedThreadPool(streamsCount);
+        registerShutdownHook(streamsConsumerExecutor);
+        String consumerGroup = config.getString("tsd.default.consumergroup");
+        if (consumerGroup == null || consumerGroup.isEmpty()) consumerGroup = "metrics";
+        startConsumers(tsdb, streamsPath.trim(), consumerGroup.trim(), streamsConsumerExecutor, config, streamsCount, consumerMemory, autoCommitInterval);
+      }
+
+      log.info("Starting.");
     } catch (Throwable e) {
       factory.releaseExternalResources();
       try {
@@ -278,13 +323,42 @@ final class TSDMain {
     return startup;
   }
 
-  private static void registerShutdownHook() {
+  private static void startConsumers(TSDB tsdb, String streamsPath, String consumerGroup, ExecutorService executor, Config config, int streamsCount, long consumerMemory, long autoCommitInterval) {
+    try {
+    	// Create a consumer for each stream under streamsPath
+      for (int i=0;i<streamsCount;i++) {
+        StreamsConsumer consumer = new StreamsConsumer(tsdb, streamsPath+"/"+i, consumerGroup+"/"+i, config, consumerMemory, autoCommitInterval);
+        executor.submit(consumer);
+      }// TODO - Add reconnect logic and a way to monitor the consumers
+    } catch (Exception e) {
+      LoggerFactory.getLogger(TSDMain.class).error("Failed to create consumer with error: "+e);
+    }
+  }
+
+  private static void registerShutdownHook(ExecutorService executor) {
     final class TSDBShutdown extends Thread {
-      public TSDBShutdown() {
+      ExecutorService executor;
+      public TSDBShutdown(ExecutorService executor) {
         super("TSDBShutdown");
+        this.executor = executor;
       }
       public void run() {
         try {
+          executor.shutdown(); // Disable new tasks from being submitted
+          try {
+            // Wait a while for existing tasks to terminate
+            if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
+              executor.shutdownNow(); // Cancel currently executing tasks
+              // Wait a while for tasks to respond to being cancelled
+              if (!executor.awaitTermination(30, TimeUnit.SECONDS))
+                LoggerFactory.getLogger(TSDBShutdown.class).error("Pool did not terminate");
+            }
+          } catch (InterruptedException ie) {
+            // (Re-)Cancel if current thread also interrupted
+            executor.shutdownNow();
+            // Preserve interrupt status
+            Thread.currentThread().interrupt();
+          }
           if (RpcManager.isInitialized()) {
             // Check that its actually been initialized.  We don't want to
             // create a new instance only to shutdown!
@@ -299,6 +373,6 @@ final class TSDMain {
         }
       }
     }
-    Runtime.getRuntime().addShutdownHook(new TSDBShutdown());
+    Runtime.getRuntime().addShutdownHook(new TSDBShutdown(executor));
   }
 }
