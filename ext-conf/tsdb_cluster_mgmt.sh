@@ -20,7 +20,7 @@ OT_OPTS=" -s "
 OT_PRETTY=0
 DEBUG_OPTS=" -S -v -v -v -v "
 OT_HOME=${OT_HOME:-__INSTALL__}
-
+MAPR_HOME=${MAPR_HOME:-/opt/mapr}
 
 # main
 #
@@ -152,6 +152,7 @@ if [ $SUCCESS -eq 1 ] ; then
    else
        case "$POST_PROCESSING_OP" in
            "purgeData")
+               export MAPR_TICKETFILE_LOCATION=${MAPR_HOME}/conf/mapruserticket
                for metric in $(echo "$RESP" | sed -e 's/\[//;s/\]//;s/\,/ /g;s/"//g' ); do
                    echo "$(date) Purging old data for $metric"
                    $OT_HOME/bin/tsdb scan --delete 2000/01/01 $(date --date='2 weeks ago' +'%Y/%m/%d') sum $metric
