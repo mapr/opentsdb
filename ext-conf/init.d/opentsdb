@@ -425,6 +425,7 @@ start() {
     check_and_setup_system
     checkStreamsVolume
     createTSDBHbaseTables
+    export MAPR_DAEMON=spyglass
     cd $APP_HOME_DIR
     if [ $APP_STARTS_WITH_JAVA -eq 1 ]; then
         "$SETSID $JAVA" -Dlog.file="$APP_LOG_FILE" -Djava.library.path="$APP_JAVA_LIBRARY_PATH" \
