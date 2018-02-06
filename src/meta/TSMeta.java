@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.uid.NoSuchUniqueId;
+import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.uid.UniqueId;
 import net.opentsdb.uid.UniqueId.UniqueIdType;
 import net.opentsdb.utils.JSON;
@@ -70,7 +72,7 @@ import com.stumbleupon.async.Deferred;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(Include.NON_NULL)
 @JsonAutoDetect(fieldVisibility = Visibility.PUBLIC_ONLY)
-public final class TSMeta {
+public class TSMeta {
   private static final Logger LOG = LoggerFactory.getLogger(TSMeta.class);
 
   /** Charset used to convert Strings to byte arrays and back. */

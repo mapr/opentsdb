@@ -166,7 +166,7 @@ public class AggregationIterator implements SeekableView, DataPoint,
    * <li>No: for {@code iterators[i]} the timestamp of the current data
    *     point is {@code timestamps[i]} and the timestamp of the next data
    *     point is {@code timestamps[iterators.length + i]}.</li>
-   * </li></ul>
+   * </ul>
    * <p>
    * Each timestamp can have the {@code FLAG_FLOAT} applied so it's important
    * to use the {@code TIME_MASK} when getting the actual timestamp value
@@ -414,7 +414,7 @@ public class AggregationIterator implements SeekableView, DataPoint,
     for (int i = 0; i < size; i++) {
       SeekableView it = iterators[i];
       it.seek(start_time);
-      final DataPoint dp;
+      DataPoint dp;
       if (!it.hasNext()) {
         ++num_empty_spans;
         endReached(i);
@@ -427,12 +427,23 @@ public class AggregationIterator implements SeekableView, DataPoint,
         //          + dp.timestamp() + " >= " + start_time);
         putDataPoint(size + i, dp);
       } else {
-        if (LOG.isDebugEnabled()) {
-          LOG.debug(String.format("No DP in range for #%d: %d < %d", i,
-                                  dp.timestamp(), start_time));
+        // if there is data, advance to the start time if applicable.
+        while (dp != null && dp.timestamp() < start_time) {
+          if (it.hasNext()) {
+            dp = it.next();
+          } else {
+            dp = null;
+          }
         }
-        endReached(i);
-        continue;
+        if (dp == null) {
+          if (LOG.isDebugEnabled()) {
+            LOG.debug(String.format("No DP in range for #%d: start time %d", i,
+                                    start_time));
+          }
+          endReached(i);
+          continue;
+        }
+        putDataPoint(size + i, dp);
       }
       if (rate) {
         // The first rate against the time zero should be populated

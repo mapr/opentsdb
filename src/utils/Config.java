@@ -38,7 +38,7 @@ import com.google.common.collect.ImmutableMap;
  * Wherever you need to access the config value, use the proper helper to fetch
  * the value, accounting for exceptions that may be thrown if necessary.
  *
- * The get<type> number helpers will return NumberFormatExceptions if the
+ * The get&lt;type&gt; number helpers will return NumberFormatExceptions if the
  * requested property is null or unparseable. The {@link #getString(String)}
  * helper will return a NullPointerException if the property isn't found.
  * <p>
@@ -109,6 +109,15 @@ public class Config {
   /** tsd.storage.use_otsdb_timestamp */
   /** Sets the HBase cell timestamp equal to metric timestamp */
   private boolean use_otsdb_timestamp = true;
+
+  /** tsd.storage.get_date_tiered_compaction_start */
+  /** Sets the time at which you started using use_otsdb_timestamp
+   * this value is overriden if you have existing data in your tsdb table
+   * but don't want to re-write the cell timestamps, therefore you can start
+   * set this timestamp to when you start using use_otsdb_timestamp
+   * */
+  private long get_date_tiered_compaction_start = 0;
+
 
   /** tsd.storage.use_max_value */
   /** Used for resolving between data coming in at same timestamp */
@@ -271,6 +280,11 @@ public class Config {
   
   public boolean use_otsdb_timestamp() {
     return use_otsdb_timestamp;
+  }
+
+  /** @return the time at which you started storing data using otsdb_timestamp(), if not set defaults to 0 */
+  public long get_date_tiered_compaction_start() {
+    return get_date_tiered_compaction_start;
   }
 
   public boolean use_max_value() {
@@ -534,6 +548,11 @@ public class Config {
     default_map.put("tsd.query.skip_unresolved_tagvs", "false");
     default_map.put("tsd.query.allow_simultaneous_duplicates", "true");
     default_map.put("tsd.query.enable_fuzzy_filter", "true");
+    default_map.put("tsd.query.limits.bytes.default", "0");
+    default_map.put("tsd.query.limits.bytes.allow_override", "false");
+    default_map.put("tsd.query.limits.data_points.default", "0");
+    default_map.put("tsd.query.limits.data_points.allow_override", "false");
+    default_map.put("tsd.query.limits.overrides.interval", "60000");
     default_map.put("tsd.query.multi_get.enable", "false");
     default_map.put("tsd.query.multi_get.limit", "131072");
     default_map.put("tsd.query.multi_get.batch_size", "1024");
@@ -571,6 +590,10 @@ public class Config {
     default_map.put("tsd.storage.compaction.max_concurrent_flushes", "10000");
     default_map.put("tsd.storage.compaction.flush_speed", "2");
     default_map.put("tsd.timeseriesfilter.enable", "false");
+    default_map.put("tsd.uid.use_mode", "false");
+    default_map.put("tsd.uid.lru.enable", "false");
+    default_map.put("tsd.uid.lru.name.size", "5000000");
+    default_map.put("tsd.uid.lru.id.size", "5000000");
     default_map.put("tsd.uidfilter.enable", "false");
     default_map.put("tsd.core.stats_with_port", "false");
     default_map.put("tsd.http.show_stack_trace", "true");
@@ -584,6 +607,7 @@ public class Config {
     default_map.put("tsd.query.timeout", "0");
     default_map.put("tsd.storage.use_otsdb_timestamp", "true");
     default_map.put("tsd.storage.use_max_value", "true");
+    default_map.put("tsd.storage.get_date_tiered_compaction_start", "0");
 
     for (Map.Entry<String, String> entry : default_map.entrySet()) {
       if (!properties.containsKey(entry.getKey()))
@@ -698,6 +722,7 @@ public class Config {
     fix_duplicates = this.getBoolean("tsd.storage.fix_duplicates");
     scanner_max_num_rows = this.getInt("tsd.storage.hbase.scanner.maxNumRows");
     use_otsdb_timestamp = this.getBoolean("tsd.storage.use_otsdb_timestamp");
+    get_date_tiered_compaction_start = this.getLong("tsd.storage.get_date_tiered_compaction_start");
     use_max_value = this.getBoolean("tsd.storage.use_max_value");
   }
 

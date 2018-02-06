@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010-2012  The OpenTSDB Authors.
+// Copyright (C) 2010-2017  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -42,6 +42,7 @@ import org.hbase.async.HBaseClient;
 import org.hbase.async.HBaseException;
 import org.hbase.async.KeyValue;
 import org.hbase.async.PutRequest;
+import org.hbase.async.TableNotFoundException;
 import org.jboss.netty.util.HashedWheelTimer;
 import org.jboss.netty.util.Timeout;
 import org.jboss.netty.util.Timer;
@@ -64,6 +65,7 @@ import net.opentsdb.meta.Annotation;
 import net.opentsdb.meta.MetaDataCache;
 import net.opentsdb.meta.TSMeta;
 import net.opentsdb.meta.UIDMeta;
+import net.opentsdb.query.QueryLimitOverride;
 import net.opentsdb.query.expression.ExpressionFactory;
 import net.opentsdb.query.filter.TagVFilter;
 import net.opentsdb.rollup.RollupConfig;
@@ -103,9 +105,19 @@ public final class TSDB {
   private static short TAG_VALUE_WIDTH = 3;
   private static final int MIN_HISTOGRAM_BYTES = 1;
 
+  /** The operation mode (role) of the TSD. */
+  public enum OperationMode {
+    READWRITE,
+    READONLY,
+    WRITEONLY
+  }
+  
   /** Client for the HBase cluster to use.  */
   final HBaseClient client;
 
+  /** The operation mode (role) of the TSD. */
+  final OperationMode mode;
+  
   /** Name of the table in which timeseries are stored.  */
   final byte[] table;
   /** Name of the table in which UID information is stored. */
@@ -183,6 +195,9 @@ public final class TSDB {
    * {@link #initializePlugins(boolean)} was called.*/
   private HistogramCodecManager histogram_manager;
   
+  /** A list of query overrides for the scanners */
+  private final QueryLimitOverride query_limits;
+  
   /** Writes rejected by the filter */
   private final AtomicLong rejected_dps = new AtomicLong();
   private final AtomicLong rejected_aggregate_dps = new AtomicLong();
@@ -219,6 +234,17 @@ public final class TSDB {
       this.client = client;
     }
 
+    String string_mode = config.getString("tsd.mode");
+    if (Strings.isNullOrEmpty(string_mode)) {
+      mode = OperationMode.READWRITE;
+    } else if (string_mode.toLowerCase().equals("ro")) {
+      mode = OperationMode.READONLY;
+    } else if (string_mode.toLowerCase().equals("wo")) {
+      mode = OperationMode.WRITEONLY;
+    } else {
+      mode = OperationMode.READWRITE;
+    }
+    
     // SALT AND UID WIDTHS
     // Users really wanted this to be set via config instead of having to
     // compile. Hopefully they know NOT to change these after writing data.
@@ -321,6 +347,8 @@ public final class TSDB {
     if (config.getString("tsd.core.tag.allow_specialchars") != null) {
       Tags.setAllowSpecialChars(config.getString("tsd.core.tag.allow_specialchars"));
     }
+    
+    query_limits = new QueryLimitOverride(this);
 
     // load up the functions that require the TSDB object
     ExpressionFactory.addTSDBFunctions(this);
@@ -2110,6 +2138,17 @@ public final class TSDB {
    * @since 2.4 */
   public SearchPlugin getSearchPlugin() {
     return this.search;
+  }
+  
+  /** @return The byte limit class for queries  */
+  public QueryLimitOverride getQueryByteLimits() {
+    return query_limits;
+  }
+  
+  /** @return The mode of operation for this TSD. 
+   * @since 2.4 */
+  public OperationMode getMode() {
+    return mode;
   }
   
   private final boolean isHistogram(final byte[] qualifier) {
