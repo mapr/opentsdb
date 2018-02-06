@@ -79,13 +79,15 @@ final class DumpSeries {
     Config config = CliOptions.getConfig(argp);
     
     final TSDB tsdb = new TSDB(config);
-    tsdb.checkNecessaryTablesExist().joinUninterruptibly(10000);
-    final byte[] table = config.getString("tsd.storage.hbase.data_table").getBytes();
-    final boolean delete = argp.has("--delete");
-    final boolean importformat = delete || argp.has("--import");
-    argp = null;
     try {
+      tsdb.checkNecessaryTablesExist().joinUninterruptibly(10000);
+      final byte[] table = config.getString("tsd.storage.hbase.data_table").getBytes();
+      final boolean delete = argp.has("--delete");
+      final boolean importformat = delete || argp.has("--import");
+      argp = null;
       doDump(tsdb, tsdb.getClient(), table, delete, importformat, args);
+    } catch (Exception e){
+      LOG.error("DumpSeries: Failed for metric:  "+Arrays.toString(args)+" with exception: "+e.getMessage());
     } finally {
       LOG.info("DumpSeries: Finished for metric:  "+Arrays.toString(args));
       tsdb.shutdown().joinUninterruptibly(10000);
