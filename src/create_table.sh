@@ -63,7 +63,7 @@ EOF!!
 }
 
 isStaleLockFile() {
-    MOD_TIME=$(`hadoop fs -stat $MONITORING_LOCK_DIR`)
+    MOD_TIME="$(hadoop fs -stat $MONITORING_LOCK_DIR)"
     if [ $? -ne 0 ]; then
         # the most common error is that the file doesn't exist and we get
         # No such file or directory back.
