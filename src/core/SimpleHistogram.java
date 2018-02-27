@@ -147,13 +147,13 @@ public class SimpleHistogram implements Histogram {
 
       if (currBucketArea >= perc) {
         //Find closest ranks
-        //Float currBucketStart = entry.getKey().getLowerBound();
-        //Float nextBucketStart = entry.getKey().getUpperBound();
+        Float currBucketStart = entry.getKey().getLowerBound();
+        Float nextBucketStart = entry.getKey().getUpperBound();
 
-        //percValue = currBucketStart + ((nextBucketStart - currBucketStart) * 
-        // (perc - prevBucketArea) / (currBucketArea - prevBucketArea));
-        percValue = (entry.getKey().getLowerBound() + 
-            entry.getKey().getUpperBound()) / 2;
+        percValue = currBucketStart + ((nextBucketStart - currBucketStart) *
+        (perc - prevBucketArea) / (currBucketArea - prevBucketArea));
+        //percValue = (entry.getKey().getLowerBound() +
+        //    entry.getKey().getUpperBound()) / 2;
         break;
       } else {
         prevBucketArea = runningCount * 100.0 / bucketSum;
