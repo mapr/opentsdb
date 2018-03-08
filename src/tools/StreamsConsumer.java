@@ -51,8 +51,9 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
     this.log = LoggerFactory.getLogger(StreamsConsumer.class);
   }
 
-  private Deferred<Object> writeToTSDB(final String[] metricTokens) {
+  private Deferred<Object> writeToTSDB(final StringBuffer message) {
     String errmsg = null;
+    final String[] metricTokens = message.toString().split(" ");
     try {
       final class PutErrback implements Callback<Exception, Exception> {
         public Exception call(final Exception arg) {
@@ -112,13 +113,19 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
 		            //log.info(" Consumed Record Key: " + record.value());
 		            //log.info(" Consumed Record Value: " + record.value());
 		            //log.info("Consumer Record: "+record.toString());
-		            String[] metricTokens = record.value().toString().trim().replaceAll(":","").split(" ");
+		            String[] words = record.value().toString().trim().replaceAll(":","").split(" ");
 		            //Metric metric = mapper.readValue(record.value(), Metric.class);
 		            //String[] metricTokens = new String[] { "put", "streams."+metric.getPlugin()+"."+metric.getType(), String.valueOf(metric.getTimeStamp()), 
 		            //                                        String.valueOf(metric.getValues().get(0)),"fqdn="+metric.getHostName()
 		            //                                     };
+		            StringBuffer metricTokens = new StringBuffer();
+		            metricTokens.append("put ");
+		            metricTokens.append(words[0]+" ");
+		            metricTokens.append(String.valueOf(record.timestamp())+" ");
+		            for (int i=1;i<words.length;i++) { metricTokens.append(words[i]+" "); }
 		            Deferred<Object> result = writeToTSDB(metricTokens);
-			    record = null;
+		            record = null;
+		            words = null;
 		            metricTokens = null;
 		          }
 		        }
