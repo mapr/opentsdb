@@ -97,7 +97,6 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
 		      this.consumer = new KafkaConsumer<String, String>(props);
 		      // Subscribe to all topics in this stream
 		      this.consumer.subscribe(Pattern.compile(this.streamName+":.+"), new NoOpConsumerRebalanceListener());
-		      //this.consumer.subscribe(Arrays.asList(this.streamName+":"+this.topicName));
 		      long pollTimeOut = 10000;
 		      log.info("Started Thread: "+this.consumerGroup);
 		      while (true) {
@@ -107,11 +106,8 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
 		        if (iterator.hasNext()) {
 		          while (iterator.hasNext()) {
 		            ConsumerRecord<String, String> record = iterator.next();
-		            // Iterate through returned records, extract the value
-		            // of each message, and print the value to standard output.
 		            //log.info(" Consumed Record Key: " + record.value());
 		            //log.info(" Consumed Record Value: " + record.value());
-		            //log.info("Consumer Record: "+record.toString());
 		            String[] metricTokens = record.value().toString().trim().replaceAll(":","").split(" ");
 		            Deferred<Object> result = writeToTSDB(metricTokens);
 		            record = null;
