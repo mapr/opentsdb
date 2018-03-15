@@ -41,11 +41,11 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
   private KafkaConsumer<String,String> consumer;
   private Logger log;
 
-  public StreamsConsumer(TSDB tsdb, String streamName, String topicName, Config config, long consumerMemory, long autoCommitInterval) {
+  public StreamsConsumer(TSDB tsdb, String streamName, String consumerGroup, Config config, long consumerMemory, long autoCommitInterval) {
     super(config);
     this.tsdb = tsdb;
     this.streamName = streamName;
-    this.consumerGroup = topicName;
+    this.consumerGroup = consumerGroup;
     this.consumerMemory = consumerMemory;
     this.autoCommitInterval = autoCommitInterval;
     this.log = LoggerFactory.getLogger(StreamsConsumer.class);
@@ -87,7 +87,7 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
         "org.apache.kafka.common.serialization.StringDeserializer");
     props.put("value.deserializer",
         "org.apache.kafka.common.serialization.StringDeserializer");
-    props.put("group.id", this.consumerGroup);
+    props.put("group.id", "StreamsConsumer/"+this.consumerGroup);
     props.put("streams.consumer.buffer.memory", consumerMemory); // Defaul to 4 MB
     props.put("auto.offset.reset", "earliest");
     props.put("auto.commit.interval.ms", autoCommitInterval);
@@ -98,7 +98,7 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
 		      // Subscribe to all topics in this stream
 		      this.consumer.subscribe(Pattern.compile(this.streamName+":.+"), new NoOpConsumerRebalanceListener());
 		      long pollTimeOut = 10000;
-		      log.info("Started Thread: "+this.consumerGroup);
+		      log.info("Started Thread: "+"StreamsConsumer/"+this.consumerGroup);
 		      while (true) {
 		        // Request unread messages from the topic.
 		        ConsumerRecords<String, String> consumerRecords = consumer.poll(pollTimeOut);

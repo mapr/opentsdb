@@ -66,7 +66,7 @@ import net.opentsdb.utils.JSON;
  * when needed and retain everything else.
  * @since 2.0
  */
-class HttpJsonSerializer extends HttpSerializer {
+public class HttpJsonSerializer extends HttpSerializer {
 
   /** Type reference for incoming data points */
   static TypeReference<ArrayList<IncomingDataPoint>> TR_INCOMING =
@@ -173,7 +173,15 @@ class HttpJsonSerializer extends HttpSerializer {
     }
 
     // convert to a string so we can handle character encoding properly
-    final String content = query.getContent().trim();
+    return parseUtil(query.getContent().trim(), type, typeReference);
+  }
+
+  /**
+   * Utility function to parse JSON content. Moved code to this function to make it available publicly
+   * @param content
+   * @return
+   */
+  public static <T extends IncomingDataPoint> List<T> parseUtil(final String content, final Class<T> type, final TypeReference<ArrayList<T>> typeReference) {
     final int firstbyte = content.charAt(0);
     try {
       if (firstbyte == '{') {
@@ -192,7 +200,7 @@ class HttpJsonSerializer extends HttpSerializer {
       throw new BadRequestException("Unable to parse the given JSON", iae);
     }
   }
-  
+
   /**
    * Parses a suggestion query
    * @return a hash map of key/value pairs

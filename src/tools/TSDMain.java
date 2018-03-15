@@ -256,6 +256,7 @@ final class TSDMain {
       if (useStreams) {
         // Get the list of stream names from config
         String streamsPath = config.getString("tsd.streams.path");
+        String newStreamsPath = config.getString("tsd.streams.new.path");
         if (streamsPath == null || streamsPath.isEmpty()) {
           throw new RuntimeException("Failed to get MapR Streams information from config file.");
         }
@@ -267,7 +268,7 @@ final class TSDMain {
         registerShutdownHook(streamsConsumerExecutor);
         String consumerGroup = config.getString("tsd.default.consumergroup");
         if (consumerGroup == null || consumerGroup.isEmpty()) consumerGroup = "metrics";
-        startConsumers(tsdb, streamsPath.trim(), consumerGroup.trim(), streamsConsumerExecutor, config, streamsCount, consumerMemory, autoCommitInterval);
+        startConsumers(tsdb, streamsPath.trim(), newStreamsPath.trim(), consumerGroup.trim(), streamsConsumerExecutor, config, streamsCount, consumerMemory, autoCommitInterval);
       }
 
       log.info("Starting.");
@@ -323,12 +324,14 @@ final class TSDMain {
     return startup;
   }
 
-  private static void startConsumers(TSDB tsdb, String streamsPath, String consumerGroup, ExecutorService executor, Config config, int streamsCount, long consumerMemory, long autoCommitInterval) {
+  private static void startConsumers(TSDB tsdb, String streamsPath, String newStreamsPath, String consumerGroup, ExecutorService executor, Config config, int streamsCount, long consumerMemory, long autoCommitInterval) {
     try {
     	// Create a consumer for each stream under streamsPath
       for (int i=0;i<streamsCount;i++) {
         StreamsConsumer consumer = new StreamsConsumer(tsdb, streamsPath+"/"+i, consumerGroup+"/"+i, config, consumerMemory, autoCommitInterval);
+        StreamsConsumer2 consumer2 = new StreamsConsumer2(tsdb, newStreamsPath+"/"+i, consumerGroup+"/"+i, config, consumerMemory, autoCommitInterval);
         executor.submit(consumer);
+        executor.submit(consumer2);
       }// TODO - Add reconnect logic and a way to monitor the consumers
     } catch (Exception e) {
       LoggerFactory.getLogger(TSDMain.class).error("Failed to create consumer with error: "+e);

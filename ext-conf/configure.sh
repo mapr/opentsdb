@@ -116,6 +116,7 @@ function configureInputStreams() {
         sed -i -e 's/\(^\s*#*\s*\)\(tsd.streams.autocommit.interval = 60000\).*/\2/g' $NEW_OT_CONF_FILE
         sed -i -e 's/\(^\s*#*\s*\)\(tsd.default.consumergroup = \).*/\2'"metrics"'/g' $NEW_OT_CONF_FILE
         sed -i -e 's/\(^\s*#*\s*\)\(tsd.streams.path = \).*/\2'"\/var\/mapr\/mapr.monitoring\/streams"'/g' $NEW_OT_CONF_FILE
+        sed -i -e 's/\(^\s*#*\s*\)\(tsd.streams.new.path = \).*/\2'"\/var\/mapr\/mapr.monitoring\/metricstreams"'/g' $NEW_OT_CONF_FILE
     else
         sed -i -e 's/\(^\s*#*\s*\)\(tsd.default.usestreams = \).*/\2'"false"'/g' $NEW_OT_CONF_FILE
         sed -i -e 's/\(^tsd.mode = ro\).*/#\1/g' $NEW_OT_CONF_FILE
