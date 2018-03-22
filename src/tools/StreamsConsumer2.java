@@ -23,6 +23,7 @@ import com.stumbleupon.async.Deferred;
 import com.google.common.base.Strings;
 import org.hbase.async.PleaseThrottleException;
 import com.stumbleupon.async.TimeoutException;
+import net.opentsdb.tsd.BadRequestException;
 
 import net.opentsdb.uid.NoSuchUniqueName;
 import net.opentsdb.tsd.PutDataPointRpc;
@@ -193,9 +194,13 @@ public class StreamsConsumer2 extends PutDataPointRpc implements Runnable {
 		        Iterator<ConsumerRecord<String, String>> iterator = consumerRecords.iterator();
 		        if (iterator.hasNext()) {
 		          while (iterator.hasNext()) {
-		            ConsumerRecord<String, String> record = iterator.next();
+                ConsumerRecord<String, String> record = iterator.next();
 		            log.debug(" Consumed Record Value: " + record.value());
-		            writeToTSDB(record.value().trim(), record.timestamp());
+		            try {
+                  writeToTSDB(record.value().trim(), record.timestamp());
+		            } catch (BadRequestException be) {
+                  log.error("Unable to parse metric: "+record+" failed with exception: "+be);
+                }
 		            record = null;
 		          }
 		        }
