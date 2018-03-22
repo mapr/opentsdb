@@ -194,13 +194,13 @@ public class StreamsConsumer2 extends PutDataPointRpc implements Runnable {
 		        Iterator<ConsumerRecord<String, String>> iterator = consumerRecords.iterator();
 		        if (iterator.hasNext()) {
 		          while (iterator.hasNext()) {
-                ConsumerRecord<String, String> record = iterator.next();
+                            ConsumerRecord<String, String> record = iterator.next();
 		            log.debug(" Consumed Record Value: " + record.value());
 		            try {
-                  writeToTSDB(record.value().trim(), record.timestamp());
+                              writeToTSDB(record.value().trim(), record.timestamp());
 		            } catch (BadRequestException be) {
-                  log.error("Unable to parse metric: "+record+" failed with exception: "+be);
-                }
+                              log.error("Unable to parse metric: "+record.value()+" failed with exception: "+be);
+                            }
 		            record = null;
 		          }
 		        }
