@@ -93,38 +93,37 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
     props.put("auto.commit.interval.ms", autoCommitInterval);
     while (true) {
       if (consumer == null) {
-		    try {
-		      this.consumer = new KafkaConsumer<String, String>(props);
-		      // Subscribe to all topics in this stream
-		      this.consumer.subscribe(Pattern.compile(this.streamName+":.+"), new NoOpConsumerRebalanceListener());
-		      long pollTimeOut = 10000;
-		      log.info("Started Thread: "+"StreamsConsumer/"+this.consumerGroup);
-		      while (true) {
-		        // Request unread messages from the topic.
-		        ConsumerRecords<String, String> consumerRecords = consumer.poll(pollTimeOut);
-		        Iterator<ConsumerRecord<String, String>> iterator = consumerRecords.iterator();
-		        if (iterator.hasNext()) {
-		          while (iterator.hasNext()) {
-		            ConsumerRecord<String, String> record = iterator.next();
-		            //log.info(" Consumed Record Key: " + record.value());
-		            //log.info(" Consumed Record Value: " + record.value());
-		            String[] metricTokens = record.value().toString().trim().replaceAll(":","").split(" ");
-		            Deferred<Object> result = writeToTSDB(metricTokens);
-		            record = null;
-		            metricTokens = null;
-		          }
-		        }
-		        consumerRecords = null;
-		        iterator = null;
-		      }
-		    } catch (Exception e) {
-		      log.error("Thread for topic: "+this.consumerGroup+" failed with exception: "+e);
-		    }
-		    finally {
-		      log.info("Closing this thread: "+this.consumerGroup);
-		      consumer.close();
-		      consumer = null;
-		    }
+        try {
+          this.consumer = new KafkaConsumer<String, String>(props);
+          // Subscribe to all topics in this stream
+          this.consumer.subscribe(Pattern.compile(this.streamName+":.+"), new NoOpConsumerRebalanceListener());
+          long pollTimeOut = 10000;
+	  log.info("Started Thread: "+"StreamsConsumer/"+this.consumerGroup);
+	  while (true) {
+            // Request unread messages from the topic.
+            ConsumerRecords<String, String> consumerRecords = consumer.poll(pollTimeOut);
+	    Iterator<ConsumerRecord<String, String>> iterator = consumerRecords.iterator();
+            if (iterator.hasNext()) {
+	      while (iterator.hasNext()) {
+	        ConsumerRecord<String, String> record = iterator.next();
+		//log.info(" Consumed Record Key: " + record.value());
+		//log.info(" Consumed Record Value: " + record.value());
+		String[] metricTokens = record.value().toString().trim().replaceAll(":","").split(" ");
+		Deferred<Object> result = writeToTSDB(metricTokens);
+		record = null;
+		metricTokens = null;
+	      }
+	    }
+            consumerRecords = null;
+            iterator = null;
+	  }
+	} catch (Exception e) {
+	  log.error("Thread for topic: "+this.consumerGroup+" failed with exception: "+e);
+	} finally {
+          log.info("Closing this thread: "+this.consumerGroup);
+          consumer.close();
+          consumer = null;
+        }
       }
     }
   }
