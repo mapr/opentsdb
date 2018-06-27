@@ -89,7 +89,7 @@ public class StreamsConsumer2 extends PutDataPointRpc implements Runnable {
     try {
 
       // matches tries to match the whole string, not just a piece of it
-      if (message.matches(".+\\.latency.+")) {
+      if (message.matches(".+mapr\\.db\\.table\\.latency.+")) {
         List<HistogramPojo> dps = HttpJsonSerializer.parseUtil(message, HistogramPojo.class, TYPE_REF);
         log.debug("Found "+dps.size()+" histogram datapoints");
         processDataPoint(dps, timeStamp);
