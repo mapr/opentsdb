@@ -39,6 +39,11 @@ MAPR_HOME=${MAPR_HOME:-/opt/mapr}
 NOW=$(date "+%Y%m%d_%H%M%S")
 ASYNCVER="1.7"   # two most significat version number of compatible asynchbase jar
 OT_CONF_ASSUME_RUNNING_CORE=${isOnlyRoles:-0}
+WARDEN_START_KEY="service.command.start"
+WARDEN_HEAPSIZE_MIN_KEY="service.heapsize.min"
+WARDEN_HEAPSIZE_MAX_KEY="service.heapsize.max"
+WARDEN_HEAPSIZE_PERCENT_KEY="service.heapsize.percent"
+WARDEN_RUNSTATE_KEY="service.runstate"
 RC=0
 nodeport="4242"
 nodecount=0
@@ -56,6 +61,9 @@ else
    exit 0
 fi
 
+INST_WARDEN_FILE="${MAPR_CONF_CONFD_DIR}/conf.d/warden.opentsdb.conf"
+PKG_WARDEN_FILE="${OTSDB_HOME}/etc/conf/warden.opentsdb.conf"
+
 #############################################################################
 # Function to change ownership of our files to $MAPR_USER
 #
@@ -65,21 +73,96 @@ function adjustOwnerShip() {
 }
 
 #############################################################################
+# Function to extract key from warden config file
+#
+# Expects the following input:
+# $1 = warden file to extract key from
+# $2 = the key to extract
+#
+#############################################################################
+function get_warden_value() {
+    local f=$1
+    local key=$2
+    local val=""
+    local rc=0
+    if [ -f "$f" ] && [ -n "$key" ]; then
+        val=$(grep "$key" "$f" | cut -d'=' -f2)
+        rc=$?
+    fi
+    echo "$val"
+    return $rc
+}
+
+#############################################################################
+# Function to update value for  key in warden config file
+#
+# Expects the following input:
+# $1 = warden file to update key in
+# $2 = the key to update
+# $3 = the value to update with
+#
+#############################################################################
+function update_warden_value() {
+    local f=$1
+    local key=$2
+    local value=$3
+
+    sed -i 's/\([ ]*'"$key"'=\).*$/\1'"$value"'/' "$f"
+}
+
+#############################################################################
 # Function to install Warden conf file
 #
 #############################################################################
 function installWardenConfFile() {
-    # make sure conf directory exist
-    if ! [ -d ${MAPR_CONF_CONFD_DIR} ]; then
-        mkdir -p ${MAPR_CONF_CONFD_DIR} > /dev/null 2>&1
-    fi
+    local curr_start_cmd
+    local curr_heapsize_min
+    local curr_heapsize_max
+    local curr_heapsize_percent
+    local curr_runstate
+    local pkg_start_cmd
+    local pkg_heapsize_min
+    local pkg_heapsize_max
+    local pkg_heapsize_percent
 
-    # Copy warden conf
-    cp ${OTSDB_HOME}/etc/conf/warden.opentsdb.conf ${MAPR_CONF_CONFD_DIR}/
-    if [ $? -ne 0 ]; then
-        logWarn "opentsdb - Failed to install Warden conf file for service - service will not start"
+    if [ -f "$INST_WARDEN_FILE" ]; then
+        curr_start_cmd=$(get_warden_value "$INST_WARDEN_FILE" "$WARDEN_START_KEY")
+        curr_heapsize_min=$(get_warden_value "$INST_WARDEN_FILE" "$WARDEN_HEAPSIZE_MIN_KEY")
+        curr_heapsize_max=$(get_warden_value "$INST_WARDEN_FILE" "$WARDEN_HEAPSIZE_MAX_KEY")
+        curr_heapsize_percent=$(get_warden_value "$INST_WARDEN_FILE" "$WARDEN_HEAPSIZE_PERCENT_KEY")
+        curr_runstate=$(get_warden_value "$INST_WARDEN_FILE" "$WARDEN_RUNSTATE_KEY")
+        pkg_start_cmd=$(get_warden_value "$PKG_WARDEN_FILE" "$WARDEN_START_KEY")
+        pkg_heapsize_min=$(get_warden_value "$PKG_WARDEN_FILE" "$WARDEN_HEAPSIZE_MIN_KEY")
+        pkg_heapsize_max=$(get_warden_value "$PKG_WARDEN_FILE" "$WARDEN_HEAPSIZE_MAX_KEY")
+        pkg_heapsize_percent=$(get_warden_value "$PKG_WARDEN_FILE" "$WARDEN_HEAPSIZE_PERCENT_KEY")
+
+        if [ "$curr_start_cmd" != "$pkg_start_cmd" ]; then
+            cp "$PKG_WARDEN_FILE" "/tmp/$PKG_WARDEN_FILE$$"
+            if [ -n "$curr_runstate" ]; then
+                echo "service.runstate=$curr_runstate" >> "/tmp/$PKG_WARDEN_FILE$$"
+            fi
+            if [ -n "$curr_heapsize_min" ] && [ "$curr_heapsize_min" -gt "$pkg_heapsize_min" ]; then
+                update_warden_value "/tmp/$PKG_WARDEN_FILE$$" "$WARDEN_HEAPSIZE_MIN_KEY" "$curr_heapsize_min"
+            fi
+            if [ -n "$curr_heapsize_max" ] && [ "$curr_heapsize_max" -gt "$pkg_heapsize_max" ]; then
+                update_warden_value "/tmp/$PKG_WARDEN_FILE$$" "$WARDEN_HEAPSIZE_MAX_KEY" "$curr_heapsize_max"
+            fi
+            if [ -n "$curr_heapsize_percent" ] && [ "$curr_heapsize_percent" -gt "$pkg_heapsize_percent" ]; then
+                update_warden_value "/tmp/$PKG_WARDEN_FILE$$" "$WARDEN_HEAPSIZE_PERCENT_KEY" "$curr_heapsize_percent"
+            fi
+            cp "/tmp/$PKG_WARDEN_FILE$$" "$INST_WARDEN_FILE"
+            rm -f "/tmp/$PKG_WARDEN_FILE$$"
+        fi
+    else
+        if  ! [ -d "${MAPR_CONF_CONFD_DIR}" ]; then
+            mkdir -p "${MAPR_CONF_CONFD_DIR}" > /dev/null 2>&1
+        fi
+        cp "$PKG_WARDEN_FILE" "$INST_WARDEN_FILE"
+        if [ $? -ne 0 ]; then
+            logWarn "opentsdb - Failed to install Warden conf file for service - service will not start"
+        fi
     fi
-    chown "${MAPR_USER}":"${MAPR_GROUP}"  "${MAPR_CONF_CONFD_DIR}/warden.opentsdb.conf"
+    chown $MAPR_USER:$MAPR_GROUP "$INST_WARDEN_FILE"
 }
 
 
