@@ -61,7 +61,7 @@ else
    exit 0
 fi
 
-INST_WARDEN_FILE="${MAPR_CONF_CONFD_DIR}/conf.d/warden.opentsdb.conf"
+INST_WARDEN_FILE="${MAPR_CONF_CONFD_DIR}/warden.opentsdb.conf"
 PKG_WARDEN_FILE="${OTSDB_HOME}/etc/conf/warden.opentsdb.conf"
 
 #############################################################################
