@@ -115,6 +115,7 @@ function update_warden_value() {
 #
 #############################################################################
 function installWardenConfFile() {
+    local rc=0
     local curr_start_cmd
     local curr_heapsize_min
     local curr_heapsize_max
@@ -124,6 +125,7 @@ function installWardenConfFile() {
     local pkg_heapsize_min
     local pkg_heapsize_max
     local pkg_heapsize_percent
+    local newestPrevVersionFile
 
     if [ -f "$INST_WARDEN_FILE" ]; then
         curr_start_cmd=$(get_warden_value "$INST_WARDEN_FILE" "$WARDEN_START_KEY")
@@ -151,16 +153,30 @@ function installWardenConfFile() {
                 update_warden_value "/tmp/$PKG_WARDEN_FILE$$" "$WARDEN_HEAPSIZE_PERCENT_KEY" "$curr_heapsize_percent"
             fi
             cp "/tmp/$PKG_WARDEN_FILE$$" "$INST_WARDEN_FILE"
+            rc=$?
             rm -f "/tmp/$PKG_WARDEN_FILE$$"
         fi
     else
         if  ! [ -d "${MAPR_CONF_CONFD_DIR}" ]; then
             mkdir -p "${MAPR_CONF_CONFD_DIR}" > /dev/null 2>&1
         fi
-        cp "$PKG_WARDEN_FILE" "$INST_WARDEN_FILE"
-        if [ $? -ne 0 ]; then
-            logWarn "opentsdb - Failed to install Warden conf file for service - service will not start"
+        newestPrevVersionFile=$(ls -t1 "$PKG_WARDEN_FILE"-[0-9]* |head -n 1)
+        if [ -n "$newestPrevVersionFile" ] && [ -f "$newestPrevVersionFile" ]; then
+            curr_runstate=$(get_warden_value "$newestPrevVersionFile" "$WARDEN_RUNSTATE_KEY")
+            cp "$PKG_WARDEN_FILE" "/tmp/$PKG_WARDEN_FILE$$"
+            if [ -n "$curr_runstate" ]; then
+                echo "service.runstate=$curr_runstate" >> "/tmp/$PKG_WARDEN_FILE$$"
+            fi
+            cp "/tmp/$PKG_WARDEN_FILE$$" "$INST_WARDEN_FILE"
+            rc=$?
+            rm -f "/tmp/$PKG_WARDEN_FILE$$"
+        else
+            cp "$PKG_WARDEN_FILE" "$INST_WARDEN_FILE"
+            rc=$?
         fi
+    fi
+    if [ $rc -ne 0 ]; then
+        logWarn "opentsdb - Failed to install Warden conf file for service - service will not start"
     fi
     chown $MAPR_USER:$MAPR_GROUP "$INST_WARDEN_FILE"
 }
