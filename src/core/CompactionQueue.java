@@ -269,8 +269,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     // parameters for the compaction
     private final ArrayList<KeyValue> row;
     private final KeyValue[] compacted;
-    private final List<Annotation> annotations;
-    private final List<HistogramDataPoint> histograms;
+    private List<Annotation> annotations;
+    private List<HistogramDataPoint> histograms;
     private long compactedKVTimestamp;
 
     private final int nkvs;
