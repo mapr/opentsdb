@@ -126,6 +126,10 @@ function installWardenConfFile() {
     local pkg_heapsize_max
     local pkg_heapsize_percent
     local newestPrevVersionFile
+    local tmpWardenFile
+
+    tmpWardenFile=$(basename $PKG_WARDEN_FILE)
+    tmpWardenFile="/tmp/${tmpWardenFile}$$"
 
     if [ -f "$INST_WARDEN_FILE" ]; then
         curr_start_cmd=$(get_warden_value "$INST_WARDEN_FILE" "$WARDEN_START_KEY")
@@ -139,22 +143,22 @@ function installWardenConfFile() {
         pkg_heapsize_percent=$(get_warden_value "$PKG_WARDEN_FILE" "$WARDEN_HEAPSIZE_PERCENT_KEY")
 
         if [ "$curr_start_cmd" != "$pkg_start_cmd" ]; then
-            cp "$PKG_WARDEN_FILE" "/tmp/$PKG_WARDEN_FILE$$"
+            cp "$PKG_WARDEN_FILE" "${tmpWardenFile}"
             if [ -n "$curr_runstate" ]; then
-                echo "service.runstate=$curr_runstate" >> "/tmp/$PKG_WARDEN_FILE$$"
+                echo "service.runstate=$curr_runstate" >> "${tmpWardenFile}"
             fi
             if [ -n "$curr_heapsize_min" ] && [ "$curr_heapsize_min" -gt "$pkg_heapsize_min" ]; then
-                update_warden_value "/tmp/$PKG_WARDEN_FILE$$" "$WARDEN_HEAPSIZE_MIN_KEY" "$curr_heapsize_min"
+                update_warden_value "${tmpWardenFile}" "$WARDEN_HEAPSIZE_MIN_KEY" "$curr_heapsize_min"
             fi
             if [ -n "$curr_heapsize_max" ] && [ "$curr_heapsize_max" -gt "$pkg_heapsize_max" ]; then
-                update_warden_value "/tmp/$PKG_WARDEN_FILE$$" "$WARDEN_HEAPSIZE_MAX_KEY" "$curr_heapsize_max"
+                update_warden_value "${tmpWardenFile}" "$WARDEN_HEAPSIZE_MAX_KEY" "$curr_heapsize_max"
             fi
             if [ -n "$curr_heapsize_percent" ] && [ "$curr_heapsize_percent" -gt "$pkg_heapsize_percent" ]; then
-                update_warden_value "/tmp/$PKG_WARDEN_FILE$$" "$WARDEN_HEAPSIZE_PERCENT_KEY" "$curr_heapsize_percent"
+                update_warden_value "${tmpWardenFile}" "$WARDEN_HEAPSIZE_PERCENT_KEY" "$curr_heapsize_percent"
             fi
-            cp "/tmp/$PKG_WARDEN_FILE$$" "$INST_WARDEN_FILE"
+            cp "${tmpWardenFile}" "$INST_WARDEN_FILE"
             rc=$?
-            rm -f "/tmp/$PKG_WARDEN_FILE$$"
+            rm -f "${tmpWardenFile}"
         fi
     else
         if  ! [ -d "${MAPR_CONF_CONFD_DIR}" ]; then
@@ -163,13 +167,13 @@ function installWardenConfFile() {
         newestPrevVersionFile=$(ls -t1 "$PKG_WARDEN_FILE"-[0-9]* |head -n 1)
         if [ -n "$newestPrevVersionFile" ] && [ -f "$newestPrevVersionFile" ]; then
             curr_runstate=$(get_warden_value "$newestPrevVersionFile" "$WARDEN_RUNSTATE_KEY")
-            cp "$PKG_WARDEN_FILE" "/tmp/$PKG_WARDEN_FILE$$"
+            cp "$PKG_WARDEN_FILE" "${tmpWardenFile}"
             if [ -n "$curr_runstate" ]; then
-                echo "service.runstate=$curr_runstate" >> "/tmp/$PKG_WARDEN_FILE$$"
+                echo "service.runstate=$curr_runstate" >> "${tmpWardenFile}"
             fi
-            cp "/tmp/$PKG_WARDEN_FILE$$" "$INST_WARDEN_FILE"
+            cp "${tmpWardenFile}" "$INST_WARDEN_FILE"
             rc=$?
-            rm -f "/tmp/$PKG_WARDEN_FILE$$"
+            rm -f "${tmpWardenFile}"
         else
             cp "$PKG_WARDEN_FILE" "$INST_WARDEN_FILE"
             rc=$?
