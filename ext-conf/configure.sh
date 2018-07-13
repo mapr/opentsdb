@@ -86,7 +86,7 @@ function get_warden_value() {
     local val=""
     local rc=0
     if [ -f "$f" ] && [ -n "$key" ]; then
-        val=$(grep "$key" "$f" | cut -d'=' -f2)
+        val=$(grep "$key" "$f" | cut -d'=' -f2 | sed -e 's/ //g' )
         rc=$?
     fi
     echo "$val"
