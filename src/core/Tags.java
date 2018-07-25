@@ -334,8 +334,8 @@ public final class Tags {
    */
   static String getValue(final TSDB tsdb, final byte[] row,
                          final String name) throws NoSuchUniqueName {
-    validateString("tag name", name);
-    final byte[] id = tsdb.tag_names.getId(name);
+    String validName = validateString("tag name", name);
+    final byte[] id = tsdb.tag_names.getId(validName);
     final byte[] value_id = getValueId(tsdb, row, id);
     if (value_id == null) {
       return null;
@@ -537,22 +537,24 @@ public final class Tags {
    * @param s The string to validate.
    * @throws IllegalArgumentException if the string isn't valid.
    */
-  public static void validateString(final String what, final String s) {
+  public static String validateString(final String what, final String s) {
     if (s == null) {
       throw new IllegalArgumentException("Invalid " + what + ": null");
     } else if ("".equals(s)) {
       throw new IllegalArgumentException("Invalid " + what + ": empty string");
     }
     final int n = s.length();
+    StringBuilder newS = new StringBuilder(s);
     for (int i = 0; i < n; i++) {
-      final char c = s.charAt(i);
+      final char c = newS.charAt(i);
       if (!(('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') 
           || ('0' <= c && c <= '9') || c == '-' || c == '_' || c == '.' 
           || c == '/' || Character.isLetter(c) || isAllowSpecialChars(c))) {
-        throw new IllegalArgumentException("Invalid " + what
-            + " (\"" + s + "\"): illegal character: " + c);
+        newS.setCharAt(i, '_');
+        LOG.warn("Found illegal char " + c + " in tag name/value - replaced by _");
       }
     }
+    return newS.toString();
   }
 
   /**
