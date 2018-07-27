@@ -111,6 +111,19 @@ function update_warden_value() {
 }
 
 #############################################################################
+# function to adjust ownership
+#############################################################################
+function adjustOwnership() {
+    if [ -f "/etc/logrotate.d/opentsdb" ]; then
+        if [ "$MAPR_USER" != "mapr" -o "$MAPR_GROUP" != "mapr" ]; then
+            sed -i -e 's/create 640 mapr mapr/create 640 '"$MAPR_USER $MAPR_GROUP/" /etc/logrotate.d/opentsdb
+            sed -i -e 's/su mapr mapr/su '"$MAPR_USER $MAPR_GROUP/" /etc/logrotate.d/opentsdb
+        fi
+    fi
+    chown -R "$MAPR_USER":"$MAPR_GROUP" $OPENTSDB_HOME
+ }
+
+#############################################################################
 # Function to install Warden conf file
 #
 #############################################################################
@@ -531,6 +544,7 @@ if [ $RC -ne 0 ]; then
     return $RC 2>/dev/null || exit $RC
 fi
 installWardenConfFile
+adjustOwnership
 rm -f "${NEW_OT_CONF_FILE}"
 # remove state file
 if [ -f "$OTSDB_HOME/etc/.not_configured_yet" ]; then
