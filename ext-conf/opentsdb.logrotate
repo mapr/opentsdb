@@ -1,4 +1,4 @@
-/opt/mapr/opentsdb/opentsdb-2.3.0/var/log/opentsdb/purgeData.log {
+__INSTALL__/var/log/opentsdb/purgeData.log {
   daily
   rotate 30
   maxsize 3000000
