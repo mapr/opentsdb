@@ -65,14 +65,6 @@ INST_WARDEN_FILE="${MAPR_CONF_CONFD_DIR}/warden.opentsdb.conf"
 PKG_WARDEN_FILE="${OTSDB_HOME}/etc/conf/warden.opentsdb.conf"
 
 #############################################################################
-# Function to change ownership of our files to $MAPR_USER
-#
-#############################################################################
-function adjustOwnerShip() {
-    chown -R "$MAPR_USER":"$MAPR_GROUP" $OTSDB_HOME
-}
-
-#############################################################################
 # Function to extract key from warden config file
 #
 # Expects the following input:
@@ -120,7 +112,7 @@ function adjustOwnership() {
             sed -i -e 's/su mapr mapr/su '"$MAPR_USER $MAPR_GROUP/" /etc/logrotate.d/opentsdb
         fi
     fi
-    chown -R "$MAPR_USER":"$MAPR_GROUP" $OPENTSDB_HOME
+    chown -R "$MAPR_USER":"$MAPR_GROUP" $OTSDB_HOME
  }
 
 #############################################################################
