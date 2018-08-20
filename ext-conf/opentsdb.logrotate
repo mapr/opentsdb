@@ -1,4 +1,4 @@
-__INSTALL__/var/log/opentsdb/purgeData.log {
+__INSTALL__/var/log/opentsdb/ot_purgeData.log {
   daily
   rotate 30
   maxsize 3000000
