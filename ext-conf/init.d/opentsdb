@@ -168,12 +168,8 @@ gid=$(id -ng)
 IOTMP_DIR_PATH="/opt/mapr/opentsdb/opentsdb-$VARSION/tmp"
 sudo mkdir -p $IOTMP_DIR_PATH
 chown -R $euid:$egid "$IOTMP_DIR_PATH"
-
-: ${JVMARGS:=-enableassertions -enablesystemassertions-Djava.iotmpdir="$IOTMP_DIR_PATH" $JVMXMX}
-
 : ${JVMXMX:=-Xms6000m -Xmx6000m -Xss1m -XX:MaxMetaspaceSize=128m}
-
-
+: ${JVMARGS:=-enableassertions -enablesystemassertions-Djava.iotmpdir="$IOTMP_DIR_PATH" $JVMXMX}
 export JVMARGS
 export MALLOC_ARENA_MAX=2
 export MAPR_TICKETFILE_LOCATION=${MAPR_HOME}/conf/mapruserticket
