@@ -161,7 +161,7 @@ APP_OPTS_2=""
 
 # Export APP specific variables here
 # Set a default value for JVMARGS
-: ${JVMXMX:=-Xmx2000m -Xss1m -XX:MaxMetaspaceSize=128m}
+: ${JVMXMX:=-Xms2000m -Xmx6000m -Xss1m -XX:MaxMetaspaceSize=128m}
 : ${JVMARGS:=-enableassertions -enablesystemassertions $JVMXMX }
 export JVMARGS
 export MALLOC_ARENA_MAX=2
