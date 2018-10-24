@@ -161,8 +161,15 @@ APP_OPTS_2=""
 
 # Export APP specific variables here
 # Set a default value for JVMARGS
+
+VERSION=$(cat /opt/mapr/opentsdb/opentsdbversion)
+uid=$(id -nu)
+gid=$(id -ng)
+IOTMP_DIR_PATH="/opt/mapr/opentsdb/opentsdb-$VARSION/tmp"
+sudo mkdir -p $IOTMP_DIR_PATH
+chown -R $euid:$egid "$IOTMP_DIR_PATH"
 : ${JVMXMX:=-Xms6000m -Xmx6000m -Xss1m -XX:MaxMetaspaceSize=128m}
-: ${JVMARGS:=-enableassertions -enablesystemassertions $JVMXMX }
+: ${JVMARGS:=-enableassertions -enablesystemassertions-Djava.iotmpdir="$IOTMP_DIR_PATH" $JVMXMX}
 export JVMARGS
 export MALLOC_ARENA_MAX=2
 export MAPR_TICKETFILE_LOCATION=${MAPR_HOME}/conf/mapruserticket
