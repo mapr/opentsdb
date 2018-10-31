@@ -162,16 +162,9 @@ APP_OPTS_2=""
 # Export APP specific variables here
 # Set a default value for JVMARGS
 
-VERSION=$(cat /opt/mapr/opentsdb/opentsdbversion)
-euid=$(id -nu)
-egid=$(id -ng)
-IOTMP_DIR_PATH="/opt/mapr/opentsdb/opentsdb-$VERSION/tmp"
-sudo mkdir -p $IOTMP_DIR_PATH
-sudo chown -R $euid:$egid "$IOTMP_DIR_PATH"
-
 : ${JVMXMX:=-Xms6000m -Xmx6000m -Xss1m -XX:MaxMetaspaceSize=128m}
-: ${JVMARGS:=-enableassertions -enablesystemassertions -Djava.iotmpdir="$IOTMP_DIR_PATH" $JVMXMX}
-export JVMARGS
+
+
 export MALLOC_ARENA_MAX=2
 export MAPR_TICKETFILE_LOCATION=${MAPR_HOME}/conf/mapruserticket
 STREAMSROOT="/var/mapr/mapr.monitoring/metricstreams"
@@ -191,6 +184,7 @@ fi
 # java app, otherwise set it to APP_DAEMON(usually)
 
 APP_MAIN="net.opentsdb.tools.TSDMain"
+
 
 set_ulimit() {
     local ulim_opt=$1
@@ -518,6 +512,39 @@ stop() {
     fi
     false
 }
+
+create_tmp_directory(){
+    local version_local=$(cat /opt/mapr/opentsdb/opentsdbversion)
+    local euid_local=$(id -nu)
+    local egid_local=$(id -ng)
+    local iotmp_dir_path_local="/opt/mapr/opentsdb/opentsdb-$version_local/tmp"
+
+    mkdir -p -m 700 $iotmp_dir_path_local
+    if [ $? == 0 ]; then
+        IOTMP_DIR_PATH=$iotmp_dir_path_local
+    else
+        sudo_user=$(grep '^sudo:.*$' /etc/group | cut -d: -f4)
+        if [ "$sudo_user" == "$euid_local" ]; then
+            sudo mkdir -p -m 700 $iotmp_dir_path_local
+            sudo chown -R $euid_local:$egid_local "$iotmp_dir_path_local"
+            IOTMP_DIR_PATH=$iotmp_dir_path_local
+        else
+            iotmp_dir_path_local="/home/$euid_local/opentsdb-$version_local/tmp"
+            mkdir -p $iotmp_dir_path_local
+            if [ $? == 0 ]; then
+                IOTMP_DIR_PATH=$iotmp_dir_path_local
+            else
+                IOTMP_DIR_PATH="/tmp"
+            fi
+        fi
+    fi
+
+}
+
+
+create_tmp_directory
+: ${JVMARGS:=-enableassertions -enablesystemassertions -Djava.iotmpdir="$IOTMP_DIR_PATH" $JVMXMX}
+export JVMARGS
 
 if [ $APP_DOES_NOT_MANAGE_PID_FILE -eq 1 -a $APP_DAEMONIZES -eq 1 ]; then
     echo "We have no way of managing the pid file"
