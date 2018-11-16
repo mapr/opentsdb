@@ -257,8 +257,10 @@ final class TSDMain {
         // Get the list of stream names from config
         String streamsPath = config.getString("tsd.streams.path");
         String newStreamsPath = config.getString("tsd.streams.new.path");
-        if (streamsPath == null || streamsPath.isEmpty()) {
-          throw new RuntimeException("Failed to get MapR Streams information from config file.");
+        if (newStreamsPath == null || newStreamsPath.isEmpty()) {
+          if (streamsPath == null || streamsPath.isEmpty()){
+            throw new RuntimeException("Failed to get MapR Streams information from config file.");
+          }
         }
         streamsCount = Integer.parseInt(config.getString("tsd.streams.count"));
         consumerMemory = Long.parseLong(config.getString("tsd.streams.consumer.memory"));
@@ -268,7 +270,7 @@ final class TSDMain {
         registerShutdownHook(streamsConsumerExecutor);
         String consumerGroup = config.getString("tsd.default.consumergroup");
         if (consumerGroup == null || consumerGroup.isEmpty()) consumerGroup = "metrics";
-        startConsumers(tsdb, streamsPath.trim(), newStreamsPath.trim(), consumerGroup.trim(), streamsConsumerExecutor, config, streamsCount, consumerMemory, autoCommitInterval);
+        startConsumers(tsdb, streamsPath, newStreamsPath, consumerGroup.trim(), streamsConsumerExecutor, config, streamsCount, consumerMemory, autoCommitInterval);
       }
 
       log.info("Starting.");
@@ -328,10 +330,15 @@ final class TSDMain {
     try {
     	// Create a consumer for each stream under streamsPath
       for (int i=0;i<streamsCount;i++) {
-        StreamsConsumer consumer = new StreamsConsumer(tsdb, streamsPath+"/"+i, consumerGroup+"/"+i, config, consumerMemory, autoCommitInterval);
-        StreamsConsumer2 consumer2 = new StreamsConsumer2(tsdb, newStreamsPath+"/"+i, consumerGroup+"/"+i, config, consumerMemory, autoCommitInterval);
-        executor.submit(consumer);
-        executor.submit(consumer2);
+        if (streamsPath != null && !streamsPath.isEmpty()){
+          StreamsConsumer consumer = new StreamsConsumer(tsdb, streamsPath.trim()+"/"+i, consumerGroup+"/"+i, config, consumerMemory, autoCommitInterval);
+          executor.submit(consumer);
+        }
+        if (newStreamsPath != null && !newStreamsPath.isEmpty()){
+          StreamsConsumer2 consumer2 = new StreamsConsumer2(tsdb, newStreamsPath.trim()+"/"+i, consumerGroup+"/"+i, config, consumerMemory, autoCommitInterval);
+          executor.submit(consumer2);
+        }
+
       }// TODO - Add reconnect logic and a way to monitor the consumers
     } catch (Exception e) {
       LoggerFactory.getLogger(TSDMain.class).error("Failed to create consumer with error: "+e);
