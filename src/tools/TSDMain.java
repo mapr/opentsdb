@@ -26,6 +26,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang.StringUtils;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerBossPool;
@@ -257,8 +258,8 @@ final class TSDMain {
         // Get the list of stream names from config
         String streamsPath = config.getString("tsd.streams.path");
         String newStreamsPath = config.getString("tsd.streams.new.path");
-        if (newStreamsPath == null || newStreamsPath.isEmpty()) {
-          if (streamsPath == null || streamsPath.isEmpty()){
+        if (StringUtils.isBlank(newStreamsPath)){
+          if (StringUtils.isBlank(streamsPath)){
             throw new RuntimeException("Failed to get MapR Streams information from config file.");
           }
         }
@@ -330,11 +331,11 @@ final class TSDMain {
     try {
     	// Create a consumer for each stream under streamsPath
       for (int i=0;i<streamsCount;i++) {
-        if (streamsPath != null && !streamsPath.isEmpty()){
+        if (StringUtils.isNotBlank(streamsPath)){
           StreamsConsumer consumer = new StreamsConsumer(tsdb, streamsPath.trim()+"/"+i, consumerGroup+"/"+i, config, consumerMemory, autoCommitInterval);
           executor.submit(consumer);
         }
-        if (newStreamsPath != null && !newStreamsPath.isEmpty()){
+        if (StringUtils.isNotBlank(newStreamsPath)){
           StreamsConsumer2 consumer2 = new StreamsConsumer2(tsdb, newStreamsPath.trim()+"/"+i, consumerGroup+"/"+i, config, consumerMemory, autoCommitInterval);
           executor.submit(consumer2);
         }
