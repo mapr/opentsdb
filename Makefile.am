@@ -265,7 +265,8 @@ tsdb_DEPS = \
 	$(REFLECTASM)	\
 	$(SLF4J_API)	\
 	$(SUASYNC)	\
-	$(APACHE_MATH)
+	$(APACHE_MATH) \
+	$(APACHE_LANG)
 
 if BIGTABLE
 tsdb_DEPS += \
@@ -878,6 +879,7 @@ pom.xml: pom.xml.in Makefile
 	    -e 's/@SUASYNC_VERSION@/$(SUASYNC_VERSION)/' \
 	    -e 's/@ZOOKEEPER_VERSION@/$(ZOOKEEPER_VERSION)/' \
 	    -e 's/@APACHE_MATH_VERSION@/$(APACHE_MATH_VERSION)/' \
+	    -e 's/@APACHE_LANG_VERSION@/$(APACHE_LANG_VERSION)/' \
 	    -e 's/@JEXL_VERSION@/$(JEXL_VERSION)/' \
 	    -e 's/@JGRAPHT_VERSION@/$(JGRAPHT_VERSION)/' \
 	    -e 's/@spec_title@/$(spec_title)/' \
@@ -919,6 +921,7 @@ fat-jar-pom.xml: ./fat-jar/fat-jar-pom.xml.in Makefile
 	    -e 's/@SUASYNC_VERSION@/$(SUASYNC_VERSION)/' \
 	    -e 's/@ZOOKEEPER_VERSION@/$(ZOOKEEPER_VERSION)/' \
 	    -e 's/@APACHE_MATH_VERSION@/$(APACHE_MATH_VERSION)/' \
+	    -e 's/@APACHE_LANG_VERSION@/$(APACHE_LANG_VERSION)/' \
 	    -e 's/@JEXL_VERSION@/$(JEXL_VERSION)/' \
 	    -e 's/@JGRAPHT_VERSION@/$(JGRAPHT_VERSION)/' \	    
 	    -e 's/@spec_title@/$(spec_title)/' \

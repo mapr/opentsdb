@@ -26,7 +26,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerBossPool;
@@ -330,20 +330,46 @@ final class TSDMain {
   private static void startConsumers(TSDB tsdb, String streamsPath, String newStreamsPath, String consumerGroup, ExecutorService executor, Config config, int streamsCount, long consumerMemory, long autoCommitInterval) {
     try {
     	// Create a consumer for each stream under streamsPath
-      for (int i=0;i<streamsCount;i++) {
-        if (StringUtils.isNotBlank(streamsPath)){
-          StreamsConsumer consumer = new StreamsConsumer(tsdb, streamsPath.trim()+"/"+i, consumerGroup+"/"+i, config, consumerMemory, autoCommitInterval);
-          executor.submit(consumer);
+      String streamName;
+      String newStreamName;
+
+      for (int i = 0; i < streamsCount; i++) {
+
+        if (StringUtils.isNotBlank(streamsPath)) {
+          streamName = streamsPath.trim() + "/" + i;
+          if (isStreamExist(streamName)) {
+            StreamsConsumer consumer = new StreamsConsumer(tsdb, streamName, consumerGroup + "/" + i, config, consumerMemory, autoCommitInterval);
+            executor.submit(consumer);
+          }
         }
+
         if (StringUtils.isNotBlank(newStreamsPath)){
-          StreamsConsumer2 consumer2 = new StreamsConsumer2(tsdb, newStreamsPath.trim()+"/"+i, consumerGroup+"/"+i, config, consumerMemory, autoCommitInterval);
-          executor.submit(consumer2);
+          newStreamName = newStreamsPath.trim() + "/" + i;
+          if (isStreamExist(newStreamName)) {
+            StreamsConsumer2 consumer2 = new StreamsConsumer2(tsdb, newStreamName, consumerGroup + "/" + i, config, consumerMemory, autoCommitInterval);
+            executor.submit(consumer2);
+          }
         }
 
       }// TODO - Add reconnect logic and a way to monitor the consumers
     } catch (Exception e) {
-      LoggerFactory.getLogger(TSDMain.class).error("Failed to create consumer with error: "+e);
+      LoggerFactory.getLogger(TSDMain.class).error("Failed to create consumer with error: " + e);
     }
+  }
+
+  private static boolean isStreamExist(String streamsPath) {
+    org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path(streamsPath);
+    try {
+      org.apache.hadoop.fs.FileSystem fs = org.apache.hadoop.fs.FileSystem.get(new Configuration());
+      if (!fs.exists(path)) {
+        return false;
+      }
+    } catch (IOException e) {
+      LoggerFactory.getLogger(TSDMain.class).error("Failed when check if MAPRfs stream with path=" + streamsPath + " is exist with error: " + e);
+      return false;
+    }
+
+    return true;
   }
 
   private static void registerShutdownHook(ExecutorService executor) {
