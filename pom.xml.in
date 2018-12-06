@@ -424,6 +424,12 @@
       <artifactId>commons-jexl</artifactId>
       <version>@JEXL_VERSION@</version>
     </dependency>
+
+    <dependency>
+      <groupId>org.apache.commons</groupId>
+      <artifactId>commons-lang3</artifactId>
+      <version>@APACHE_LANG_VERSION@</version>
+    </dependency>
     
     <dependency>
       <groupId>org.jgrapht</groupId>

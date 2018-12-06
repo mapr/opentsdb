@@ -26,6 +26,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.lang3.StringUtils;
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.socket.ServerSocketChannelFactory;
 import org.jboss.netty.channel.socket.nio.NioServerBossPool;
@@ -257,8 +258,10 @@ final class TSDMain {
         // Get the list of stream names from config
         String streamsPath = config.getString("tsd.streams.path");
         String newStreamsPath = config.getString("tsd.streams.new.path");
-        if (streamsPath == null || streamsPath.isEmpty()) {
-          throw new RuntimeException("Failed to get MapR Streams information from config file.");
+        if (StringUtils.isBlank(newStreamsPath)){
+          if (StringUtils.isBlank(streamsPath)){
+            throw new RuntimeException("Failed to get MapR Streams information from config file.");
+          }
         }
         streamsCount = Integer.parseInt(config.getString("tsd.streams.count"));
         consumerMemory = Long.parseLong(config.getString("tsd.streams.consumer.memory"));
@@ -268,7 +271,7 @@ final class TSDMain {
         registerShutdownHook(streamsConsumerExecutor);
         String consumerGroup = config.getString("tsd.default.consumergroup");
         if (consumerGroup == null || consumerGroup.isEmpty()) consumerGroup = "metrics";
-        startConsumers(tsdb, streamsPath.trim(), newStreamsPath.trim(), consumerGroup.trim(), streamsConsumerExecutor, config, streamsCount, consumerMemory, autoCommitInterval);
+        startConsumers(tsdb, streamsPath, newStreamsPath, consumerGroup.trim(), streamsConsumerExecutor, config, streamsCount, consumerMemory, autoCommitInterval);
       }
 
       log.info("Starting.");
@@ -327,15 +330,46 @@ final class TSDMain {
   private static void startConsumers(TSDB tsdb, String streamsPath, String newStreamsPath, String consumerGroup, ExecutorService executor, Config config, int streamsCount, long consumerMemory, long autoCommitInterval) {
     try {
     	// Create a consumer for each stream under streamsPath
-      for (int i=0;i<streamsCount;i++) {
-        StreamsConsumer consumer = new StreamsConsumer(tsdb, streamsPath+"/"+i, consumerGroup+"/"+i, config, consumerMemory, autoCommitInterval);
-        StreamsConsumer2 consumer2 = new StreamsConsumer2(tsdb, newStreamsPath+"/"+i, consumerGroup+"/"+i, config, consumerMemory, autoCommitInterval);
-        executor.submit(consumer);
-        executor.submit(consumer2);
+      String streamName;
+      String newStreamName;
+
+      for (int i = 0; i < streamsCount; i++) {
+
+        if (StringUtils.isNotBlank(streamsPath)) {
+          streamName = streamsPath.trim() + "/" + i;
+          if (isStreamExist(streamName)) {
+            StreamsConsumer consumer = new StreamsConsumer(tsdb, streamName, consumerGroup + "/" + i, config, consumerMemory, autoCommitInterval);
+            executor.submit(consumer);
+          }
+        }
+
+        if (StringUtils.isNotBlank(newStreamsPath)){
+          newStreamName = newStreamsPath.trim() + "/" + i;
+          if (isStreamExist(newStreamName)) {
+            StreamsConsumer2 consumer2 = new StreamsConsumer2(tsdb, newStreamName, consumerGroup + "/" + i, config, consumerMemory, autoCommitInterval);
+            executor.submit(consumer2);
+          }
+        }
+
       }// TODO - Add reconnect logic and a way to monitor the consumers
     } catch (Exception e) {
-      LoggerFactory.getLogger(TSDMain.class).error("Failed to create consumer with error: "+e);
+      LoggerFactory.getLogger(TSDMain.class).error("Failed to create consumer with error: " + e);
     }
+  }
+
+  private static boolean isStreamExist(String streamsPath) {
+    org.apache.hadoop.fs.Path path = new org.apache.hadoop.fs.Path(streamsPath);
+    try {
+      org.apache.hadoop.fs.FileSystem fs = org.apache.hadoop.fs.FileSystem.get(new Configuration());
+      if (!fs.exists(path)) {
+        return false;
+      }
+    } catch (IOException e) {
+      LoggerFactory.getLogger(TSDMain.class).error("Failed when check if MAPRfs stream with path=" + streamsPath + " is exist with error: " + e);
+      return false;
+    }
+
+    return true;
   }
 
   private static void registerShutdownHook(ExecutorService executor) {
