@@ -29,7 +29,8 @@ nodist_bin_SCRIPTS = tsdb
 dist_noinst_SCRIPTS = src/create_table.sh src/upgrade_1to2.sh src/mygnuplot.sh \
   src/mygnuplot.bat src/opentsdb.conf tools/opentsdb_restart.py src/logback.xml
 dist_noinst_DATA = pom.xml.in build-aux/rpm/opentsdb.conf \
-  build-aux/rpm/logback.xml build-aux/rpm/init.d/opentsdb
+  build-aux/rpm/logback.xml build-aux/rpm/init.d/opentsdb \
+  build-aux/rpm/systemd/opentsdb@.service
 tsdb_SRC := \
 	src/core/AggregationIterator.java	\
 	src/core/Aggregator.java	\
@@ -63,7 +64,6 @@ tsdb_SRC := \
 	src/core/HistogramSeekableView.java	\
 	src/core/HistogramSpan.java	\
 	src/core/HistogramSpanGroup.java	\
-	src/core/HistogramRowSeq.java	\
 	src/core/iHistogramRowSeq.java	\
 	src/core/IncomingDataPoint.java	\
 	src/core/IncomingDataPoints.java	\
@@ -94,10 +94,13 @@ tsdb_SRC := \
 	src/core/WritableDataPoints.java	\
 	src/core/WriteableDataPointFilterPlugin.java	\
 	src/graph/Plot.java	\
-	src/auth/AuthenticationChannelHandler.java \
-	src/auth/Authentication.java \
-	src/auth/Authorization.java \
-	src/auth/AuthState.java \
+	src/auth/AllowAllAuthenticatingAuthorizer.java	\
+	src/auth/AuthenticationChannelHandler.java	\
+	src/auth/Authentication.java	\
+	src/auth/Authorization.java	\
+	src/auth/AuthState.java	\
+	src/auth/Permissions.java	\
+	src/auth/Roles.java	\
 	src/meta/Annotation.java	\
 	src/meta/MetaDataCache.java	\
 	src/meta/TSMeta.java	\
@@ -622,7 +625,7 @@ gwttsd: staticroot
 	$(mkdir_p) $(DEV_TSD_STATICROOT)
 	cp $(dist_static_DATA:%=$(srcdir)/%) $(DEV_TSD_STATICROOT)
 	find -L $(DEV_TSD_STATICROOT) -type l -exec rm {} \;
-	p=`pwd`/gwt/queryui && cd $(DEV_TSD_STATICROOT) \
+	p=../gwt/queryui && cd $(DEV_TSD_STATICROOT) \
 	  && for i in $$p/*; do ln -s -f "$$i" || break; done
 	find -L $(DEV_TSD_STATICROOT)/gwt -type f | xargs touch
 	@touch .staticroot-stamp
@@ -716,17 +719,23 @@ install-data-etc:
 	destdataetcdir="$(DESTDIR)$(pkgdatadir)/etc" ; \
 	destdataconfdir="$$destdataetcdir/opentsdb" ; \
 	destdatainitdir="$$destdataetcdir/init.d" ; \
+	destdatasystemddir="$$destdataetcdir/systemd/system" ; \
 	echo " $(mkdir_p) $$destdataconfdir"; \
 	$(mkdir_p) "$$destdataconfdir" || exit 1; \
 	echo " $(mkdir_p) $$destdatainitdir"; \
 	$(mkdir_p) "$$destdatainitdir" || exit 1; \
+	echo " $(mkdir_p) $$destdatasystemddir"; \
+	$(mkdir_p) "$$destdatasystemddir" || exit 1; \
 	conf_files="$$conf_files $(top_srcdir)/build-aux/rpm/opentsdb.conf" ; \
 	conf_files="$$conf_files $(top_srcdir)/build-aux/rpm/logback.xml" ; \
 	echo " $(INSTALL_SCRIPT)" $$conf_files "$$destdataconfdir" ; \
 	$(INSTALL_DATA) $$conf_files "$$destdataconfdir" || exit 1; \
 	init_file="$(top_srcdir)/build-aux/rpm/init.d/opentsdb" ; \
 	echo " $(INSTALL_SCRIPT)" $$init_file "$$destdatainitdir" ; \
-	$(INSTALL_SCRIPT) $$init_file "$$destdatainitdir" || exit 1;
+	$(INSTALL_SCRIPT) $$init_file "$$destdatainitdir" || exit 1; \
+	systemd_file="$(top_srcdir)/build-aux/rpm/systemd/opentsdb@.service" ; \
+	echo " $(INSTALL_SCRIPT)" $$systemd_file "$$destdatasystemddir" ; \
+	$(INSTALL_SCRIPT) $$systemd_file "$$destdatasystemddir" || exit 1;
 
 uninstall-data-etc:
 	@$(NORMAL_UNINSTALL)
@@ -839,7 +848,7 @@ mostlyclean-local:
 	  && find $(package_dir) -depth -type d -exec rmdir {} ';' \
 	  && dir=$(package_dir) && dir=$${dir%/*} \
 	  && while test x"$$dir" != x"$${dir%/*}"; do \
-	       rmdir "$$dir" && dir=$${dir%/*} || break; \
+	       rm -rf "$$dir" && dir=$${dir%/*} || break; \
 	     done \
 	  && rmdir "$$dir"
 

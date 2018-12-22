@@ -121,9 +121,9 @@ public final class UniqueId implements UniqueIdInterface {
     Collections.synchronizedSet(new HashSet<String>());
 
   /** Number of times we avoided reading from HBase thanks to the cache. */
-  private volatile int cache_hits;
+  private volatile long cache_hits;
   /** Number of times we had to read from HBase and populate the cache. */
-  private volatile int cache_misses;
+  private volatile long cache_misses;
   /** How many times we collided with an existing ID when attempting to 
    * generate a new UID */
   private volatile int random_id_collisions;
@@ -236,23 +236,47 @@ public final class UniqueId implements UniqueIdInterface {
   }
 
   /** The number of times we avoided reading from HBase thanks to the cache. */
-  public int cacheHits() {
+  public long cacheHits() {
     return cache_hits;
   }
 
   /** The number of times we had to read from HBase and populate the cache. */
-  public int cacheMisses() {
+  public long cacheMisses() {
     return cache_misses;
   }
 
   /** Returns the number of elements stored in the internal cache. */
-  public int cacheSize() {
+  public long cacheSize() {
     if (use_lru) {
       return (int) (lru_name_cache.size() + lru_id_cache.size());
     }
     return name_cache.size() + id_cache.size();
   }
 
+  /**
+   * Resets the cache hits counter before rollover. Note that a few updates
+   * may be dropped due to race conditions at rollover.
+   */
+  private void incrementCacheHits() {
+    if (cache_hits >= Long.MAX_VALUE) {
+      cache_hits = 1;
+    } else {
+      cache_hits++;
+    }
+  }
+  
+  /**
+   * Resets the cache miss counter before rollover. Note that a few updates
+   * may be dropped due to race conditions at rollover.
+   */
+  private void incrementCacheMiss() {
+    if (cache_misses >= Long.MAX_VALUE) {
+      cache_misses = 1;
+    } else {
+      cache_misses++;
+    }
+  }
+  
   /** Returns the number of random UID collisions */
   public int randomIdCollisions() {
     return random_id_collisions;
@@ -343,10 +367,10 @@ public final class UniqueId implements UniqueIdInterface {
     }
     final String name = getNameFromCache(id);
     if (name != null) {
-      cache_hits++;
+      incrementCacheHits();
       return Deferred.fromResult(name);
     }
-    cache_misses++;
+    incrementCacheMiss();
     class GetNameCB implements Callback<String, String> {
       public String call(final String name) {
         if (name == null) {
@@ -416,10 +440,10 @@ public final class UniqueId implements UniqueIdInterface {
   public Deferred<byte[]> getIdAsync(final String name) {
     final byte[] id = getIdFromCache(name);
     if (id != null) {
-      cache_hits++;
+      incrementCacheHits();
       return Deferred.fromResult(id);
     }
-    cache_misses++;
+    incrementCacheMiss();
     class GetIdCB implements Callback<byte[], byte[]> {
       public byte[] call(final byte[] id) {
         if (id == null) {
@@ -861,7 +885,7 @@ public final class UniqueId implements UniqueIdInterface {
     // Look in the cache first.
     final byte[] id = getIdFromCache(name);
     if (id != null) {
-      cache_hits++;
+      incrementCacheHits();
       return Deferred.fromResult(id);
     }
     // Not found in our cache, so look in HBase instead.
