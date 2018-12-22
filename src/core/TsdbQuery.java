@@ -1400,7 +1400,10 @@ final class TsdbQuery implements Query {
     if(tsdb.getConfig().use_otsdb_timestamp()) {
       long stTime = (getScanStartTimeSeconds() * 1000);
       long endTime = end_time == UNSET ? -1 : (getScanEndTimeSeconds() * 1000);
-      if (tsdb.getConfig().get_date_tiered_compaction_start() <= stTime) {
+      if (tsdb.getConfig().get_date_tiered_compaction_start() <= stTime &&
+          rollup_query == null) {
+        // TODO - we could set this for rollups but we also need to write
+        // the rollup columns at the proper time.
         scanner.setTimeRange(stTime, endTime);
       }
     }
@@ -1416,19 +1419,21 @@ final class TsdbQuery implements Query {
       // Set the Scanners column qualifier pattern with rollup aggregator
       // HBase allows only a single filter so if we have a row key filter, keep
       // it. If not, then we can do this
-      if (!rollup_query.getGroupBy().toString().equals("avg")) {
+      if (!rollup_query.getRollupAgg().toString().equals("avg")) {
         if (existing != null) {
-          final List<ScanFilter> filters = new ArrayList<ScanFilter>(3);
+          final List<ScanFilter> filters = new ArrayList<ScanFilter>(2);
           filters.add(existing);
-          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-              new BinaryPrefixComparator(rollup_query.getGroupBy().toString()
+          final List<ScanFilter> rollup_filters = new ArrayList<ScanFilter>(2);
+          rollup_filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+              new BinaryPrefixComparator(rollup_query.getRollupAgg().toString()
                       .getBytes(Const.ASCII_CHARSET))));
-          filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
+          rollup_filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
               new BinaryPrefixComparator(new byte[] { 
                   (byte) tsdb.getRollupConfig().getIdForAggregator(
                       rollup_query.getRollupAgg().toString())
               })));
-          scanner.setFilter(new FilterList(filters, Operator.MUST_PASS_ONE));
+          filters.add(new FilterList(rollup_filters, Operator.MUST_PASS_ONE));
+          scanner.setFilter(new FilterList(filters, Operator.MUST_PASS_ALL));
         } else {
           final List<ScanFilter> filters = new ArrayList<ScanFilter>(2);
           filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
@@ -1448,7 +1453,7 @@ final class TsdbQuery implements Query {
         filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
             new BinaryPrefixComparator("count".getBytes())));
         filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
-            new BinaryPrefixComparator(new byte[] { 
+            new BinaryPrefixComparator(new byte[] {
                 (byte) tsdb.getRollupConfig().getIdForAggregator("sum")
             })));
         filters.add(new QualifierFilter(CompareFilter.CompareOp.EQUAL,
@@ -1551,6 +1556,13 @@ final class TsdbQuery implements Query {
         // 0 and 1 seconds. Just bump it a second.
         end++;
       }
+    }
+    
+    if (rollup_query != null) {
+      return RollupUtils.getRollupBasetime(end + 
+          (rollup_query.getRollupInterval().getIntervalSeconds() * 
+              rollup_query.getRollupInterval().getIntervals()), 
+          rollup_query.getRollupInterval());
     }
 
     // The calculation depends on whether we're downsampling.

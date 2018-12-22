@@ -152,6 +152,8 @@ fi
 APP_LOCK_DIR=$APP_HOME_DIR/var/lock/subsys
 APP_LOCK_FILE="$APP_LOCK_DIR/$APP"
 APP_LOG_FILE="$APP_LOG_DIR/${APP}-${APP_HOSTNAME}-"    # use this for apps own logging
+APP_DAEMON_LOG_FILE="$APP_LOG_DIR/${APP}_daemon.log"   # use this for apps own logging
+APP_QUERY_LOG_FILE="$APP_LOG_DIR/queries.log"   # use this for apps own logging
 APP_LOG_START_FILE="$APP_LOG_DIR/${APP}_startup.log"   # use this for startup logging
 APP_PID_FILE="$APP_PID_DIR/$APP.pid"
 
@@ -162,7 +164,7 @@ APP_OPTS_2=""
 # Export APP specific variables here
 # Set a default value for JVMARGS
 
-: ${JVMXMX:=-Xms6000m -Xmx6000m -Xss1m -XX:MaxMetaspaceSize=128m}
+: ${JVMXMX:=-Xms6000m -Xmx6000m -Xss1m -XX:MaxMetaspaceSize=128m -DLOG_FILE=${APP_DAEMON_LOG_FILE} -DQUERY_LOG=${APP_QUERY_LOG_FILE}}
 
 
 export MALLOC_ARENA_MAX=2
