@@ -169,7 +169,7 @@ function installWardenConfFile() {
         if  ! [ -d "${MAPR_CONF_CONFD_DIR}" ]; then
             mkdir -p "${MAPR_CONF_CONFD_DIR}" > /dev/null 2>&1
         fi
-        newestPrevVersionFile=$(ls -t1 "$PKG_WARDEN_FILE"-[0-9]* |head -n 1)
+        newestPrevVersionFile=$(ls -t1 "$PKG_WARDEN_FILE"-[0-9]* 2> /dev/null | head -n 1)
         if [ -n "$newestPrevVersionFile" ] && [ -f "$newestPrevVersionFile" ]; then
             curr_runstate=$(get_warden_value "$newestPrevVersionFile" "$WARDEN_RUNSTATE_KEY")
             cp "$PKG_WARDEN_FILE" "${tmpWardenFile}"
