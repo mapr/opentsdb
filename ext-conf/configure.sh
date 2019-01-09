@@ -36,6 +36,7 @@ OTSDB_HOME="${OTSDB_HOME:-__INSTALL__}"
 OT_CONF_FILE="${OT_CONF_FILE:-${OTSDB_HOME}/etc/opentsdb/opentsdb.conf}"
 NEW_OT_CONF_FILE=${NEW_OT_CONF_FILE:-${OT_CONF_FILE}.progress}
 MAPR_HOME=${MAPR_HOME:-/opt/mapr}
+JVM_HEAP_DUMP_PATH="$MAPR_HOME/heapdumps"
 NOW=$(date "+%Y%m%d_%H%M%S")
 ASYNCVER="1.7"   # two most significat version number of compatible asynchbase jar
 OT_CONF_ASSUME_RUNNING_CORE=${isOnlyRoles:-0}
@@ -375,6 +376,12 @@ function createCronJob() {
     return 0
 }
 
+check_java_heap_dump_dir() {
+    if [ ! -d "$JVM_HEAP_DUMP_PATH" ]; then
+        mkdir -m 777 -p ${JVM_HEAP_DUMP_PATH}
+    fi
+}
+
 # typically called from master configure.sh with the following arguments
 #
 # configure.sh  -nodeCount ${otNodesCount} -OT "${otNodesList}" -nodePort ${otPort}
@@ -514,6 +521,8 @@ if [ \( -z "$nodelist" -a "$useStreams" -eq 0 \) -o -z "$zk_nodelist" ]; then
     echo -e "${usage}"
     return 2 2>/dev/null || exit 2
 fi
+
+check_java_heap_dump_dir
 
 # save off a copy
 cp -p ${OT_CONF_FILE} ${OT_CONF_FILE}.${NOW}
