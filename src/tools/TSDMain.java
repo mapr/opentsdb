@@ -232,8 +232,8 @@ final class TSDMain {
             }
 
             // we validated the network port config earlier
-            final InetSocketAddress addr = new InetSocketAddress(bindAddress,
-                    config.getInt("tsd.network.port"));
+            final InetSocketAddress addr = new InetSocketAddress(bindAddress, config.getInt("tsd.network.port"));
+            log.info("Binding on " + addr);
             server.bind(addr);
             if (startup != null) {
                 startup.setReady(tsdb);
@@ -244,19 +244,24 @@ final class TSDMain {
             int streamsCount = 64; // Default to 64 streams
             long consumerMemory = 2097152; // Default to 2 MB
             long autoCommitInterval = 60000; //Default to 1 min
+
             useStreams = config.getBoolean("tsd.default.usestreams");
             if (useStreams) {
+                log.info("Using streams consumers");
                 // Get the list of stream names from config
-                String streamsPath = config.getString("tsd.streams.path");
-                String newStreamsPath = config.getString("tsd.streams.new.path");
+                final String streamsPath = config.getString("tsd.streams.path");
+                final String newStreamsPath = config.getString("tsd.streams.new.path");
+
                 if (StringUtils.isBlank(newStreamsPath)) {
                     if (StringUtils.isBlank(streamsPath)) {
                         throw new RuntimeException("Failed to get MapR Streams information from config file.");
                     }
                 }
+
                 streamsCount = Integer.parseInt(config.getString("tsd.streams.count"));
                 consumerMemory = Long.parseLong(config.getString("tsd.streams.consumer.memory"));
                 autoCommitInterval = Long.parseLong(config.getString("tsd.streams.autocommit.interval"));
+
                 // Start the executor service
                 ExecutorService streamsConsumerExecutor = Executors.newFixedThreadPool(streamsCount);
                 registerShutdownHook(streamsConsumerExecutor);
@@ -264,7 +269,9 @@ final class TSDMain {
                 if (consumerGroup == null || consumerGroup.isEmpty()) {
                     consumerGroup = "metrics";
                 }
-                startConsumers(tsdb, streamsPath, newStreamsPath, consumerGroup.trim(), streamsConsumerExecutor, config, streamsCount, consumerMemory, autoCommitInterval);
+                logStreamConfig(log, streamsPath, newStreamsPath, streamsCount, consumerMemory, autoCommitInterval, consumerGroup);
+                startConsumers(log, tsdb, streamsPath, newStreamsPath, consumerGroup.trim(), streamsConsumerExecutor, config,
+                        streamsCount, consumerMemory, autoCommitInterval);
             }
 
             log.info("Starting.");
@@ -282,6 +289,27 @@ final class TSDMain {
             throw new RuntimeException("Initialization failed", e);
         }
         // The server is now running in separate threads, we can exit main.
+    }
+
+    private static void logStreamConfig(Logger log, String streamsPath, String newStreamsPath, int streamsCount, long consumerMemory,
+                                        long autoCommitInterval, String consumemrGroup) {
+        final StringBuilder buf = new StringBuilder();
+
+        buf.append("Stream configuration details:\n");
+        if (StringUtils.isBlank(streamsPath)) {
+            streamsPath = "<none>";
+        }
+        if (StringUtils.isBlank(newStreamsPath)) {
+            newStreamsPath = "<none>";
+        }
+        buf.append("\t    Streams Path: ").append(streamsPath).append('\n');
+        buf.append("\t    New Streams Path: ").append(newStreamsPath).append('\n');
+        buf.append("\t    Streams Count: ").append(streamsCount).append('\n');
+        buf.append("\t    Consumer Memory: ").append(consumerMemory).append('\n');
+        buf.append("\t    Auto Commit Interval: ").append(autoCommitInterval).append('\n');
+        buf.append("\t    Consumer Group: ").append(consumemrGroup);
+
+        log.info(buf.toString());
     }
 
     private static StartupPlugin loadStartupPlugins(Config config) {
@@ -326,31 +354,51 @@ final class TSDMain {
         return startup;
     }
 
-    private static void startConsumers(TSDB tsdb, String streamsPath, String newStreamsPath, String consumerGroup, ExecutorService executor, Config config, int streamsCount, long consumerMemory, long autoCommitInterval) {
+    private static void startConsumers(Logger log, TSDB tsdb, String streamsPath, String newStreamsPath, String consumerGroup,
+                                       ExecutorService executor, Config config, int streamsCount, long consumerMemory, long autoCommitInterval) {
         try {
             // Create a consumer for each stream under streamsPath
             String streamName;
             String newStreamName;
+            int streamsCreated = 0;
 
             for (int i = 0; i < streamsCount; i++) {
+                final String consumerGroupNum = consumerGroup + '/' + i;
 
                 if (StringUtils.isNotBlank(streamsPath)) {
-                    streamName = streamsPath.trim() + "/" + i;
+                    streamName = streamsPath.trim() + '/' + i;
                     if (isStreamExist(streamName)) {
-                        StreamsConsumer consumer = new StreamsConsumer(tsdb, streamName, consumerGroup + "/" + i, config, consumerMemory, autoCommitInterval);
+                        StreamsConsumer consumer = new StreamsConsumer(tsdb, streamName, consumerGroupNum, config, consumerMemory, autoCommitInterval);
                         executor.submit(consumer);
+                        streamsCreated++;
+                    }
+                    else {
+                        log.info(String.format("Did not create Consumer thread for consumer group %s since the stream name %s does not exist",
+                                consumerGroupNum, streamName));
                     }
                 }
 
                 if (StringUtils.isNotBlank(newStreamsPath)) {
-                    newStreamName = newStreamsPath.trim() + "/" + i;
+                    newStreamName = newStreamsPath.trim() + '/' + i;
                     if (isStreamExist(newStreamName)) {
-                        StreamsConsumer2 consumer2 = new StreamsConsumer2(tsdb, newStreamName, consumerGroup + "/" + i, config, consumerMemory, autoCommitInterval);
+                        StreamsConsumer2 consumer2 = new StreamsConsumer2(tsdb, newStreamName, consumerGroupNum, config, consumerMemory, autoCommitInterval);
                         executor.submit(consumer2);
+                        streamsCreated++;
+                    }
+                    else {
+                        log.info(String.format("Did not create New Consumer thread for consumer group %s since the stream name %s does not exist",
+                                consumerGroupNum, newStreamName));
                     }
                 }
 
-            }// TODO - Add reconnect logic and a way to monitor the consumers
+            } // TODO - Add reconnect logic and a way to monitor the consumers
+
+            if (streamsCreated == streamsCount) {
+                log.info(String.format("%d Consumer threads were created", streamsCreated));
+            }
+            else {
+                log.warn(String.format("%s Consumer threads were requested but %d were created", streamsCount, streamsCreated));
+            }
         }
         catch (Exception e) {
             LoggerFactory.getLogger(TSDMain.class).error("Failed to create consumer with error: " + e);
