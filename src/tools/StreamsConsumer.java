@@ -27,6 +27,7 @@ import java.util.regex.Pattern;
  *
  */
 public class StreamsConsumer extends PutDataPointRpc implements Runnable {
+    private final Logger log = LoggerFactory.getLogger(StreamsConsumer.class);
 
     private String streamName;
     private String consumerGroup;
@@ -34,7 +35,6 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
     private long consumerMemory;
     private long autoCommitInterval;
     private KafkaConsumer<String, String> consumer;
-    private Logger log;
 
     public StreamsConsumer(TSDB tsdb, String streamName, String consumerGroup, Config config, long consumerMemory, long autoCommitInterval) {
         super(config);
@@ -43,7 +43,8 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
         this.consumerGroup = consumerGroup;
         this.consumerMemory = consumerMemory;
         this.autoCommitInterval = autoCommitInterval;
-        log = LoggerFactory.getLogger(StreamsConsumer.class);
+
+        log.info(String.format("Constructed StreamsConsumer; %s", toString()));
     }
 
     private Deferred<Object> writeToTSDB(final String[] metricTokens) {
@@ -91,14 +92,18 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
         props.put("streams.consumer.buffer.memory", consumerMemory); // Defaul to 4 MB
         props.put("auto.offset.reset", "earliest");
         props.put("auto.commit.interval.ms", autoCommitInterval);
+
         while (true) {
             if (consumer == null) {
                 try {
+                    log.info(String.format("Starting Thread: StreamsConsumer/%s", consumerGroup));
+
                     consumer = new KafkaConsumer<String, String>(props);
                     // Subscribe to all topics in this stream
                     consumer.subscribe(Pattern.compile(streamName + ":.+"), new NoOpConsumerRebalanceListener());
                     long pollTimeOut = 10000;
-                    log.info("Started Thread: " + "StreamsConsumer/" + consumerGroup);
+                    log.info(String.format("Started Thread: StreamsConsumer/%s", consumerGroup));
+
                     while (true) {
                         // Request unread messages from the topic.
                         ConsumerRecords<String, String> consumerRecords = consumer.poll(pollTimeOut);
@@ -119,14 +124,23 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
                     }
                 }
                 catch (Exception e) {
-                    log.error("Thread for topic: " + consumerGroup + " failed with exception: " + e);
+                    log.error(String.format("Thread for topic: %s failed with exception: %s", consumerGroup, e));
                 }
                 finally {
-                    log.info("Closing this thread: " + consumerGroup);
+                    log.info(String.format("Closing this thread: %s", consumerGroup));
                     consumer.close();
                     consumer = null;
                 }
             }
+            else {
+                log.debug(String.format("Not starting thread for StreamsConsumer/%s; Already started", consumerGroup));
+            }
         }
+    }
+
+    @Override
+    public String toString() {
+        return String.format("StreamName: %s; ConsumerGroup: %s; ConsumerMemory: %d; AutoCommitInterval: %d",
+                streamName, consumerGroup, consumerMemory, autoCommitInterval);
     }
 }
