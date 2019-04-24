@@ -573,6 +573,19 @@ createDirectoriesAndFiles $command
 # the process is owned by the user running jps
 execAsUser $command "$@"
 
+if [ $APP_REQUIRE_JAVA -eq 1 ]; then
+    #make sure we can find  jps if it java is installed in a non standard place
+    JPS=$(which jps)
+    if [ -z "$JPS" ] && [ -n "$JAVA_HOME" ]; then
+        export PATH="$JAVA_HOME/bin:$PATH"
+        JPS=$(which jps)
+        if [ -z "$JPS" ]; then
+            echo "Unable to locate jps - not starting"
+            exit 5
+        fi
+    fi
+fi
+
 case $command in
     (condreload) ! check || reload ;;
     (condrestart) check && stop && start "$@" ;;
