@@ -169,7 +169,7 @@ APP_OPTS_2=""
 
 export MALLOC_ARENA_MAX=2
 export MAPR_TICKETFILE_LOCATION=${MAPR_HOME}/conf/mapruserticket
-STREAMSROOT="/var/mapr/mapr.monitoring/metricstreams"
+STREAMSROOT="/var/mapr/mapr.monitoring/streams"
 RETRY_COUNT=24
 RETRY_DLY=5
 
