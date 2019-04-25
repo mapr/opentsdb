@@ -164,7 +164,8 @@ APP_OPTS_2=""
 # Export APP specific variables here
 # Set a default value for JVMARGS
 
-: ${JVMXMX:=-Xms6000m -Xmx6000m -Xss1m -XX:MaxMetaspaceSize=128m -DLOG_FILE=${APP_DAEMON_LOG_FILE} -DQUERY_LOG=${APP_QUERY_LOG_FILE}}
+OPENTSDB_HEAPSIZE=${OPENTSDB_HEAPSIZE:-6000}
+: ${JVMXMX:=-Xms${OPENTSDB_HEAPSIZE}m -Xmx${OPENTSDB_HEAPSIZE}m -Xss1m -XX:MaxMetaspaceSize=128m -DLOG_FILE=${APP_DAEMON_LOG_FILE} -DQUERY_LOG=${APP_QUERY_LOG_FILE}}
 
 
 export MALLOC_ARENA_MAX=2
@@ -572,6 +573,21 @@ createDirectoriesAndFiles $command
 # switch user for all commands so that jps works correctly. As of jdk 1.8 jps -l will only list the mainClass if
 # the process is owned by the user running jps
 execAsUser $command "$@"
+
+if [ $APP_REQUIRE_JAVA -eq 1 ]; then
+    #make sure we can find  jps if it java is installed in a non standard place
+    JPS=$(which jps)
+    if [ -z "$JPS" ] ; then
+        if [ -n "$JAVA_HOME" ]; then
+            export PATH="$JAVA_HOME/bin:$PATH"
+            JPS=$(which jps)
+        fi
+        if [ -z "$JPS" ]; then
+            echo "Unable to locate jps - not starting"
+            exit 5
+        fi
+    fi
+fi
 
 case $command in
     (condreload) ! check || reload ;;
