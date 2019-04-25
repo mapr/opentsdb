@@ -82,6 +82,11 @@ public final class Aggregators {
   public static final Aggregator DEV = new StdDev(
       Interpolation.LERP, "dev");
   
+  /** Aggregator that returns the difference of the first value and the 
+   * last value in the data points */
+  public static final Aggregator DIFF = new Diff(
+      Interpolation.LERP, "diff");
+  
   /** Sums data points but will cause the SpanGroup to return a 0 if timestamps
    * don't line up instead of interpolating. */
   public static final Aggregator ZIMSUM = new Sum(
@@ -96,6 +101,9 @@ public final class Aggregators {
    * if timestamps don't line up instead of interpolating. */
   public static final Aggregator MIMMAX = new Max(
       Interpolation.MIN, "mimmax");
+
+  /** Aggregator that returns the square sum of the data point. */
+  public static final Aggregator SQUARESUM = new SquareSum(Interpolation.ZIM, "squareSum");
 
   /** Aggregator that returns the number of data points.
    * WARNING: This currently interpolates with zero-if-missing. In this case 
@@ -174,6 +182,7 @@ public final class Aggregators {
     aggregators.put("median", MEDIAN);
     aggregators.put("mult", MULTIPLY);
     aggregators.put("dev", DEV);
+    aggregators.put("diff", DIFF);
     aggregators.put("count", COUNT);
     aggregators.put("zimsum", ZIMSUM);
     aggregators.put("mimmin", MIMMIN);
@@ -181,6 +190,7 @@ public final class Aggregators {
     aggregators.put("first", FIRST);
     aggregators.put("last", LAST);
     aggregators.put("pfsum", PFSUM);
+    aggregators.put("squareSum", SQUARESUM);
 
     PercentileAgg[] percentiles = {
        p999, p99, p95, p90, p75, p50, 
@@ -248,6 +258,40 @@ public final class Aggregators {
       return (0L == n) ? Double.NaN : result;
     }
     
+  }
+
+  private static final class SquareSum extends Aggregator {
+    public SquareSum(final Interpolation method, final String name) {
+      super(method, name);
+    }
+
+    @Override
+    public long runLong(final Longs values) {
+      long a = values.nextLongValue();
+      long result = a * a;
+      while (values.hasNextValue()) {
+        a = values.nextLongValue();
+        result += a * a;
+      }
+      return result;
+    }
+
+    @Override
+    public double runDouble(final Doubles values) {
+      double result = 0.;
+      long n = 0L;
+
+      while (values.hasNextValue()) {
+        final double val = values.nextDoubleValue();
+        if (!Double.isNaN(val)) {
+          result += val * val;
+          ++n;
+        }
+      }
+
+      return (0L == n) ? Double.NaN : result;
+    }
+
   }
 
   private static final class Min extends Aggregator {
@@ -526,6 +570,53 @@ public final class Aggregators {
 
   }
 
+  /**
+   * Difference of the first value and the last value in multi values aggregator.
+   */
+  private static final class Diff extends net.opentsdb.core.Aggregator {
+    public Diff(final Interpolation method, final String name) {
+      super(method, name);
+    }
+
+    @Override
+    public long runLong(final Longs values) {
+      long first_mean = values.nextLongValue();
+
+      if (!values.hasNextValue()) {
+        return 0;
+      }
+
+      long last_mean = 0;
+      do {
+        last_mean = values.nextLongValue();
+      } while (values.hasNextValue());
+
+      return last_mean - first_mean;
+    }
+
+    @Override
+    public double runDouble(final Doubles values) {
+      double first_mean = values.nextDoubleValue();
+      while (Double.isNaN(first_mean) && values.hasNextValue()) {
+        first_mean = values.nextDoubleValue();
+      }
+
+      if (Double.isNaN(first_mean)) {
+        return Double.NaN;
+      }
+      if (!values.hasNextValue()) {
+        return 0.;
+      }
+
+      double last_mean = 0.;
+      do {
+        last_mean = values.nextDoubleValue();
+      } while (values.hasNextValue());
+
+      return last_mean - first_mean;
+    }
+  }
+  
   private static final class Count extends Aggregator {
     public Count(final Interpolation method, final String name) {
       super(method, name);

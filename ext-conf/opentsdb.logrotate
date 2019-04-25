@@ -1,0 +1,10 @@
+__INSTALL__/var/log/opentsdb/ot_purgeData.log {
+  daily
+  rotate 30
+  maxsize 3000000
+  compress
+  delaycompress
+  notifempty
+  su mapr mapr
+  create 640 mapr mapr
+}

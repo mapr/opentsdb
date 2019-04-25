@@ -29,12 +29,14 @@ import sys
 import time
 from optparse import OptionParser
 
-AGGREGATORS = ('avg', 'count', 'dev',
+AGGREGATORS = ('avg', 'count', 'dev', 'diff',
         'ep50r3', 'ep50r7', 'ep75r3', 'ep75r7', 'ep90r3', 'ep90r7', 'ep95r3', 'ep95r7',
         'ep99r3', 'ep99r7', 'ep999r3', 'ep999r7',
         'mimmin', 'mimmax', 'min', 'max', 'none',
         'p50', 'p75', 'p90', 'p95', 'p99', 'p999',
         'sum', 'zimsum')
+
+FILL_POLICIES = ('none','nan','null','zero')
 
 def main(argv):
     """Pulls data out of the TSDB and do very simple alerting from Nagios."""
@@ -54,6 +56,8 @@ def main(argv):
             help='Downsample function, e.g. one of avg, min, sum, or max.')
     parser.add_option('-W', '--downsample-window', type='int', default=60,
             metavar='SECONDS', help='Window size over which to downsample.')
+    parser.add_option('-F', '--downsample-fill-policy', default='none', metavar='POLICY',
+            help='Fill Policies, e.g. one of none, nan, null, or zero.')
     parser.add_option('-a', '--aggregator', default='sum', metavar='METHOD',
             help='Aggregation method: avg, min, sum (default), max.')
     parser.add_option('-x', '--method', dest='comparator', default='gt',
@@ -93,6 +97,8 @@ def main(argv):
         parser.error("Comparator '%s' not valid." % options.comparator)
     elif options.downsample not in ('none',)+AGGREGATORS:
         parser.error("Downsample '%s' not valid." % options.downsample)
+    elif options.downsample_fill_policy not in FILL_POLICIES:
+        parser.error("Downsample Fill policy '%s' not valid." % options.downsample_fill_policy)
     elif options.aggregator not in AGGREGATORS:
         parser.error("Aggregator '%s' not valid." % options.aggregator)
     elif not options.metric:
@@ -125,8 +131,8 @@ def main(argv):
     if options.downsample == 'none':
         downsampling = ''
     else:
-        downsampling = '%ds-%s:' % (options.downsample_window,
-                                    options.downsample)
+        downsampling = '%ds-%s-%s:' % (options.downsample_window,
+                                    options.downsample, options.downsample_fill_policy)
     if options.rate:
         rate = 'rate:'
     else:
@@ -242,7 +248,7 @@ def main(argv):
         rv = 1
         nbad = nwarn
     else:
-        rv=0
+        rv = 0
     if options.verbose and len(datapoints) != npoints:
         print ('ignored %d/%d data points for being more than %ds old'
                % (len(datapoints) - npoints, len(datapoints), options.duration))
@@ -258,9 +264,16 @@ def main(argv):
     # in nrpe, pipe character is something special, but it's used in tag
     # searches.  Translate it to something else for the purposes of output.
     ttags = tags.replace("|",":")
+
+    # Retrieve metric name for performance data label.
+    perf_label = options.metric.split(".")[-1]
+
     if not rv:
-        print ('OK: %s%s: %d values OK, last=%r'
-               % (options.metric, ttags, npoints, val))
+        status = 'OK: %s%s: %d values OK, last=%r' \
+            % (options.metric, ttags, npoints, val)
+        status += ' | {0}={1};{2};{3};0;{3}'.format(
+            perf_label, npoints, options.warning, options.critical)
+        print(status)
     else:
         if rv == 1:
             level = 'WARNING'
@@ -268,9 +281,12 @@ def main(argv):
         elif rv == 2:
             level = 'CRITICAL'
             threshold = options.critical
-        print ('%s: %s%s %s %s: %d/%d bad values (%.1f%%) worst: %r @ %s'
-               % (level, options.metric, ttags, options.comparator, threshold,
-                  nbad, npoints, bad_pct, badval, badts))
+        status = '%s: %s%s %s %s: %d/%d bad values (%.1f%%) worst: %r @ %s' \
+            % (level, options.metric, ttags, options.comparator, threshold,
+               nbad, npoints, bad_pct, badval, badts)
+        status += ' | {0}={1};{2};{3};0;{3}'.format(
+            perf_label, npoints, options.warning, options.critical)
+        print(status)
     return rv
 
 

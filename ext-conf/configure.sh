@@ -36,9 +36,15 @@ OTSDB_HOME="${OTSDB_HOME:-__INSTALL__}"
 OT_CONF_FILE="${OT_CONF_FILE:-${OTSDB_HOME}/etc/opentsdb/opentsdb.conf}"
 NEW_OT_CONF_FILE=${NEW_OT_CONF_FILE:-${OT_CONF_FILE}.progress}
 MAPR_HOME=${MAPR_HOME:-/opt/mapr}
+JVM_HEAP_DUMP_PATH="$MAPR_HOME/heapdumps"
 NOW=$(date "+%Y%m%d_%H%M%S")
 ASYNCVER="1.7"   # two most significat version number of compatible asynchbase jar
 OT_CONF_ASSUME_RUNNING_CORE=${isOnlyRoles:-0}
+WARDEN_START_KEY="service.command.start"
+WARDEN_HEAPSIZE_MIN_KEY="service.heapsize.min"
+WARDEN_HEAPSIZE_MAX_KEY="service.heapsize.max"
+WARDEN_HEAPSIZE_PERCENT_KEY="service.heapsize.percent"
+WARDEN_RUNSTATE_KEY="service.runstate"
 RC=0
 nodeport="4242"
 nodecount=0
@@ -56,30 +62,133 @@ else
    exit 0
 fi
 
+INST_WARDEN_FILE="${MAPR_CONF_CONFD_DIR}/warden.opentsdb.conf"
+PKG_WARDEN_FILE="${OTSDB_HOME}/etc/conf/warden.opentsdb.conf"
+
 #############################################################################
-# Function to change ownership of our files to $MAPR_USER
+# Function to extract key from warden config file
+#
+# Expects the following input:
+# $1 = warden file to extract key from
+# $2 = the key to extract
 #
 #############################################################################
-function adjustOwnerShip() {
-    chown -R "$MAPR_USER":"$MAPR_GROUP" $OTSDB_HOME
+function get_warden_value() {
+    local f=$1
+    local key=$2
+    local val=""
+    local rc=0
+    if [ -f "$f" ] && [ -n "$key" ]; then
+        val=$(grep "$key" "$f" | cut -d'=' -f2 | sed -e 's/ //g' )
+        rc=$?
+    fi
+    echo "$val"
+    return $rc
 }
+
+#############################################################################
+# Function to update value for  key in warden config file
+#
+# Expects the following input:
+# $1 = warden file to update key in
+# $2 = the key to update
+# $3 = the value to update with
+#
+#############################################################################
+function update_warden_value() {
+    local f=$1
+    local key=$2
+    local value=$3
+
+    sed -i 's/\([ ]*'"$key"'=\).*$/\1'"$value"'/' "$f"
+}
+
+#############################################################################
+# function to adjust ownership
+#############################################################################
+function adjustOwnership() {
+    if [ -f "/etc/logrotate.d/opentsdb" ]; then
+        if [ "$MAPR_USER" != "mapr" -o "$MAPR_GROUP" != "mapr" ]; then
+            sed -i -e 's/create 640 mapr mapr/create 640 '"$MAPR_USER $MAPR_GROUP/" /etc/logrotate.d/opentsdb
+            sed -i -e 's/su mapr mapr/su '"$MAPR_USER $MAPR_GROUP/" /etc/logrotate.d/opentsdb
+        fi
+    fi
+    chown -R "$MAPR_USER":"$MAPR_GROUP" $OTSDB_HOME
+ }
 
 #############################################################################
 # Function to install Warden conf file
 #
 #############################################################################
 function installWardenConfFile() {
-    # make sure conf directory exist
-    if ! [ -d ${MAPR_CONF_CONFD_DIR} ]; then
-        mkdir -p ${MAPR_CONF_CONFD_DIR} > /dev/null 2>&1
-    fi
+    local rc=0
+    local curr_start_cmd
+    local curr_heapsize_min
+    local curr_heapsize_max
+    local curr_heapsize_percent
+    local curr_runstate
+    local pkg_start_cmd
+    local pkg_heapsize_min
+    local pkg_heapsize_max
+    local pkg_heapsize_percent
+    local newestPrevVersionFile
+    local tmpWardenFile
 
-    # Copy warden conf
-    cp ${OTSDB_HOME}/etc/conf/warden.opentsdb.conf ${MAPR_CONF_CONFD_DIR}/
-    if [ $? -ne 0 ]; then
+    tmpWardenFile=$(basename $PKG_WARDEN_FILE)
+    tmpWardenFile="/tmp/${tmpWardenFile}$$"
+
+    if [ -f "$INST_WARDEN_FILE" ]; then
+        curr_start_cmd=$(get_warden_value "$INST_WARDEN_FILE" "$WARDEN_START_KEY")
+        curr_heapsize_min=$(get_warden_value "$INST_WARDEN_FILE" "$WARDEN_HEAPSIZE_MIN_KEY")
+        curr_heapsize_max=$(get_warden_value "$INST_WARDEN_FILE" "$WARDEN_HEAPSIZE_MAX_KEY")
+        curr_heapsize_percent=$(get_warden_value "$INST_WARDEN_FILE" "$WARDEN_HEAPSIZE_PERCENT_KEY")
+        curr_runstate=$(get_warden_value "$INST_WARDEN_FILE" "$WARDEN_RUNSTATE_KEY")
+        pkg_start_cmd=$(get_warden_value "$PKG_WARDEN_FILE" "$WARDEN_START_KEY")
+        pkg_heapsize_min=$(get_warden_value "$PKG_WARDEN_FILE" "$WARDEN_HEAPSIZE_MIN_KEY")
+        pkg_heapsize_max=$(get_warden_value "$PKG_WARDEN_FILE" "$WARDEN_HEAPSIZE_MAX_KEY")
+        pkg_heapsize_percent=$(get_warden_value "$PKG_WARDEN_FILE" "$WARDEN_HEAPSIZE_PERCENT_KEY")
+
+        if [ "$curr_start_cmd" != "$pkg_start_cmd" ]; then
+            cp "$PKG_WARDEN_FILE" "${tmpWardenFile}"
+            if [ -n "$curr_runstate" ]; then
+                echo "service.runstate=$curr_runstate" >> "${tmpWardenFile}"
+            fi
+            if [ -n "$curr_heapsize_min" ] && [ "$curr_heapsize_min" -gt "$pkg_heapsize_min" ]; then
+                update_warden_value "${tmpWardenFile}" "$WARDEN_HEAPSIZE_MIN_KEY" "$curr_heapsize_min"
+            fi
+            if [ -n "$curr_heapsize_max" ] && [ "$curr_heapsize_max" -gt "$pkg_heapsize_max" ]; then
+                update_warden_value "${tmpWardenFile}" "$WARDEN_HEAPSIZE_MAX_KEY" "$curr_heapsize_max"
+            fi
+            if [ -n "$curr_heapsize_percent" ] && [ "$curr_heapsize_percent" -gt "$pkg_heapsize_percent" ]; then
+                update_warden_value "${tmpWardenFile}" "$WARDEN_HEAPSIZE_PERCENT_KEY" "$curr_heapsize_percent"
+            fi
+            cp "${tmpWardenFile}" "$INST_WARDEN_FILE"
+            rc=$?
+            rm -f "${tmpWardenFile}"
+        fi
+    else
+        if  ! [ -d "${MAPR_CONF_CONFD_DIR}" ]; then
+            mkdir -p "${MAPR_CONF_CONFD_DIR}" > /dev/null 2>&1
+        fi
+        newestPrevVersionFile=$(ls -t1 "$PKG_WARDEN_FILE"-[0-9]* 2> /dev/null | head -n 1)
+        if [ -n "$newestPrevVersionFile" ] && [ -f "$newestPrevVersionFile" ]; then
+            curr_runstate=$(get_warden_value "$newestPrevVersionFile" "$WARDEN_RUNSTATE_KEY")
+            cp "$PKG_WARDEN_FILE" "${tmpWardenFile}"
+            if [ -n "$curr_runstate" ]; then
+                echo "service.runstate=$curr_runstate" >> "${tmpWardenFile}"
+            fi
+            cp "${tmpWardenFile}" "$INST_WARDEN_FILE"
+            rc=$?
+            rm -f "${tmpWardenFile}"
+        else
+            cp "$PKG_WARDEN_FILE" "$INST_WARDEN_FILE"
+            rc=$?
+        fi
+    fi
+    if [ $rc -ne 0 ]; then
         logWarn "opentsdb - Failed to install Warden conf file for service - service will not start"
     fi
-    chown "${MAPR_USER}":"${MAPR_GROUP}"  "${MAPR_CONF_CONFD_DIR}/warden.opentsdb.conf"
+    chown $MAPR_USER:$MAPR_GROUP "$INST_WARDEN_FILE"
 }
 
 
@@ -111,11 +220,12 @@ function configureInputStreams() {
     if [ $useStreams -eq 1 ]; then
         sed -i -e 's/\(^\s*#*\s*\)\(tsd.default.usestreams = \).*/\2'"true"'/g' $NEW_OT_CONF_FILE
         sed -i -e 's/\(^\s*#*\s*\)\(tsd.mode = ro\).*/\2/g' $NEW_OT_CONF_FILE
-        sed -i -e 's/\(^\s*#*\s*\)\(tsd.streams.count = 2\).*/\2/g' $NEW_OT_CONF_FILE
+        sed -i -e 's/\(^\s*#*\s*\)\(tsd.streams.count = 3\).*/\2/g' $NEW_OT_CONF_FILE
         sed -i -e 's/\(^\s*#*\s*\)\(tsd.streams.consumer.memory = 4194304\).*/\2/g' $NEW_OT_CONF_FILE
         sed -i -e 's/\(^\s*#*\s*\)\(tsd.streams.autocommit.interval = 60000\).*/\2/g' $NEW_OT_CONF_FILE
         sed -i -e 's/\(^\s*#*\s*\)\(tsd.default.consumergroup = \).*/\2'"metrics"'/g' $NEW_OT_CONF_FILE
         sed -i -e 's/\(^\s*#*\s*\)\(tsd.streams.path = \).*/\2'"\/var\/mapr\/mapr.monitoring\/streams"'/g' $NEW_OT_CONF_FILE
+        sed -i -e 's/\(^\s*#*\s*\)\(tsd.streams.new.path = \).*/\2'"\/var\/mapr\/mapr.monitoring\/metricstreams"'/g' $NEW_OT_CONF_FILE
     else
         sed -i -e 's/\(^\s*#*\s*\)\(tsd.default.usestreams = \).*/\2'"false"'/g' $NEW_OT_CONF_FILE
         sed -i -e 's/\(^tsd.mode = ro\).*/#\1/g' $NEW_OT_CONF_FILE
@@ -266,6 +376,12 @@ function createCronJob() {
     return 0
 }
 
+check_java_heap_dump_dir() {
+    if [ ! -d "$JVM_HEAP_DUMP_PATH" ]; then
+        mkdir -m 777 -p ${JVM_HEAP_DUMP_PATH}
+    fi
+}
+
 # typically called from master configure.sh with the following arguments
 #
 # configure.sh  -nodeCount ${otNodesCount} -OT "${otNodesList}" -nodePort ${otPort}
@@ -406,6 +522,8 @@ if [ \( -z "$nodelist" -a "$useStreams" -eq 0 \) -o -z "$zk_nodelist" ]; then
     return 2 2>/dev/null || exit 2
 fi
 
+check_java_heap_dump_dir
+
 # save off a copy
 cp -p ${OT_CONF_FILE} ${OT_CONF_FILE}.${NOW}
 
@@ -427,6 +545,7 @@ if [ $RC -ne 0 ]; then
     return $RC 2>/dev/null || exit $RC
 fi
 installWardenConfFile
+adjustOwnership
 rm -f "${NEW_OT_CONF_FILE}"
 # remove state file
 if [ -f "$OTSDB_HOME/etc/.not_configured_yet" ]; then

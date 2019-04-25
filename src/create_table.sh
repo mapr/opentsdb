@@ -13,6 +13,11 @@ BLOOMFILTER=${BLOOMFILTER-'ROW'}
 COMPRESSION=${COMPRESSION-'LZO'}
 # All compression codec names are upper case (NONE, LZO, SNAPPY, etc).
 COMPRESSION=`echo "$COMPRESSION" | tr a-z A-Z`
+# DIFF encoding is very useful for OpenTSDB's case that many small KVs and common prefix.
+# This can save a lot of storage space.
+DATA_BLOCK_ENCODING=${DATA_BLOCK_ENCODING-'DIFF'}
+DATA_BLOCK_ENCODING=`echo "$DATA_BLOCK_ENCODING" | tr a-z A-Z`
+TSDB_TTL=${TSDB_TTL-'FOREVER'}
 
 function createTSDB() {
   # Create $MONITORING_VOLUME_NAME volume before creating tables
@@ -41,6 +46,13 @@ function createTSDB() {
       ;;
   esac
 
+  case $DATA_BLOCK_ENCODING in
+    (NONE|PREFIX|DIFF|FAST_DIFF|ROW_INDEX_V1)  :;; # Know good
+    (*)
+      echo >&2 "warning: encoding '$DATA_BLOCK_ENCODING' might not be supported."
+      ;;
+  esac
+
   # HBase scripts also use a variable named `HBASE_HOME', and having this
   # variable in the environment with a value somewhat different from what
   # they expect can confuse them in some cases.  So rename the variable.
@@ -48,17 +60,17 @@ function createTSDB() {
   unset HBASE_HOME
   MAPR_DAEMON=spyglass "$hbh/bin/hbase" shell <<EOF!!
   create '$MONITORING_UID_TABLE',
-    {NAME => 'id', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'},
-    {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
+    {NAME => 'id', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'},
+    {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'}
 
   create '$MONITORING_TSDB_TABLE',
-    {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
+    {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'}
 
   create '$MONITORING_TREE_TABLE',
-    {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
+    {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'}
 
   create '$MONITORING_META_TABLE',
-    {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER'}
+    {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'}
 EOF!!
 }
 

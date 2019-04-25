@@ -152,6 +152,8 @@ fi
 APP_LOCK_DIR=$APP_HOME_DIR/var/lock/subsys
 APP_LOCK_FILE="$APP_LOCK_DIR/$APP"
 APP_LOG_FILE="$APP_LOG_DIR/${APP}-${APP_HOSTNAME}-"    # use this for apps own logging
+APP_DAEMON_LOG_FILE="$APP_LOG_DIR/${APP}_daemon.log"   # use this for apps own logging
+APP_QUERY_LOG_FILE="$APP_LOG_DIR/queries.log"   # use this for apps own logging
 APP_LOG_START_FILE="$APP_LOG_DIR/${APP}_startup.log"   # use this for startup logging
 APP_PID_FILE="$APP_PID_DIR/$APP.pid"
 
@@ -161,9 +163,10 @@ APP_OPTS_2=""
 
 # Export APP specific variables here
 # Set a default value for JVMARGS
-: ${JVMXMX:=-Xmx2000m -Xss1m -XX:MaxMetaspaceSize=128m}
-: ${JVMARGS:=-enableassertions -enablesystemassertions $JVMXMX }
-export JVMARGS
+
+: ${JVMXMX:=-Xms6000m -Xmx6000m -Xss1m -XX:MaxMetaspaceSize=128m -DLOG_FILE=${APP_DAEMON_LOG_FILE} -DQUERY_LOG=${APP_QUERY_LOG_FILE}}
+
+
 export MALLOC_ARENA_MAX=2
 export MAPR_TICKETFILE_LOCATION=${MAPR_HOME}/conf/mapruserticket
 STREAMSROOT="/var/mapr/mapr.monitoring/streams"
@@ -183,6 +186,7 @@ fi
 # java app, otherwise set it to APP_DAEMON(usually)
 
 APP_MAIN="net.opentsdb.tools.TSDMain"
+
 
 set_ulimit() {
     local ulim_opt=$1
@@ -510,6 +514,41 @@ stop() {
     fi
     false
 }
+
+create_tmp_directory(){
+    local version_local=$(cat /opt/mapr/opentsdb/opentsdbversion)
+    local euid_local=$(id -nu)
+    local egid_local=$(id -ng)
+    local iotmp_dir_path_local="/opt/mapr/opentsdb/opentsdb-$version_local/tmp"
+
+    mkdir -p -m 700 $iotmp_dir_path_local
+    if [ $? == 0 ]; then
+        IOTMP_DIR_PATH=$iotmp_dir_path_local
+    else
+        sudo_user=$(grep '^sudo:.*$' /etc/group | cut -d: -f4)
+        if [ "$sudo_user" == "$euid_local" ]; then
+            sudo mkdir -p -m 700 $iotmp_dir_path_local
+            sudo chown -R $euid_local:$egid_local "$iotmp_dir_path_local"
+            IOTMP_DIR_PATH=$iotmp_dir_path_local
+        else
+            iotmp_dir_path_local="/home/$euid_local/opentsdb-$version_local/tmp"
+            mkdir -p $iotmp_dir_path_local
+            if [ $? == 0 ]; then
+                IOTMP_DIR_PATH=$iotmp_dir_path_local
+            else
+                IOTMP_DIR_PATH="/tmp"
+            fi
+        fi
+    fi
+
+}
+
+
+create_tmp_directory
+: ${DUMP_DATE:=$(date "+%Y-%m-%d-%H:%M:%S.%3N")}
+: ${DUMP_FILE:=${MAPR_HOME}/heapdumps/opentsdb.heap_dump_$DUMP_DATE}
+: ${JVMARGS:=-enableassertions -enablesystemassertions -Djava.iotmpdir="$IOTMP_DIR_PATH" -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$DUMP_FILE $JVMXMX}
+export JVMARGS
 
 if [ $APP_DOES_NOT_MANAGE_PID_FILE -eq 1 -a $APP_DAEMONIZES -eq 1 ]; then
     echo "We have no way of managing the pid file"

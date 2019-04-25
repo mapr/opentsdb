@@ -19,6 +19,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.stumbleupon.async.DeferredGroupException;
+import net.opentsdb.utils.Exceptions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -334,8 +336,8 @@ public final class Tags {
    */
   static String getValue(final TSDB tsdb, final byte[] row,
                          final String name) throws NoSuchUniqueName {
-    validateString("tag name", name);
-    final byte[] id = tsdb.tag_names.getId(name);
+    String validName = validateString("tag name", name);
+    final byte[] id = tsdb.tag_names.getId(validName);
     final byte[] value_id = getValueId(tsdb, row, id);
     if (value_id == null) {
       return null;
@@ -353,7 +355,7 @@ public final class Tags {
    * Extracts the value ID of the given tag UD name from the given row key.
    * @param tsdb The TSDB instance to use for UniqueId lookups.
    * @param row The row key in which to search the tag name.
-   * @param name The name of the tag to search in the row key.
+   * @param tag_id The name of the tag to search in the row key.
    * @return The value ID associated with the given tag ID, or null if this
    * tag ID isn't present in this row key.
    */
@@ -404,7 +406,14 @@ public final class Tags {
                                      final byte[] row) throws NoSuchUniqueId {
     try {
       return getTagsAsync(tsdb, row).joinUninterruptibly();
-    } catch (RuntimeException e) {
+    } catch (DeferredGroupException e) {
+      final Throwable ex = Exceptions.getCause(e);
+      if (ex instanceof NoSuchUniqueId) {
+        throw (NoSuchUniqueId)ex;
+      }
+
+      throw new RuntimeException("Should never be here", e);
+    }  catch (RuntimeException e) {
       throw e;
     } catch (Exception e) {
       throw new RuntimeException("Should never be here", e);
@@ -537,22 +546,24 @@ public final class Tags {
    * @param s The string to validate.
    * @throws IllegalArgumentException if the string isn't valid.
    */
-  public static void validateString(final String what, final String s) {
+  public static String validateString(final String what, final String s) {
     if (s == null) {
       throw new IllegalArgumentException("Invalid " + what + ": null");
     } else if ("".equals(s)) {
       throw new IllegalArgumentException("Invalid " + what + ": empty string");
     }
     final int n = s.length();
+    StringBuilder newS = new StringBuilder(s);
     for (int i = 0; i < n; i++) {
-      final char c = s.charAt(i);
+      final char c = newS.charAt(i);
       if (!(('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') 
           || ('0' <= c && c <= '9') || c == '-' || c == '_' || c == '.' 
           || c == '/' || Character.isLetter(c) || isAllowSpecialChars(c))) {
-        throw new IllegalArgumentException("Invalid " + what
-            + " (\"" + s + "\"): illegal character: " + c);
+        newS.setCharAt(i, '_');
+        LOG.warn("Found illegal char " + c + " in tag name/value - replaced by _");
       }
     }
+    return newS.toString();
   }
 
   /**
@@ -734,6 +745,14 @@ public final class Tags {
       return resolveIdsAsync(tsdb, tags).joinUninterruptibly();
     } catch (NoSuchUniqueId e) {
       throw e;
+    } catch (DeferredGroupException e) {
+      final Throwable ex = Exceptions.getCause(e);
+      if (ex instanceof NoSuchUniqueId) {
+        throw (NoSuchUniqueId)ex;
+      }
+      // TODO  process e.results()
+
+      throw new RuntimeException("Shouldn't be here", e);
     } catch (Exception e) {
       throw new RuntimeException("Shouldn't be here", e);
     }

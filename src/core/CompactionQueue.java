@@ -269,8 +269,8 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
     // parameters for the compaction
     private final ArrayList<KeyValue> row;
     private final KeyValue[] compacted;
-    private final List<Annotation> annotations;
-    private final List<HistogramDataPoint> histograms;
+    private List<Annotation> annotations;
+    private List<HistogramDataPoint> histograms;
     private long compactedKVTimestamp;
 
     private final int nkvs;
@@ -441,11 +441,17 @@ final class CompactionQueue extends ConcurrentSkipListMap<byte[], Boolean> {
         if ((len & 1) != 0) {
           // process annotations and other extended formats
           if (qual[0] == Annotation.PREFIX()) {
+            if (annotations == null) {
+              annotations = new ArrayList<Annotation>();
+            }
             annotations.add(JSON.parseToObject(kv.value(), Annotation.class));
           } else if (qual[0] == HistogramDataPoint.PREFIX) {
             try {
               HistogramDataPoint histogram = 
                   Internal.decodeHistogramDataPoint(tsdb, kv);
+              if (histograms == null) {
+                histograms = new ArrayList<HistogramDataPoint>();
+              }
               histograms.add(histogram);
             } catch (Throwable t) {
               LOG.error("Failed to decode histogram data point", t);
