@@ -1,0 +1,25 @@
+
+MapR Distribution of OpenTSDB
+OPEN SOURCE NOTICE
+
+
+The MapR Technologies, Inc. ("MapR") software accompanied by this notice is provided along with certain third party software licensed under various open source software licenses ("Open Source Components").  The below list of Open Source Components includes, as applicable, copyright notices, original source code URLs and license URLs, and indicates whether MapR has modified the original source code of the Open Source Components.  With respect to licenses that require particular language to be provided (such as the complete terms of the license itself), that language is included below under the first Open Source Component that is subject to such license.
+
+
+With respect to Open Source Components licensed under the AGPL, CPL, GPL or LGPL, MapR hereby offers to provide upon request the source code thereof, including the MapR modifications, if any.  Such modifications are documented by way of comments included in the source code files. 
+
+
+In addition to the warranty disclaimers contained in the open source licenses linked below and thus included herein by reference, MapR makes the following disclaimers regarding the Open Source Components on behalf of itself, the copyright holders, contributors, and licensors of such Open Source Components:
+
+
+TO THE FULLEST EXTENT PERMITTED UNDER APPLICABLE LAW, THE OPEN SOURCE COMPONENTS ARE PROVIDED BY THE COPYRIGHT HOLDERS, CONTRIBUTORS, LICENSORS, AND MAPR "AS IS" AND ANY REPRESENTATIONS OR WARRANTIES OF ANY KIND, WHETHER ORAL OR WRITTEN, WHETHER EXPRESS, IMPLIED, OR ARISING BY STATUTE, CUSTOM, COURSE OF DEALING, OR TRADE USAGE, INCLUDING WITHOUT LIMITATION THE IMPLIED WARRANTIES OF TITLE, MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT, ARE DISCLAIMED. IN NO EVENT WILL THE COPYRIGHT OWNER, CONTRIBUTORS, LICENSORS, OR MAPR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION), HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THE OPEN SOURCE COMPONENTS, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+-----------------------------------------------------------
+
+OpenTSDB
+
+LGPL v2.1
+https://github.com/OpenTSDB/opentsdb/blob/master/COPYING.LESSER
+
+Copy of file can be found in package as COPYING.LESSER.opentsdb
