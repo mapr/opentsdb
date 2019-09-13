@@ -114,6 +114,7 @@ function adjustOwnership() {
         fi
     fi
     chown -R "$MAPR_USER":"$MAPR_GROUP" $OTSDB_HOME
+    chmod -R o-rwx $OTSDB_HOME
  }
 
 #############################################################################
