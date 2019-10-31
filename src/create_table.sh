@@ -6,7 +6,10 @@ MONITORING_TSDB_TABLE=${MONITORING_TSDB_TABLE:-"/var/mapr/$MONITORING_VOLUME_NAM
 MONITORING_UID_TABLE=${MONITORING_UID_TABLE:-"/var/mapr/$MONITORING_VOLUME_NAME/tsdb-uid"}
 MONITORING_TREE_TABLE=${MONITORING_TREE_TABLE:-"/var/mapr/$MONITORING_VOLUME_NAME/tsdb-tree"}
 MONITORING_META_TABLE=${MONITORING_META_TABLE:-"/var/mapr/$MONITORING_VOLUME_NAME/tsdb-meta"}
-LOGFILE="__INSTALL__/var/log/opentsdb/opentsdb_create_table_$$.log"
+LOGDIR="__INSTALL__/var/log/opentsdb/"
+LOGFILEBASE="opentsdb_create_table_"
+LOGFILE="$LOGDIR/$LOGFILEBASE$$.log"
+LOGFILE_RETENTION=14 # remove log files older than this (in days)
 MONITORING_LOCK_DIR=${MONITORING_LOCK_DIR:-"/tmp/otLockFile"}
 BLOOMFILTER=${BLOOMFILTER-'ROW'}
 # LZO requires lzo2 64bit to be installed + the hadoop-gpl-compression jar.
@@ -18,6 +21,11 @@ COMPRESSION=`echo "$COMPRESSION" | tr a-z A-Z`
 DATA_BLOCK_ENCODING=${DATA_BLOCK_ENCODING-'DIFF'}
 DATA_BLOCK_ENCODING=`echo "$DATA_BLOCK_ENCODING" | tr a-z A-Z`
 TSDB_TTL=${TSDB_TTL-'FOREVER'}
+
+function cleanLogFiles() {
+    oldLogFiles=$(find $LOGDIR -name "$LOGFILEBASE*" -mtime +$LOGFILE_RETENTION -print)
+    rm -f "$oldLogFiles" 
+}
 
 function createTSDB() {
   # Create $MONITORING_VOLUME_NAME volume before creating tables
@@ -118,6 +126,7 @@ if [[ $i -eq 30 ]]; then
   echo "Failed to create lock file $MONITORING_LOCK_DIR after $i attempts."
   exit 1 
 fi
+cleanLogFiles
 createTSDB
 RC1=$?
 
