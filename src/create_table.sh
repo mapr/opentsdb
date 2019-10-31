@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Small script to setup the tables used by OpenTSDB.
+LOGFILE_RETENTION="${LOGFILE_RETENTION:-14}" # remove log files older than this (in days)
 
 MONITORING_VOLUME_NAME=${MONITORING_VOLUME_NAME:-"mapr.monitoring"}
 MONITORING_TSDB_TABLE=${MONITORING_TSDB_TABLE:-"/var/mapr/$MONITORING_VOLUME_NAME/tsdb"}
@@ -9,7 +10,6 @@ MONITORING_META_TABLE=${MONITORING_META_TABLE:-"/var/mapr/$MONITORING_VOLUME_NAM
 LOGDIR="__INSTALL__/var/log/opentsdb/"
 LOGFILEBASE="opentsdb_create_table_"
 LOGFILE="$LOGDIR/$LOGFILEBASE$$.log"
-LOGFILE_RETENTION=14 # remove log files older than this (in days)
 MONITORING_LOCK_DIR=${MONITORING_LOCK_DIR:-"/tmp/otLockFile"}
 BLOOMFILTER=${BLOOMFILTER-'ROW'}
 # LZO requires lzo2 64bit to be installed + the hadoop-gpl-compression jar.

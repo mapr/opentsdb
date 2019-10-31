@@ -117,7 +117,7 @@ if [ ${#} -ge 1 ] ; then
               OT_URL='api/suggest?type=metrics&max=500'
               OT_MISC=""
               OPER="GET"
-              OT_MSG="data successfully purged"
+              OT_MSG="data successfully purged from $OT_RETENTION_PERIOD"
               SHOW_OUTPUT=0
               EXPECT_ACK=""
               POST_PROCESSING_OP="purgeData"
