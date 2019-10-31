@@ -371,7 +371,7 @@ function createCronJob() {
         fi
         # We disable it for now due to what appears to be a signal racecondition in java that
         # cause the OT scan process to not exit occationally - see OTSDB-25
-        echo "$min $hour * * *      $OTSDB_HOME/bin/tsdb_cluster_mgmt.sh -purgeData >> $OTSDB_HOME/var/log/opentsdb/ot_purgeData.log 2>&1 " >> "$CRONTAB"
+        echo "$min $hour * * *      $OTSDB_HOME/bin/tsdb_cluster_mgmt.sh -purgeData -retentionPeriod '2 weeks ago'" >> "$CRONTAB"
         chown $MAPR_USER:$MAPR_GROUP "$CRONTAB"
     fi
     return 0
