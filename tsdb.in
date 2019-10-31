@@ -1,6 +1,37 @@
 #!/usr/bin/env bash
 
 set -e
+LOGFILE_RETENTION="${LOGFILE_RETENTION:-14}" # remove log files older than this (in days)
+LOGDIR="__INSTALL__/var/log/opentsdb/"
+LOGFILEBASE="opentsdb_"
+MYLOGFILE=""
+MYLOGFILEBASE=""
+MYQRYLOGFILE=""
+MYQRYLOGFILEBASE=""
+
+removeOldLogFiles() {
+    mybase=$1
+    if [ -n "$2" ]; then
+        qry="$2"
+    else
+        qry=""
+    fi
+    oldLogFiles=$(find $LOGDIR -name "${mybase}*" -mtime +$LOGFILE_RETENTION -print)
+    if [ $? -eq 0 ] && [ -n "$oldLogFiles" ]; then
+        echo "Removing $qry log files for $cmd_str older than $LOGFILE_RETENTION"
+        rm -f "$oldLogFiles"
+    fi
+}
+
+cleanLogFiles() {
+    if [ -n "$MYLOGFILE" ]; then
+        removeOldLogFiles "$MYLOGFILEBASE"
+    fi
+    if [ -n "$MYQRYLOGFILE" ]; then
+        removeOldLogFiles "$MYQRYLOGFILEBASE" "query"
+    fi
+}
+
 me=`basename "$0"`
 mydir=`dirname "$0"`
 # Either:
@@ -80,6 +111,8 @@ usage() {
   exit 1
 }
 
+
+
 case $1 in
   (fsck)
     MAINCLASS=Fsck
@@ -124,10 +157,31 @@ case $1 in
     usage
     ;;
 esac
+cmd_str=$1
 shift
 
 JAVA=${JAVA-'java'}
-JVMARGS=${JVMARGS-'-enableassertions -enablesystemassertions'}
+if [ -n "$JVMARGS" ]; then
+    if ! echo $JVMARGS | grep -q 'assertions'; then
+        JVMARGS="$JVMARGS -enableassertions -enablesystemassertions"
+    fi
+else
+    JVMARGS=${JVMARGS-'-enableassertions -enablesystemassertions'}
+fi
+
+if ! echo $JVMARGS | grep -q -- '-DLOG_FILE='; then
+    MYLOGFILEBASE="${LOGFILEBASE}${cmd_str}_"
+    MYLOGFILE="$LOGDIR/${MYLOGFILEBASE}$$.log"
+    JVMARGS="$JVMARGS -DLOG_FILE=$MYLOGFILE"
+fi
+if ! echo $JVMARGS | grep -q -- '-DQUERY_LOG='; then
+    MYQRYLOGFILEBASE="${LOGFILEBASE}${cmd_str}_query_"
+    MYQRYLOGFILE="$LOGDIR/${MYQRYLOGFILEBASE}$$.log"
+    JVMARGS="$JVMARGS -DQUERY_LOG=$MYQRYLOGFILE"
+fi
+
+cleanLogFiles
+
 test -r "$localdir/tsdb.local" && . "$localdir/tsdb.local"
 
 if [[ $CLASSPATH == *"asyncbigtable"* ]]

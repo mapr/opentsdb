@@ -24,7 +24,10 @@ TSDB_TTL=${TSDB_TTL-'FOREVER'}
 
 function cleanLogFiles() {
     oldLogFiles=$(find $LOGDIR -name "$LOGFILEBASE*" -mtime +$LOGFILE_RETENTION -print)
-    rm -f "$oldLogFiles" 
+    if [ $? -eq 0 ] && [ -n "$oldLogFiles" ]; then
+        echo "Removing log files older than $LOGFILE_RETENTION"
+        rm -f "$oldLogFiles" 
+    fi
 }
 
 function createTSDB() {
