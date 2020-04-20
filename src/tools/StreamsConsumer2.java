@@ -27,44 +27,28 @@ import java.util.regex.Pattern;
 
 /**
  * @author ntirupattur
- *
  */
+@SuppressWarnings("CheckStyle")
 public class StreamsConsumer2 extends PutDataPointRpc implements Runnable {
-    private final Logger log = LoggerFactory.getLogger(StreamsConsumer2.class);
-
-    private String streamName;
-    private String consumerGroup;
-    private TSDB tsdb;
-    private long consumerMemory;
-    private long autoCommitInterval;
-    private KafkaConsumer<String, String> consumer;
-    private HttpJsonSerializer serializer = new HttpJsonSerializer();
-
-    /** The type of data point we're writing.
+    /**
+     * Type ref for the histo pojo.
      */
-    private enum DataPointType {
-        PUT("put"),
-        HISTOGRAM("histogram");
-
-        private final String name;
-
-        DataPointType(final String name) {
-            this.name = name;
-        }
-
-        @Override
-        public String toString() {
-            return name;
-        }
-    }
-
-    /** Type ref for the histo pojo. */
     private static final TypeReference<ArrayList<HistogramPojo>> TYPE_REF = new TypeReference<ArrayList<HistogramPojo>>() {
     };
-
-    /** Type reference for incoming data points */
-    private static TypeReference<ArrayList<IncomingDataPoint>> TR_INCOMING = new TypeReference<ArrayList<IncomingDataPoint>>() {
+    /**
+     * Type reference for incoming data points
+     */
+    private static final TypeReference<ArrayList<IncomingDataPoint>> TR_INCOMING = new TypeReference<ArrayList<IncomingDataPoint>>() {
     };
+    private static final Pattern BUCKETS_PATTERN = Pattern.compile(".+\"buckets\":.+");
+    private final Logger log = LoggerFactory.getLogger(StreamsConsumer2.class);
+    private final String streamName;
+    private final String consumerGroup;
+    private final TSDB tsdb;
+    private final long consumerMemory;
+    private final long autoCommitInterval;
+    private final HttpJsonSerializer serializer = new HttpJsonSerializer();
+    private KafkaConsumer<String, String> consumer;
 
     public StreamsConsumer2(TSDB tsdb, String streamName, String consumerGroup, Config config, long consumerMemory, long autoCommitInterval) {
         super(config);
@@ -74,7 +58,7 @@ public class StreamsConsumer2 extends PutDataPointRpc implements Runnable {
         this.consumerMemory = consumerMemory;
         this.autoCommitInterval = autoCommitInterval;
 
-        log.info(String.format("Constructed StreamsConsumer2; %s", toString()));
+        log.info(String.format("Constructed StreamsConsumer2; %s", this));
     }
 
     private void writeToTSDB(final String message, final long timeStamp) {
@@ -83,26 +67,26 @@ public class StreamsConsumer2 extends PutDataPointRpc implements Runnable {
             // TODO: The pattern should probably be compiled once in a field variable since it is an expensive operation
             // matches tries to match the whole string, not just a piece of it
             // if the json contains a "buckets": key, then it contains histograms
-            if (message.matches(".+\"buckets\":.+")) {
+            if (BUCKETS_PATTERN.matcher(message).matches()) {
                 List<HistogramPojo> dps = HttpJsonSerializer.parseUtil(message, HistogramPojo.class, TYPE_REF);
-                log.debug("Found " + dps.size() + " histogram datapoints");
+                log.debug(String.format("Found %d histogram datapoints", dps.size()));
                 processDataPoint(dps, timeStamp);
             }
             else {
                 List<IncomingDataPoint> dps = HttpJsonSerializer.parseUtil(message, IncomingDataPoint.class, TR_INCOMING);
-                log.debug("Found " + dps.size() + " datapoints");
+                log.debug(String.format("Found %d datapoints", dps.size()));
                 processDataPoint(dps, timeStamp);
             }
         }
         catch (NumberFormatException x) {
-            errmsg = "put: invalid value: " + x.getMessage() + '\n';
+            errmsg = String.format("put: invalid value: %s\n", x.getMessage());
         }
         catch (IllegalArgumentException x) {
-            errmsg = "put: illegal argument: " + x.getMessage() + '\n';
+            errmsg = String.format("put: illegal argument: %s\n", x.getMessage());
         }
 
         if (errmsg != null) {
-            log.error("Failed to write metrics to TSDB with error: " + errmsg + " metrics " + message);
+            log.error(String.format("Failed to write metrics to TSDB with error: %s metrics %s", errmsg, message));
         }
     }
 
@@ -118,22 +102,23 @@ public class StreamsConsumer2 extends PutDataPointRpc implements Runnable {
             }
 
             final class PutErrback implements Callback<Boolean, Exception> {
+                @Override
                 public Boolean call(final Exception arg) {
                     // we handle the storage exceptions here so as to avoid creating yet
                     // another callback object on every data point.
-                    log.info("Failed to process data point: " + dp.toString());
+                    log.info(String.format("Failed to process data point: %s", dp));
                     handleStorageException(tsdb, dp, arg);
                     return false;
                 }
 
                 public String toString() {
-                    return "Put exception with datapoint: " + dp.toString();
+                    return String.format("Put exception with datapoint: %s", dp);
                 }
             }
 
             try {
                 final Deferred<Object> deferred;
-                log.debug("Found datapoint: " + dp.toString());
+                log.debug(String.format("Found datapoint: %s", dp));
                 if (type == DataPointType.HISTOGRAM) {
                     final HistogramPojo pojo = (HistogramPojo) dp;
                     // validation and/or conversion before storage of histograms by decoding then re-encoding.
@@ -150,17 +135,17 @@ public class StreamsConsumer2 extends PutDataPointRpc implements Runnable {
                     deferred = tsdb.addPoint(dp.getMetric(), timeStamp, Tags.parseLong(dp.getValue()), dp.getTags()).addErrback(new PutErrback());
                 }
                 else {
-                    deferred = tsdb.addPoint(dp.getMetric(), timeStamp, (Tags.fitsInFloat(dp.getValue()) ? Float.parseFloat(dp.getValue()) : Double.parseDouble(dp.getValue())), dp.getTags()).addErrback(new PutErrback());
+                    deferred = tsdb.addPoint(dp.getMetric(), timeStamp, Tags.fitsInFloat(dp.getValue()) ? Float.parseFloat(dp.getValue()) : Double.parseDouble(dp.getValue()), dp.getTags()).addErrback(new PutErrback());
                 }
             }
             catch (NumberFormatException x) {
-                log.error("Unable to parse value to a number: " + dp);
+                log.error(String.format("Unable to parse value to a number: %s", dp));
             }
             catch (IllegalArgumentException iae) {
-                log.error(iae.getMessage() + ": " + dp);
+                log.error(String.format("%s: %s", iae.getMessage(), dp));
             }
             catch (NoSuchUniqueName nsu) {
-                log.error("Unknown metric: " + dp);
+                log.error(String.format("Unknown metric: %s", dp));
             }
             catch (PleaseThrottleException x) {
                 handleStorageException(tsdb, dp, x);
@@ -169,19 +154,22 @@ public class StreamsConsumer2 extends PutDataPointRpc implements Runnable {
                 handleStorageException(tsdb, dp, tex);
             }
             catch (RuntimeException e) {
-                log.error("Unexpected exception: " + dp);
+                log.error(String.format("Unexpected exception: %s", dp));
             }
         }
     }
 
+    @SuppressWarnings({"checkstyle:IllegalCatchExtended", "InfiniteLoopStatement"})
     @Override
     public void run() {
-        Thread.currentThread().setName("StreamsConsumer2-" + consumerGroup);
-        Properties props = new Properties();
-        props.put("key.deserializer",
-                "org.apache.kafka.common.serialization.StringDeserializer");
-        props.put("value.deserializer",
-                "org.apache.kafka.common.serialization.StringDeserializer");
+        final String threadName = String.format("StreamsConsumer2-%s", consumerGroup);
+        final Properties props = new Properties();
+
+        log.info(String.format("Running StreamsConsumer2; %s", this));
+        Thread.currentThread().setName(threadName);
+
+        props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+        props.put("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         props.put("group.id", "StreamsConsumer2/" + consumerGroup);
         props.put("streams.consumer.buffer.memory", consumerMemory); // Defaul to 4 MB
         props.put("auto.offset.reset", "earliest");
@@ -190,48 +178,47 @@ public class StreamsConsumer2 extends PutDataPointRpc implements Runnable {
         while (true) {
             if (consumer == null) {
                 try {
-                    log.info(String.format("Starting Thread: StreamConsumer2/%s", consumerGroup));
+                    log.info(String.format("Starting Kafka consumer on thread: %s", threadName));
 
                     consumer = new KafkaConsumer<String, String>(props);
                     // Subscribe to all topics in this stream
                     consumer.subscribe(Pattern.compile(streamName + ":.+"), new NoOpConsumerRebalanceListener());
                     long pollTimeOut = 10000;
 
-                    log.info(String.format("Started Thread: StreamConsumer2/%s", consumerGroup));
+                    log.info(String.format("Started Kafka consumer on thread: %s", threadName));
 
                     while (true) {
+                        log.debug(String.format("Looking for records on the stream to write on thread: %s", threadName));
                         // Request unread messages from the topic.
-                        ConsumerRecords<String, String> consumerRecords = consumer.poll(pollTimeOut);
-                        Iterator<ConsumerRecord<String, String>> iterator = consumerRecords.iterator();
+                        final ConsumerRecords<String, String> consumerRecords = consumer.poll(pollTimeOut);
+                        final Iterator<ConsumerRecord<String, String>> iterator = consumerRecords.iterator();
 
                         if (iterator.hasNext()) {
                             while (iterator.hasNext()) {
                                 ConsumerRecord<String, String> record = iterator.next();
-                                log.debug(String.format("Consumed Record Value: %s", record.value()));
+                                log.debug(String.format("Consumed Record Value: %s on thread: %s", record.value(), threadName));
                                 try {
                                     writeToTSDB(record.value().trim(), record.timestamp());
                                 }
                                 catch (BadRequestException be) {
-                                    log.error(String.format("Unable to parse metric: %s failed with exception: %s", record.value(), be));
+                                    log.error(String.format("Unable to parse metric: %s failed with exception: %s on thread: %s", record.value(), be, threadName));
                                 }
-                                record = null;
                             }
                         }
-                        consumerRecords = null;
-                        iterator = null;
                     }
                 }
                 catch (Exception e) {
-                    log.error(String.format("Thread for topic: %s failed with exception: %s", consumerGroup, e));
+                    log.error(String.format("Thread for topic: %s failed", consumerGroup), e);
                 }
                 finally {
-                    log.info(String.format("Closing thread: %s", consumerGroup));
+                    log.info(String.format("Closing Kafka consumer on thread: %s...", threadName));
                     consumer.close();
                     consumer = null;
+                    log.info(String.format("Closed Kafka consumer on thread: %s", threadName));
                 }
             }
             else {
-                log.debug(String.format("Not starting thread for StreamConsumer2/%s; Already started", consumerGroup));
+                log.debug(String.format("Not starting thread for %s; Already started", threadName));
             }
         }
     }
@@ -240,5 +227,24 @@ public class StreamsConsumer2 extends PutDataPointRpc implements Runnable {
     public String toString() {
         return String.format("StreamName: %s; ConsumerGroup: %s; ConsumerMemory: %d; AutoCommitInterval: %d",
                 streamName, consumerGroup, consumerMemory, autoCommitInterval);
+    }
+
+    /**
+     * The type of data point we're writing.
+     */
+    private enum DataPointType {
+        PUT("put"),
+        HISTOGRAM("histogram");
+
+        private final String name;
+
+        DataPointType(final String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String toString() {
+            return name;
+        }
     }
 }
