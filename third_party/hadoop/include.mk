@@ -33,6 +33,6 @@ $(DIRECTORY):
 	set dummy "$(DIRECTORY_BASE_URL)" "$(DIRECTORY)"; shift; mvn -B org.apache.maven.plugins:maven-dependency-plugin:2.4:get -DrepoUrl=$(DIRECTORY_BASE_URL) -Dartifact=org.apache.directory.jdbm/:apacheds-jdbm1:$(DIRECTORY_VERSION) -Ddest=$(DIRECTORY)
 
 $(HADOOP):
-	set dummy "$(HADOOP_BASE_URL)" "$(HADOOP)"; shift; mvn -B org.apache.maven.plugins:maven-dependency-plugin:2.4:get -DrepoUrl=$(MAPR_MAVEN_REPO) -Dartifact=org.apache.hadoop:hadoop-common:$(HADOOP_VERSION) -Ddest=$(HADOOP)
+	set dummy "$(HADOOP_BASE_URL)" "$(HADOOP)"; shift; mvn -B org.apache.maven.plugins:maven-dependency-plugin:2.4:get -DrepoUrl=$(MAPR_MAVEN_REPO) -Dartifact=org.apache.hadoop:hadoop-common:$(HADOOP_VERSION_STR) -Ddest=$(HADOOP)
 
 THIRD_PARTY += $(HADOOP)
