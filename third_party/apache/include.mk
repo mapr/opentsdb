@@ -24,11 +24,11 @@
 
 APACHE_MATH_VERSION := 3.4.1
 APACHE_MATH := third_party/apache/commons-math3-$(APACHE_MATH_VERSION).jar
-APACHE_MATH_BASE_URL := http://repo1.maven.org/maven2/org/apache/commons/commons-math3/$(APACHE_MATH_VERSION)
+APACHE_MATH_BASE_URL := https://repo.maven.apache.org/maven2/org/apache/commons/commons-math3/$(APACHE_MATH_VERSION)
 
 APACHE_LANG_VERSION := 3.0
 APACHE_LANG := third_party/apache/commons-lang3-$(APACHE_LANG_VERSION).jar
-APACHE_LANG_BASE_URL := http://repo1.maven.org/maven2/org/apache/commons/commons-lang3/$(APACHE_LANG_VERSION)
+APACHE_LANG_BASE_URL := https://repo.maven.apache.org/maven2/org/apache/commons/commons-lang3/$(APACHE_LANG_VERSION)
 
 $(APACHE_MATH): $(APACHE_MATH).md5
 	set dummy "$(APACHE_MATH_BASE_URL)" "$(APACHE_MATH)"; shift; $(FETCH_DEPENDENCY)
