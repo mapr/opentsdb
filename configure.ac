@@ -23,7 +23,6 @@ AC_CONFIG_FILES([
 ])
 AC_CONFIG_FILES([opentsdb.spec])
 AC_CONFIG_FILES([build-aux/fetchdep.sh], [chmod +x build-aux/fetchdep.sh])
-AM_CONDITIONAL(USE_MAPR_SNAPSHOTS, true)
 
 AC_ARG_WITH([bigtable],
             [AS_HELP_STRING([--with-bigtable], [Enable Google's Bigtable backend])],
@@ -43,6 +42,16 @@ AC_ARG_WITH([cassandra],
 AS_IF([test "x$with_cassandra" = "xyes"],
   [AM_CONDITIONAL(CASSANDRA, true)],
   [AM_CONDITIONAL(CASSANDRA, false)]
+)
+
+AC_ARG_WITH([use_mapr_snapshots],
+            [AS_HELP_STRING([--with-use_mapr_snapshots], [use MapR snapshots jar in build])],
+            [with_use_mapr_snapshots=yes],
+            [with_use_mapr_snapshots=no])
+
+AS_IF([test "x$with_use_mapr_snapshots" = "xyes"],
+  [AM_CONDITIONAL(USE_MAPR_SNAPSHOTS, true)],
+  [AM_CONDITIONAL(USE_MAPR_SNAPSHOTS, false)]
 )
 
 TSDB_FIND_PROG([md5], [md5sum md5 gmd5sum digest])
