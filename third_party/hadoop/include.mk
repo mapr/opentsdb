@@ -15,8 +15,7 @@
 
 HADOOP_VERSION := 2.7.0-mapr-1808
 HADOOP := third_party/hadoop/hadoop-common-$(HADOOP_VERSION).jar
-USE_MAPR_SNAPSHOTS := 1
-ifeq ($(USE_MAPR_SNAPSHOTS),1)
+if USE_MAPR_SNAPSHOTS
 RELEASE_TYPE := "snapshots"
 HADOOP_VERSION_STR := $(HADOOP_VERSION)-SNAPSHOT
 else
