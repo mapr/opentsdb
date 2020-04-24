@@ -13,9 +13,18 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-HADOOP_VERSION := 2.7.0-mapr-1506
+HADOOP_VERSION := 2.7.0-mapr-1808
 HADOOP := third_party/hadoop/hadoop-common-$(HADOOP_VERSION).jar
-HADOOP_BASE_URL := $(MAPR_MAVEN_REPO)/org/apache/hadoop/hadoop-common/$(HADOOP_VERSION)
+USE_MAPR_SNAPSHOTS := 1
+if USE_MAPR_SNAPSHOTS
+RELEASE_TYPE := "snapshots"
+HADOOP_VERSION_STR := $(HADOOP_VERSION)-SNAPSHOT
+else
+RELEASE_TYPE := "releases"
+HADOOP_VERSION_STR := $(HADOOP_VERSION)
+endif
+
+HADOOP_BASE_URL := $(MAPR_MAVEN_REPO)/org/apache/hadoop/hadoop-common/$(HADOOP_VERSION_STR)
 DIRECTORY := third_party/hadoop/apacheds-jdbm1-2.0.0-M2.jar
 DIRECTORY_VERSION := 2.0.0-M2
 DIRECTORY_BASE_URL := http://artifactory.devops.lab/artifactory/list/maven-corp-releases/org/apache/directory/jdbm/apacheds-jdbm1/$(DIRECTORY_VERSION)/
@@ -24,6 +33,6 @@ $(DIRECTORY):
 	set dummy "$(DIRECTORY_BASE_URL)" "$(DIRECTORY)"; shift; mvn -B org.apache.maven.plugins:maven-dependency-plugin:2.4:get -DrepoUrl=$(DIRECTORY_BASE_URL) -Dartifact=org.apache.directory.jdbm/:apacheds-jdbm1:$(DIRECTORY_VERSION) -Ddest=$(DIRECTORY)
 
 $(HADOOP):
-	set dummy "$(HADOOP_BASE_URL)" "$(HADOOP)"; shift; mvn -B org.apache.maven.plugins:maven-dependency-plugin:2.4:get -DrepoUrl=$(MAPR_MAVEN_REPO) -Dartifact=org.apache.hadoop:hadoop-common:$(HADOOP_VERSION) -Ddest=$(HADOOP)
+	set dummy "$(HADOOP_BASE_URL)" "$(HADOOP)"; shift; mvn -B org.apache.maven.plugins:maven-dependency-plugin:2.4:get -DrepoUrl=$(MAPR_MAVEN_REPO) -Dartifact=org.apache.hadoop:hadoop-common:$(HADOOP_VERSION_STR) -Ddest=$(HADOOP)
 
 THIRD_PARTY += $(HADOOP)
