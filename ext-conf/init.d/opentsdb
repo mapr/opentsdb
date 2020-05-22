@@ -188,6 +188,99 @@ fi
 
 APP_MAIN="net.opentsdb.tools.TSDMain"
 
+isSecure="false"
+if [ -f "${MAPR_HOME}/conf/mapr-clusters.conf" ]; then
+  isSecure=$(head -1 ${MAPR_HOME}/conf/mapr-clusters.conf | grep -o 'secure=\w*' | cut -d= -f2)
+fi
+
+if [ "$1" != "stop" ] && [ "$1" != "contstop" ] && [ "$1" != "status" ]; then
+    LOG_JMX_MSGS=1
+else
+    LOG_JMX_MSGS=0
+fi
+
+function logJmxMsg()
+{
+    [ $LOG_JMX_MSGS -eq 1 ] && echo "$*" >> "$APP_LOG_START_FILE"
+}
+
+#Mapr JMX handling
+MAPR_JMX_PORT=${MAPR_JMX_OPENTSDB_PORT:-8104}
+
+if [ -z "$MAPR_JMXLOCALBINDING" ]; then
+    MAPR_JMXLOCALBINDING="false"
+fi
+
+if [ -z "$MAPR_JMXAUTH" ]; then
+    MAPR_JMXAUTH="false"
+fi
+
+if [ -z "$MAPR_JMXSSL" ]; then
+    MAPR_JMXSSL="false"
+fi
+
+if [ -z "$MAPR_JMXDISABLE" ] && [ -z "$MAPR_JMXLOCALHOST" ] && [ -z "$MAPR_JMXREMOTEHOST" ]; then
+    logJmxMsg "No MapR JMX options given - defaulting to local binding"
+fi
+
+if [[ ( -n "$MAPR_JMX_OPENTSDB_ENABLE" && "$MAPR_JMX_OPENTSDB_ENABLE" = "true" ) && \
+      ( -z "$MAPR_JMXDISABLE" || "$MAPR_JMXDISABLE" = 'false' ) ]]; then
+    # default setting for localBinding
+    MAPR_JMX_OPTS="-Dcom.sun.management.jmxremote"
+    if [ "$MAPR_JMXAUTH" = "true" ]; then
+        if [ "$isSecure" = "true" ]; then
+            if [ -f "$MAPR_HOME/conf/jmxremote.password" ] && [ -f "$MAPR_HOME/conf/jmxremote.access" ]; then
+                MAPR_JMX_OPTS="$MAPR_JMX_OPTS -Dcom.sun.management.jmxremote.authenticate=true \
+                    -Dcom.sun.management.jmxremote.password.file=$MAPR_HOME/conf/jmxremote.password \
+                    -Dcom.sun.management.jmxremote.access.file=$MAPR_HOME/conf/jmxremote.access"
+            else
+                logJmxMsg "JMX password and/or access files missing - not starting since we are in secure mode"
+                [ $LOG_JMX_MSGS -eq 1 ] && exit 1
+            fi
+        else
+            logJmxMsg "JMX Authentication configured - not starting since we are not in secure mode"
+            [ $LOG_JMX_MSGS -eq 1 ] && exit 1
+        fi
+    fi
+
+    if [ "$MAPR_JMXLOCALHOST" = "true" ] && [ "$MAPR_JMXREMOTEHOST" = "true" ]; then
+        logJmxMsg "WARNING: Both MAPR_JMXLOCALHOST and MAPR_JMXREMOTEHOST options are enabled - defaulting to MAPR_JMXLOCALHOST config"
+        MAPR_JMXREMOTEHOST=false
+    fi
+    if [ "$MAPR_JMXLOCALHOST" = "true" ] || [ "$MAPR_JMXREMOTEHOST" = "true" ]; then
+        if [ "$MAPR_JMXSSL" = "true" ]; then
+            MAPR_JMX_OPTS="$MAPR_JMX_OPTS -Dcom.sun.management.jmxremote.ssl=true"
+        else
+            MAPR_JMX_OPTS="$MAPR_JMX_OPTS -Dcom.sun.management.jmxremote.ssl=false"
+        fi
+
+        if [ "$MAPR_JMXLOCALHOST" = "true" ]; then
+            MAPR_JMX_OPTS="$MAPR_JMX_OPTS -Djava.rmi.server.hostname=localhost \
+                -Dcom.sun.management.jmxremote.host=localhost \
+                -Dcom.sun.management.jmxremote.local.only=true"
+        fi
+
+        if [ -z "$MAPR_JMX_PORT" ]; then
+            logJmxMsg "WARNING: No JMX port given for opentsdb - disabling TCP base JMX service"
+            MAPR_JMX_OPTS=""
+        else
+            if [ "$MAPR_JMXLOCALHOST" = "true" ]; then
+                logJmxMsg "Enabling TCP JMX for opentsdb only on localhost port $MAPR_JMX_PORT"
+            else
+                logJmxMsg "Enabling TCP JMX for opentsdb on port $MAPR_JMX_PORT"
+            fi
+            MAPR_JMX_OPTS="$MAPR_JMX_OPTS -Dcom.sun.management.jmxremote.port=$MAPR_JMX_PORT"
+        fi
+    fi
+
+    if [ "$MAPR_JMXLOCALBINDING" = "true" ] && [ -z "$MAPR_JMX_OPTS" ]; then
+        logJmxMsg "Enabling JMX local binding only"
+        MAPR_JMX_OPTS="-Dcom.sun.management.jmxremote"
+    fi
+else
+    logJmxMsg "JMX disabled by user request"
+    MAPR_JMX_OPTS=""
+fi
 
 set_ulimit() {
     local ulim_opt=$1
@@ -435,7 +528,7 @@ start() {
     if [ $APP_STARTS_WITH_JAVA -eq 1 ]; then
         "$SETSID $JAVA" -Dlog.file="$APP_LOG_FILE" -Djava.library.path="$APP_JAVA_LIBRARY_PATH" \
             -classpath "$APP_CLASSPATH" $APP_OPTS_1 $APP_OPTS_2 $MAPR_SSL_OPTS \
-           "$APP_MAIN" $* >> "$APP_LOG_START_FILE" 2>&1 < /dev/null &
+           $MAPR_JMX_OPTS "$APP_MAIN" $* >> "$APP_LOG_START_FILE" 2>&1 < /dev/null &
     else
         $SETSID $APP_DAEMON $APP_OPTS_1 $APP_OPTS_2 $* >> "$APP_LOG_START_FILE" 2>&1 < /dev/null &
     fi
@@ -548,7 +641,7 @@ create_tmp_directory(){
 create_tmp_directory
 : ${DUMP_DATE:=$(date "+%Y-%m-%d-%H:%M:%S.%3N")}
 : ${DUMP_FILE:=${MAPR_HOME}/heapdumps/opentsdb.heap_dump_$DUMP_DATE}
-: ${JVMARGS:=-enableassertions -enablesystemassertions -Djava.iotmpdir="$IOTMP_DIR_PATH" -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$DUMP_FILE $JVMXMX}
+: ${JVMARGS:=-enableassertions -enablesystemassertions -Djava.iotmpdir="$IOTMP_DIR_PATH" -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$DUMP_FILE $JVMXMX $MAPR_JMX_OPTS}
 export JVMARGS
 
 if [ $APP_DOES_NOT_MANAGE_PID_FILE -eq 1 -a $APP_DAEMONIZES -eq 1 ]; then
