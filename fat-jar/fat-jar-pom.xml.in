@@ -63,8 +63,8 @@
   <properties>
     <!--  Project Settings  -->
       <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-      <project.source>1.6</project.source>
-      <project.source.target>1.6</project.source.target>
+      <project.source>1.7</project.source>
+      <project.source.target>1.8</project.source.target>
     <!--  Dependencies  -->
       <guava.version>@GUAVA_VERSION@</guava.version>
       <jackson.version>@JACKSON_VERSION@</jackson.version>
@@ -674,7 +674,7 @@
                   <goal>javacc</goal>
                 </goals>
                 <configuration>
-                  <jdkVersion>1.6</jdkVersion>
+                  <jdkVersion>1.8</jdkVersion>
                   <javadocFriendlyComments>true</javadocFriendlyComments>
                   <packageName>net.opentsdb.query.expression.parser</packageName>
                   <sourceDirectory>${basedir}/src/</sourceDirectory>
@@ -734,7 +734,7 @@
                   <goal>javacc</goal>
                 </goals>
                 <configuration>
-                  <jdkVersion>1.6</jdkVersion>
+                  <jdkVersion>1.8</jdkVersion>
                   <javadocFriendlyComments>true</javadocFriendlyComments>
                   <packageName>net.opentsdb.query.expression.parser</packageName>
                   <sourceDirectory>${basedir}/src/</sourceDirectory>
