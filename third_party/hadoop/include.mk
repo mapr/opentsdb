@@ -15,7 +15,15 @@
 
 HADOOP_VERSION := 2.7.0-mapr-1506
 HADOOP := third_party/hadoop/hadoop-common-$(HADOOP_VERSION).jar
-HADOOP_BASE_URL := $(MAPR_MAVEN_REPO)/org/apache/hadoop/hadoop-common/$(HADOOP_VERSION)
+if USE_MAPR_SNAPSHOTS
+RELEASE_TYPE := "snapshots"
+HADOOP_VERSION_STR := $(HADOOP_VERSION)-SNAPSHOT
+else
+RELEASE_TYPE := "releases"
+HADOOP_VERSION_STR := $(HADOOP_VERSION)
+endif
+
+HADOOP_BASE_URL := $(MAPR_MAVEN_REPO)/org/apache/hadoop/hadoop-common/$(HADOOP_VERSION_STR)
 DIRECTORY := third_party/hadoop/apacheds-jdbm1-2.0.0-M2.jar
 DIRECTORY_VERSION := 2.0.0-M2
 DIRECTORY_BASE_URL := http://artifactory.devops.lab/artifactory/list/maven-corp-releases/org/apache/directory/jdbm/apacheds-jdbm1/$(DIRECTORY_VERSION)/
