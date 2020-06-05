@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Restart opentsdb. Called using -XX:OnOutOfMemoryError=<this script>
 
 Because it's calling the 'service opentsdb' command, should be run as root.

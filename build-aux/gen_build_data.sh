@@ -28,7 +28,14 @@ mkdir -p "$dir"
 TZ=UTC
 export TZ
 # Can't use the system `date' tool because it's not portable.
-sh=`python <<EOF
+if which python3 ; then
+    PY_CMD="python3"
+elif which python2 ; then
+    PY_CMD="python2"
+else
+    PY_CMD="python"
+fi
+sh=`$PY_CMD <<EOF
 import time
 t = time.time();
 print ("timestamp=%d" % t);

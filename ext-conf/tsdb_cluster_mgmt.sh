@@ -33,6 +33,14 @@ OT_PRETTY=${OT_PRETTY:-0}
 OT_RETENTION_PERIOD="${OT_RETENTION_PERIOD:-2 weeks ago}"
 OT_VERBOSE=${OT_VERBOSE:-0}
 
+if which python3 > /dev/null ; then
+    PY_CMD="python3"
+elif which python2 > /dev/null ; then
+    PY_CMD="python2"
+else
+    PY_CMD="python"
+fi
+
 # main
 #
 #
@@ -168,7 +176,7 @@ fi
 if [ $SUCCESS -eq 1 ] ; then
    if [ $SHOW_OUTPUT -eq 1 ] ; then 
        if [ $OT_PRETTY -eq 1 ]; then
-           echo "$RESP" | python -m json.tool
+           echo "$RESP" | $PY_CMD -m json.tool
        else
            echo "$RESP"
        fi
