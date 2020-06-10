@@ -21,7 +21,7 @@ $(JAXB_RUNTIME): $(JAXB_RUNTIME).md5
 	set dummy "$(JAXB_RUNTIME_BASE_URL)" "$(JAXB_RUNTIME)"; shift; $(FETCH_DEPENDENCY)
 
 JAXB_API_VERSION := 2.3.1
-JAXB_API := third_party/jaxb/jaxb-$(JAXB_API_VERSION).jar
+JAXB_API := third_party/jaxb/jaxb-api-$(JAXB_API_VERSION).jar
 JAXB_API_BASE_URL := https://repo.maven.apache.org/maven2/javax/xml/bind/jaxb-api/$(JAXB_API_VERSION)/jaxb-api-$(JAXB_API_VERSION).jar
 
 $(JAXB_API): $(JAXB_API).md5
