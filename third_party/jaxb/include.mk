@@ -15,14 +15,14 @@
 
 JAXB_RUNTIME_VERSION := 2.3.3
 JAXB_RUNTIME := third_party/jaxb/jaxb-runtime-$(JAXB_RUNTIME_VERSION).jar
-JAXB_RUNTIME_BASE_URL := https://repo.maven.apache.org/maven2/org/glassfish/jaxb/jaxb-runtime/$(JAXB_RUNTIME_VERSION)/jaxb-runtime-$(JAXB_RUNTIME_VERSION).jar
+JAXB_RUNTIME_BASE_URL := https://repo.maven.apache.org/maven2/org/glassfish/jaxb/jaxb-runtime/$(JAXB_RUNTIME_VERSION)
 
 $(JAXB_RUNTIME): $(JAXB_RUNTIME).md5
 	set dummy "$(JAXB_RUNTIME_BASE_URL)" "$(JAXB_RUNTIME)"; shift; $(FETCH_DEPENDENCY)
 
 JAXB_API_VERSION := 2.3.1
 JAXB_API := third_party/jaxb/jaxb-api-$(JAXB_API_VERSION).jar
-JAXB_API_BASE_URL := https://repo.maven.apache.org/maven2/javax/xml/bind/jaxb-api/$(JAXB_API_VERSION)/jaxb-api-$(JAXB_API_VERSION).jar
+JAXB_API_BASE_URL := https://repo.maven.apache.org/maven2/javax/xml/bind/jaxb-api/$(JAXB_API_VERSION)
 
 $(JAXB_API): $(JAXB_API).md5
 	set dummy "$(JAXB_API_BASE_URL)" "$(JAXB_API)"; shift; $(FETCH_DEPENDENCY)
