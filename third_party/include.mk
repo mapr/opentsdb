@@ -24,6 +24,7 @@ include third_party/hamcrest/include.mk
 include third_party/jackson/include.mk
 include third_party/javacc/include.mk
 include third_party/javassist/include.mk
+include third_party/jaxb/include.mk
 include third_party/jexl/include.mk
 include third_party/jgrapht/include.mk
 include third_party/junit/include.mk
