@@ -257,6 +257,8 @@ tsdb_DEPS = \
 	$(JACKSON_CORE)	\
 	$(JACKSON_DATABIND)	\
 	$(JAVACC)	\
+	$(JAXB_API)	\
+	$(JAXB_RUNTIME)	\
 	$(JEXL)	\
 	$(JGRAPHT)	\
 	$(KRYO)	\
@@ -917,6 +919,8 @@ fat-jar-pom.xml: ./fat-jar/fat-jar-pom.xml.in Makefile
 	    -e 's/@HAMCREST_VERSION@/$(HAMCREST_VERSION)/' \
 	    -e 's/@JACKSON_VERSION@/$(JACKSON_VERSION)/' \
 	    -e 's/@JAVASSIST_VERSION@/$(JAVASSIST_VERSION)/' \
+	    -e 's/@JAXB_API_VERSION@/$(JAXB_API_VERSION)/' \
+	    -e 's/@JAXB_RUNTIME_VERSION@/$(JAXB_RUNTIME_VERSION)/' \
 	    -e 's/@JUNIT_VERSION@/$(JUNIT_VERSION)/' \
 	    -e 's/@KRYO_VERSION@/$(KRYO_VERSION)/' \
 	    -e 's/@LOG4J_OVER_SLF4J_VERSION@/$(LOG4J_OVER_SLF4J_VERSION)/' \
