@@ -5,11 +5,11 @@ ebfVersion=${ebfVersion:-0}
 packageVersion=${packageVersion:-${sourceVersion}.${ebfVersion}}
 repoName=${repoName:-opensource}
 isRelease=${isRelease:-}
-maprVersion=${maprVersion:-6.2.0-mapr}
-kafkaVersion=${kafkaVersion:-2.1.1-mapr}
-hadoopVersion=${hadoopVersion:-2.7.4-mapr-1908}
+maprVersion=${maprVersion:-6.2.0.0-mapr}
+kafkaVersion=${kafkaVersion:-2.1.1.0-mapr}
+hadoopVersion=${hadoopVersion:-2.7.4.0-mapr-1908}
 useMaprSnapshots=${useMaprSnapshots:-1}
-releaseArgs=${releaseArgs:-"OPENTSDB_BRANCH_NAME=mapr-v${packageVersion}-mep7x MAPR_VERSION=${maprVersion} KAFKA_VERSION=${kafkaVersion} USE_MAPR_SNAPSHOTS=${useMaprSnapshots} HADOOP_VERSION=${hadoopVersion}"}
+releaseArgs=${releaseArgs:-"OPENTSDB_BRANCH_NAME=mapr-v${sourceVersion}-mep7x MAPR_VERSION=${maprVersion} KAFKA_VERSION=${kafkaVersion} USE_MAPR_SNAPSHOTS=${useMaprSnapshots} HADOOP_VERSION=${hadoopVersion}"}
 releaseRepoName=${releaseRepoName:-opensource.release}
 ECHONUMBER=${ECONUMBER:-NONE}
 privatePkgBranch=${privatePkgBranch:-MEP-7.0.0}
@@ -36,13 +36,19 @@ export PREPEND_PATH="${JAVA_HOME}/bin:"
 export TZ='America/Los_Angeles'
 if [ -z "$DEBUG" ] && [ -z "$DEVELOPMENT_BUILD" ]; then
     export ID=$(ssh root@10.10.1.50 date "+%Y%m%d%H%M")
+    RM_CONTAINER="true"
 else
     export ID=$(date "+%Y%m%d%H%M")
+    RM_CONTAINER="false"
 fi
 export BUILD_TAG=mapr-t${ID}-b${BUILD_NUMBER};
 export JOB=$(echo $JOB_NAME | awk -F/ '{print $1}')
 export DIST="/usr/local/jenkins/workspace/${JOB}/label/${NODE_NAME}/${repoName}/${PROJECT}/dist"
 
+
+if [ ! -d "${WORKSPACE}" ]; then
+    mkdir -p "${WORKSPACE}"
+fi
 
 #
 # RedHat globals
@@ -96,7 +102,7 @@ if [ "${isRelease}" = "false" ]; then
     export MAPR_CENTRAL=${MAPR_MVN_BASE}/groups/public
     export MAPR_RELEASES_REPO=${MAPR_MVN_BASE}/repositories/releases
     export MAPR_SNAPSHOTS_REPO=${MAPR_MVN_BASE}/repositories/snapshots
-    
+
     # only use released artifacts
     export MAPR_MAVEN_REPO=${MAPR_CENTRAL}
 
@@ -111,7 +117,7 @@ else
     export MAPR_RELEASES_REPO=${MAPR_MVN_BASE}/repositories/releases
     export MAPR_SNAPSHOTS_REPO=${MAPR_MVN_BASE}/repositories/snapshots
     export MAPR_MAVEN_REPO=${MAPR_RELEASES_REPO}
-    
+
     export MAPR_MIRROR=central
     export MAVEN_CENTRAL=http://maven.corp.maprtech.com/nexus/content/groups/public/
     export MAPR_MVN_BASE=http://admin:admin123@maven.corp.maprtech.com/nexus/content
@@ -143,12 +149,19 @@ echo "JAVA_HOME=${JAVA_HOME}" >> env.txt
 echo "BUILD_NUMBER=${RELEASE_VER}.${BUILD_NUMBER}" >> env.txt
 
 
+if [ -n "$NOEXITAFTERBUILD" ]; then
+    INTERACTIVE_BUILD="-i -t"
+    INTERACTIVE_SHELL="/bin/bash"
+else
+    INTERACTIVE_SHELL=""
+fi
+
 if [ -n "$DEBUG" ]; then
     INTERACTIVE_BUILD=${INTERACTIVE_BUILD:-"-i -t"}
     BUILD_CMD_OPT=""
     BUILD_CMD=""
 else
-    INTERACTIVE_BUILD=""
+    INTERACTIVE_BUILD="${INTERACTIVE_BUILD:-""}"
     BUILD_CMD_OPT="-c"
     BUILD_CMD=" echo ====== ; \
         echo /root/docker-build-info/gitlog10.txt ; \
@@ -163,7 +176,8 @@ else
         rm -rf ${PROJECT}; git clone git@github.com:mapr/private-pkg.git ${PROJECT} ; \
         cd ${PROJECT};  \
         git checkout ${privatePkgBranch} ; \
-        make ${BLD_PROJECT}-info; make ${BLD_PROJECT} ${RELEASE_ARGS} TIMESTAMP=${ID};"
+        make ${BLD_PROJECT}-info; make ${BLD_PROJECT} ${RELEASE_ARGS} TIMESTAMP=${ID}; \
+        ${INTERACTIVE_SHELL}"
 fi
 
 if [ -z "$DEBUG" ]; then
@@ -193,7 +207,7 @@ DOCKER_OPTS=" --env-file ./env.txt \
               $INTERACTIVE_BUILD \
               --name="${CN_NAME}" \
               --workdir="/root/${repoName}" \
-              --rm=true \
+              --rm=$RM_CONTAINER \
               -v ${WORKSPACE}/${repoName}:/root/${repoName}:rw "
 
 if [ -n "$DEBUG" ]; then
@@ -225,8 +239,8 @@ fi
 if [ -z "$DEBUG" ] && [ -z "$DEVELOPMENT_BUILD" ]; then
     if [ -z "$(uname -a | grep -i ubuntu)" ]; then
         if [ -e /root/rpmsigning/rpmsign.exp ]; then
-            echo Doing RPM signing
-            echo Perform signing operation now
+            echo "Doing RPM signing"
+            echo "Perform signing operation now"
             expect -f /root/rpmsigning/rpmsign.exp ${DIST}/*.rpm
             if [ $? -ne 0 ]; then
                 echo "RPM signing failed!"
