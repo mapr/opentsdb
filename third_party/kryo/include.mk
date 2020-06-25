@@ -13,21 +13,21 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-KRYO_VERSION := 2.21.1
+KRYO_VERSION := 2.24.0
 KRYO := third_party/kryo/kryo-$(KRYO_VERSION).jar
 KRYO_BASE_URL := https://repo.maven.apache.org/maven2/com/esotericsoftware/kryo/kryo/$(KRYO_VERSION)
 
 $(KRYO): $(KRYO).md5
 	set dummy "$(KRYO_BASE_URL)" "$(KRYO)"; shift; $(FETCH_DEPENDENCY)
 
-REFLECTASM_VERSION := 1.07
-REFLECTASM := third_party/kryo/reflectasm-$(REFLECTASM_VERSION)-shaded.jar
-REFLECTASM_BASE_URL := https://repo.maven.apache.org/maven2/com/esotericsoftware/reflectasm/reflectasm/$(REFLECTASM_VERSION)
+REFLECTASM_VERSION := 1.11.9
+REFLECTASM := third_party/kryo/reflectasm-$(REFLECTASM_VERSION).jar
+REFLECTASM_BASE_URL := https://repo.maven.apache.org/maven2/com/esotericsoftware/reflectasm/$(REFLECTASM_VERSION)
 
 $(REFLECTASM): $(REFLECTASM).md5
 	set dummy "$(REFLECTASM_BASE_URL)" "$(REFLECTASM)"; shift; $(FETCH_DEPENDENCY)
 
-ASM_VERSION := 4.0
+ASM_VERSION := 7.3.1
 ASM := third_party/kryo/asm-$(ASM_VERSION).jar
 ASM_BASE_URL := https://repo.maven.apache.org/maven2/org/ow2/asm/asm/$(ASM_VERSION)
 

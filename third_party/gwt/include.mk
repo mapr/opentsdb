@@ -23,6 +23,13 @@ $(GWT_DEV): $(GWT_DEV).md5
 	set dummy "$(GWT_DEV_BASE_URL)" "$(GWT_DEV)"; shift; $(FETCH_DEPENDENCY)
 
 
+GWT_RQF_SERVER_VERSION := $(GWT_VERSION)
+GWT_RQF_SERVER := third_party/gwt/requestfactory-server-$(GWT_RQF_SERVER_VERSION).jar
+GWT_RQF_SERVER_BASE_URL := https://repo.maven.apache.org/maven2/com/google/web/bindery/requestfactory-server/$(GWT_RQF_SERVER_VERSION)
+
+$(GWT_RQF_SERVER): $(GWT_RQF_SERVER).md5
+	set dummy "$(GWT_RQF_SERVER_BASE_URL)" "$(GWT_RQF_SERVER)"; shift; $(FETCH_DEPENDENCY)
+
 GWT_USER_VERSION := $(GWT_VERSION)
 GWT_USER := third_party/gwt/gwt-user-$(GWT_USER_VERSION).jar
 GWT_USER_BASE_URL := https://repo.maven.apache.org/maven2/com/google/gwt/gwt-user/$(GWT_USER_VERSION)
@@ -37,4 +44,4 @@ GWT_THEME_BASE_URL := https://repo.maven.apache.org/maven2/net/opentsdb/opentsdb
 $(GWT_THEME): $(GWT_THEME).md5
 	set dummy "$(GWT_THEME_BASE_URL)" "$(GWT_THEME)"; shift; $(FETCH_DEPENDENCY)
 	
-THIRD_PARTY += $(GWT_DEV) $(GWT_USER) $(GWT_THEME)
+THIRD_PARTY += $(GWT_DEV) $(GWT_USER) $(GWT_THEME) $(GWT_FQ_SERVER)

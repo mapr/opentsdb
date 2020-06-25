@@ -248,6 +248,7 @@ tsdb_SRC := \
 tsdb_DEPS = \
 	$(ASM)	\
 	$(COMMONS_LOGGING)	\
+	$(COLT) \
 	$(GUAVA)	\
 	$(HADOOP)	\
 	$(LOG4J_OVER_SLF4J)	\
@@ -270,6 +271,7 @@ tsdb_DEPS = \
 	$(REFLECTASM)	\
 	$(SLF4J_API)	\
 	$(SUASYNC)	\
+	$(APACHE_ANT) \
 	$(APACHE_MATH) \
 	$(APACHE_LANG)
 
@@ -506,7 +508,7 @@ EXTRA_DIST = tsdb.in $(tsdb_SRC) $(test_SRC) $(expr_grammar) \
         bootstrap build.sh build-aux/gen_build_data.sh $(builddata_SRC)
 
 GWTC_JVM_ARGS =  # add jvmarg -Xss16M or similar if you see a StackOverflowError
-GWTC_ARGS = -ea -strict  # Additional arguments like -style PRETTY or -logLevel DEBUG
+GWTC_ARGS = -ea -strict -generateJsInteropExports # Additional arguments like -style PRETTY or -logLevel DEBUG
 
 package_dir := $(subst .,/,$(package))
 UNITTESTS := $(test_SRC:test/%.java=$(package_dir)/%.class)
@@ -590,14 +592,14 @@ get_dep_classpath = `for jar in $(tsdb_DEPS); do $(find_jar); done | tr '\n' ':'
 	@touch "$@"
 
 VALIDATION_API_CLASSPATH = `jar=$(VALIDATION_API); $(find_jar)`:`jar=$(VALIDATION_API_SOURCES); $(find_jar)`
-GWT_CLASSPATH = $(VALIDATION_API_CLASSPATH):`jar=$(GWT_DEV); $(find_jar)`:`jar=$(GWT_USER); $(find_jar)`:`jar=$(GWT_THEME); $(find_jar)`:$(srcdir)/src
+GWT_CLASSPATH = $(VALIDATION_API_CLASSPATH):`jar=$(ASM); $(find_jar)`:`jar=$(COLT); $(find_jar)`:`jar=$(APACHE_ANT); $(find_jar)`:`jar=$(GWT_DEV); $(find_jar)`:`jar=$(GWT_USER); $(find_jar)`:`jar=$(GWT_RQF_SERVER); $(find_jar)`:`jar=$(JSINTEROP_ANNOTATIONS); $(find_jar)`:`jar=$(JSINTEROP_BASE); $(find_jar)`:`jar=$(APACHE_TAPESTRY_FRAMEWORK); $(find_jar)`:`jar=$(GWT_THEME); $(find_jar)`:$(srcdir)/src
 # The GWT compiler is way too slow, that's not very Googley.  So we save the
 # MD5 of the files we compile in the stamp file and everytime `make' things it
 # needs to recompile the GWT code, we verify whether the code really changed
 # or whether it's just a file that was touched (which happens frequently when
 # using Git while rebasing and whatnot).
 gwtc: .gwtc-stamp
-.gwtc-stamp: $(httpui_SRC) $(httpui_DEPS) $(VALIDATION_API) $(VALIDATION_API_SOURCES) $(GWT_DEV) $(GWT_USER) $(GWT_THEME)
+.gwtc-stamp: $(httpui_SRC) $(httpui_DEPS) $(VALIDATION_API) $(VALIDATION_API_SOURCES) $(ASM) $(COLT) $(APACHE_ANT) $(GWT_DEV) $(GWT_USER) $(GWT_THEME) $(VALIDATION_API) $(GWT_RQF_SERVER) $(JSINTEROP_ANNOTATIONS) $(JSINTEROP_BASE) $(APACHE_TAPESTRY_FRAMEWORK)
 	@$(mkdir_p) gwt
 	{ cd $(srcdir) && cat $(httpui_SRC); } | $(MD5) >"$@-t"
 	cmp -s "$@" "$@-t" && exit 0; \
@@ -936,7 +938,7 @@ fat-jar-pom.xml: ./fat-jar/fat-jar-pom.xml.in Makefile
 	    -e 's/@APACHE_MATH_VERSION@/$(APACHE_MATH_VERSION)/' \
 	    -e 's/@APACHE_LANG_VERSION@/$(APACHE_LANG_VERSION)/' \
 	    -e 's/@JEXL_VERSION@/$(JEXL_VERSION)/' \
-	    -e 's/@JGRAPHT_VERSION@/$(JGRAPHT_VERSION)/' \	    
+	    -e 's/@JGRAPHT_VERSION@/$(JGRAPHT_VERSION)/' \
 	    -e 's/@spec_title@/$(spec_title)/' \
 	    -e 's/@spec_vendor@/$(spec_vendor)/' \
 	    -e 's/@spec_version@/$(PACKAGE_VERSION)/' \

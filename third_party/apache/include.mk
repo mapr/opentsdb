@@ -22,6 +22,10 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+APACHE_ANT_VERSION := 1.10.8
+APACHE_ANT := third_party/apache/ant-$(APACHE_ANT_VERSION).jar
+APACHE_ANT_BASE_URL := https://repo.maven.apache.org/maven2/org/apache/ant/ant/$(APACHE_ANT_VERSION)
+
 APACHE_MATH_VERSION := 3.4.1
 APACHE_MATH := third_party/apache/commons-math3-$(APACHE_MATH_VERSION).jar
 APACHE_MATH_BASE_URL := https://repo.maven.apache.org/maven2/org/apache/commons/commons-math3/$(APACHE_MATH_VERSION)
@@ -30,13 +34,24 @@ APACHE_LANG_VERSION := 3.0
 APACHE_LANG := third_party/apache/commons-lang3-$(APACHE_LANG_VERSION).jar
 APACHE_LANG_BASE_URL := https://repo.maven.apache.org/maven2/org/apache/commons/commons-lang3/$(APACHE_LANG_VERSION)
 
+APACHE_TAPESTRY_FRAMEWORK_VERSION := 4.1.6
+APACHE_TAPESTRY_FRAMEWORK := third_party/apache/tapestry-framework-$(APACHE_TAPESTRY_FRAMEWORK_VERSION).jar
+APACHE_TAPESTRY_FRAMEWORK_BASE_URL := https://repo.maven.apache.org/maven2/org/apache/tapestry/tapestry-framework/$(APACHE_TAPESTRY_FRAMEWORK_VERSION)
+
+$(APACHE_ANT): $(APACHE_ANT).md5
+	set dummy "$(APACHE_ANT_BASE_URL)" "$(APACHE_ANT)"; shift; $(FETCH_DEPENDENCY)
+
 $(APACHE_MATH): $(APACHE_MATH).md5
 	set dummy "$(APACHE_MATH_BASE_URL)" "$(APACHE_MATH)"; shift; $(FETCH_DEPENDENCY)
 
 $(APACHE_LANG): $(APACHE_LANG).md5
 	set dummy "$(APACHE_LANG_BASE_URL)" "$(APACHE_LANG)"; shift; $(FETCH_DEPENDENCY)
 
+$(APACHE_TAPESTRY_FRAMEWORK): $(APACHE_TAPESTRY_FRAMEWORK).md5
+	set dummy "$(APACHE_TAPESTRY_FRAMEWORK_BASE_URL)" "$(APACHE_TAPESTRY_FRAMEWORK)"; shift; $(FETCH_DEPENDENCY)
 
 THIRD_PARTY += $(APACHE_MATH)
 THIRD_PARTY += $(APACHE_LANG)
+THIRD_PARTY += $(APACHE_TAPESTRY_FRAMEWORK)
+THIRD_PARTY += $(APACHE_ANT)
 

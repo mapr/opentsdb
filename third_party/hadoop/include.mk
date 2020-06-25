@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-HADOOP_VERSION := 2.7.0-mapr-1808
+HADOOP_VERSION := 2.7.4.0-mapr-1908
 HADOOP := third_party/hadoop/hadoop-common-$(HADOOP_VERSION).jar
 if USE_MAPR_SNAPSHOTS
 RELEASE_TYPE := "snapshots"
