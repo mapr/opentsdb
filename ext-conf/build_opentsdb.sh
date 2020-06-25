@@ -26,10 +26,8 @@ export RELEASE_VER=${packageVersion}
 # globals
 #
 
-export JDK8_HOME="/opt/jdk-1.8.0"
-export JAVA_HOME=$JDK8_HOME
-#export JDK12_HOME=/opt/jdk-12.0
-#export JAVA_HOME=$JDK12_HOME
+export JDK11_HOME=/opt/jdk-11.0
+export JAVA_HOME=$JDK11_HOME
 export PREPEND_PATH="${JAVA_HOME}/bin:"
 
 
