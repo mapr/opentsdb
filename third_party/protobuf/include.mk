@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-PROTOBUF_VERSION := 2.5.0
+PROTOBUF_VERSION := 3.11.1
 PROTOBUF := third_party/protobuf/protobuf-java-$(PROTOBUF_VERSION).jar
 PROTOBUF_BASE_URL := https://repo.maven.apache.org/maven2/com/google/protobuf/protobuf-java/$(PROTOBUF_VERSION)
 
