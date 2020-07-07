@@ -240,6 +240,7 @@ function configureInputStreams() {
 function installAsyncHbaseJar() {
     # copy asynchbase jar
     local asyncHbaseJar=""
+    local asyncHbaseLibDir="${OTSDB_HOME}/share/opentsdb/lib"
     local jar_ver=""
     local rc=1
     asyncHbaseJar=$(find ${MAPR_HOME}/asynchbase -name 'asynchbase*mapr*.jar' | fgrep -v javadoc|fgrep -v sources)
@@ -247,6 +248,10 @@ function installAsyncHbaseJar() {
         jar_ver=$(basename $asyncHbaseJar)
         jar_ver=$(echo $jar_ver | cut -d- -f2) # should look like 1.7.0
         if [ -n "$jar_ver" ]; then
+	    #make sure we don't have old asynchbase jar left over due to upgrade
+	    if find "$asyncHbaseLibDir" -name 'asynchbase-*jar' > /dev/null; then
+	        rm -f $asyncHbaseLibDir/asynchbase-*jar
+	    fi
             verify_ver=$(echo $jar_ver | cut -d. -f1,2)
             # verify the two most significant
             if [ -n "$verify_ver" -a "$verify_ver" = "$ASYNCVER" ]; then
