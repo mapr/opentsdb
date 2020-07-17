@@ -19,7 +19,7 @@ removeOldLogFiles() {
     oldLogFiles=$(find $LOGDIR -name "${mybase}*" -mtime +$LOGFILE_RETENTION -print)
     if [ $? -eq 0 ] && [ -n "$oldLogFiles" ]; then
         echo "Removing $qry log files for $cmd_str older than $LOGFILE_RETENTION"
-        rm -f "$oldLogFiles"
+        rm -f $oldLogFiles
     fi
 }
 
@@ -30,6 +30,7 @@ cleanLogFiles() {
     if [ -n "$MYQRYLOGFILE" ]; then
         removeOldLogFiles "$MYQRYLOGFILEBASE" "query"
     fi
+    removeOldLogFiles "opentsdb_create_table"
 }
 
 me=`basename "$0"`
