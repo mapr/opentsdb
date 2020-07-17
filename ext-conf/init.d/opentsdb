@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Generic start script that can be used for services that are running under warden
 
