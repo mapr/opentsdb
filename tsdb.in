@@ -190,7 +190,7 @@ then
   USE_BIGTABLE=1
   echo "Running OpenTSDB with Bigtable support"
 
-  exec $JAVA $JVMARGS -classpath "$CLASSPATH:$HBASE_CONF" net.opentsdb.tools.$MAINCLASS "$@"
+  exec $JAVA $JVMARGS -Djava.library.path=$BASEMAPR/lib -classpath "$CLASSPATH:$HBASE_CONF" net.opentsdb.tools.$MAINCLASS "$@"
 else
-  exec $JAVA $JVMARGS -classpath "$CLASSPATH" net.opentsdb.tools.$MAINCLASS "$@"
+  exec $JAVA $JVMARGS -Djava.library.path=$BASEMAPR/lib -classpath "$CLASSPATH" net.opentsdb.tools.$MAINCLASS "$@"
 fi
