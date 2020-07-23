@@ -58,17 +58,17 @@ if test -n "$pkgdatadir"; then
   done
   # Add pkgdatadir itself so we can find logback.xml
   CLASSPATH="$CLASSPATH:$pkgdatadir"
-  
+
   if test -d "$pkgdatadir/bin"; then
     CLASSPATH="$CLASSPATH:$pkgdatadir/bin"
   fi
-  
+
   if test -d "$pkgdatadir/lib"; then
     for jar in "$pkgdatadir"/lib/*.jar; do
       CLASSPATH="$CLASSPATH:$jar"
     done
   fi
-  
+
   if test -n "$configdir" && test -d "$configdir"; then
     CLASSPATH="$CLASSPATH:$configdir"
   fi
@@ -94,14 +94,28 @@ fi
 
 # Base of MapR installation
 BASEMAPR=${MAPR_HOME:-/opt/mapr}
- 
-# OT will not function correctly if we allow slf4j and netty jars included twice by 
+
+# OT will not function correctly if we allow slf4j and netty jars included twice by
 # only adding ${MAPR_HOME}/lib/* to the classpath, We have to filter them out
 for jar in "$BASEMAPR"/lib/*.jar; do
    if ! [[ ( "`echo $jar | grep slf4j`" != "" ) || ( "`echo $jar | grep netty`" != "" ) ]]; then
      CLASSPATH="$CLASSPATH:$jar"
    fi
 done
+
+if [ -e "$BASEMAPR/asynchbase" ]; then
+    asynchbase_ver=$(cat $BASEMAPR/asynchbase/asynchbaseversion)
+    asynchbase_jar=$(ls -1 $BASEMAPR/asynchbase/asynchbase-$asynchbase_ver/*.jar | grep -v sources)
+    if [ -n "$asynchbase_jar" ]; then
+        CLASSPATH="$CLASSPATH:$asynchbase_jar"
+    else
+        echo "Unable to find asynchbase jar"
+        exit 1
+    fi
+else
+    echo "asynchbase not installed"
+    exit 1
+fi
 
 # Remove any leading colon.
 CLASSPATH="${CLASSPATH#:}"
@@ -131,7 +145,7 @@ case $1 in
     ;;
   (tsd)
     MAINCLASS=TSDMain
-    # we redirect output here since the different init.d functions 
+    # we redirect output here since the different init.d functions
     # vary in what they allow on the command line and it eliminates the extra
     # shell that causes stop and status not to work
 
