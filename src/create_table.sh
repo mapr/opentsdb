@@ -25,27 +25,27 @@ TSDB_TTL=${TSDB_TTL-'FOREVER'}
 function cleanLogFiles() {
     oldLogFiles=$(find $LOGDIR -name "$LOGFILEBASE*" -mtime +$LOGFILE_RETENTION -print)
     if [ $? -eq 0 ] && [ -n "$oldLogFiles" ]; then
-        echo "Removing log files older than $LOGFILE_RETENTION"
+        echo "Removing log files older than $LOGFILE_RETENTION" | tee -a $LOGFILE
         rm -f "$oldLogFiles" 
     fi
 }
 
 function createTSDB() {
   # Create $MONITORING_VOLUME_NAME volume before creating tables
-  maprcli volume info -name $MONITORING_VOLUME_NAME > $LOGFILE 2>&1
+  maprcli volume info -name $MONITORING_VOLUME_NAME -json > $LOGFILE 2>&1
   RC00=$?
-  maprcli volume info -path /var/mapr/$MONITORING_VOLUME_NAME > $LOGFILE 2>&1
+  maprcli volume info -path /var/mapr/$MONITORING_VOLUME_NAME -json > $LOGFILE 2>&1
   RC01=$?
   if [ $RC00 -ne 0 -a $RC01 -ne 0 ]; then
-    echo "Creating volume $MONITORING_VOLUME_NAME"
+    echo "Creating volume $MONITORING_VOLUME_NAME" | tee -a $LOGFILE
     maprcli volume create -name $MONITORING_VOLUME_NAME -path /var/mapr/$MONITORING_VOLUME_NAME > $LOGFILE 2>&1
     RC0=$?
     if [ $RC0 -ne 0 ]; then
-      echo "Create volume failed for /var/mapr/$MONITORING_VOLUME_NAME"
+      echo "Create volume failed for /var/mapr/$MONITORING_VOLUME_NAME" | tee -a $LOGFILE
       return $RC0
     fi
   elif [ $RC00 -ne $RC01 ]; then
-    echo "$MONITORING_VOLUME_NAME exists or another volume is already mounted at location /var/mapr/$MONITORING_VOLUME_NAME"
+    echo "$MONITORING_VOLUME_NAME exists or another volume is already mounted at location /var/mapr/$MONITORING_VOLUME_NAME" | tee -a $LOGFILE
     return $RC00
   fi
 
@@ -64,29 +64,77 @@ function createTSDB() {
       ;;
   esac
 
+  RC=0
+  RC0=0
+  RC1=0
+  RC2=0
+  RC3=0
   # HBase scripts also use a variable named `HBASE_HOME', and having this
   # variable in the environment with a value somewhat different from what
   # they expect can confuse them in some cases.  So rename the variable.
   hbh=$HBASE_HOME
   unset HBASE_HOME
-  MAPR_DAEMON=spyglass "$hbh/bin/hbase" shell <<EOF!!
-  create '$MONITORING_UID_TABLE',
-    {NAME => 'id', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'},
-    {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'}
+  if ! hadoop fs -stat $MONITORING_UID_TABLE > /dev/null 2>&1 ; then
+    MAPR_DAEMON=spyglass "$hbh/bin/hbase" shell <<EOF_UID!!  > $LOGFILE 2>&1 
+    create '$MONITORING_UID_TABLE',
+      {NAME => 'id', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'},
+      {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'}
+EOF_UID!!
+    RC0=$?
+    if [ $RC0 -ne 0 ]; then
+      echo "hbase shell failed to create tables $MONITORING_UID_TABLE  rc = $RC0" | tee -a $LOGFILE
+    fi
+  else
+      echo "Table $MONITORING_UID_TABLE alread exist - skipping" | tee -a $LOGFILE
+  fi
 
-  create '$MONITORING_TSDB_TABLE',
-    {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'}
+  if ! hadoop fs -stat $MONITORING_TSDB_TABLE > /dev/null 2>&1 ; then
+    MAPR_DAEMON=spyglass "$hbh/bin/hbase" shell <<EOF_TSDB!!  > $LOGFILE 2>&1 
+    create '$MONITORING_TSDB_TABLE',
+      {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'}
+EOF_TSDB!!
+    RC1=$?
+    if [ $RC1 -ne 0 ]; then
+      echo "hbase shell failed to create tables $MONITORING_TSDB_TABLE  rc = $RC1" | tee -a $LOGFILE
+    fi
+  else
+      echo "Table $MONITORING_TSDB_TABLE alread exist - skipping" | tee -a $LOGFILE
+  fi
 
-  create '$MONITORING_TREE_TABLE',
-    {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'}
+  if ! hadoop fs -stat $MONITORING_TREE_TABLE > /dev/null 2>&1 ; then
+    MAPR_DAEMON=spyglass "$hbh/bin/hbase" shell <<EOF_TREE!!  > $LOGFILE 2>&1 
+    create '$MONITORING_TREE_TABLE',
+      {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'}
+EOF_TREE!!
+    RC2=$?
+    if [ $RC2 -ne 0 ]; then
+      echo "hbase shell failed to create tables $MONITORING_TREE_TABLE  rc = $RC2" | tee -a $LOGFILE
+    fi
+  else
+      echo "Table $MONITORING_TREE_TABLE alread exist - skipping" | tee -a $LOGFILE
+  fi
 
-  create '$MONITORING_META_TABLE',
-    {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'}
-EOF!!
+  if ! hadoop fs -stat $MONITORING_META_TABLE > /dev/null 2>&1 ; then
+    MAPR_DAEMON=spyglass "$hbh/bin/hbase" shell <<EOF_META!!  > $LOGFILE 2>&1 
+    create '$MONITORING_META_TABLE',
+      {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'}
+EOF_META!!
+    RC3=$?
+    if [ $RC3 -ne 0 ]; then
+      echo "hbase shell failed to create tables $MONITORING_META_TABLE  rc = $RC3" | tee -a $LOGFILE
+    fi
+  else
+      echo "Table $MONITORING_TREE_TABLE alread exist - skipping" | tee -a $LOGFILE
+  fi
+  if [ $RC0 -ne 0 ] || [ $RC1 -ne 0 ] || [ $RC2 -ne 0 ] || [ $RC2 -ne 0 ]; then
+    RC=1
+  fi
+  return $RC
 }
 
 isStaleLockFile() {
-    MOD_TIME="$(hadoop fs -stat $MONITORING_LOCK_DIR)"
+    echo "Checking to see if lock file exist" | tee -a  $LOGFILE
+    MOD_TIME="$(hadoop fs -stat $MONITORING_LOCK_DIR) 2> $LOGFILE"
     if [ $? -ne 0 ]; then
         # the most common error is that the file doesn't exist and we get
         # No such file or directory back.
@@ -96,7 +144,7 @@ isStaleLockFile() {
     NOW_EPOC=$(date +%s)
     DIFF_SEC=$(expr "$NOW_EPOC" - "$EPOC_MOD_TIME")
     if [ "$DIFF_SEC" -gt 300 ]; then
-        echo "found stale lock file ... removing - trying again"
+        echo "found stale lock file ... removing - trying again" | tee -a $LOGFILE
         hadoop fs -rm -r $MONITORING_LOCK_DIR
         return $?
     else
@@ -113,7 +161,8 @@ fi
 # Try to create lock file - with 5 retries
 i=0
 while [[ $i -lt 30 ]]; do
-  hadoop fs -mkdir $MONITORING_LOCK_DIR 2> /dev/null
+  echo "Creating lock directory" | tee -a $LOGFILE
+  hadoop fs -mkdir $MONITORING_LOCK_DIR 2> $LOGFILE
   RC=$?
   if [ $RC -ne 0 ]; then
     #echo "Unable to create lock file $MONITORING_LOCK_DIR"
@@ -126,7 +175,7 @@ done
 
 # Failed after retries - exit
 if [[ $i -eq 30 ]]; then
-  echo "Failed to create lock file $MONITORING_LOCK_DIR after $i attempts."
+  echo "Failed to create lock file $MONITORING_LOCK_DIR after $i attempts." | tee -a $LOGFILE
   exit 1 
 fi
 cleanLogFiles
