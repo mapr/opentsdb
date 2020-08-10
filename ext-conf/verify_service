@@ -1,0 +1,68 @@
+#!/bin/bash
+
+MAPR_HOME=${MAPR_HOME:-__PREFIX__}
+OPENTSDB_HOME="${OPENTSDB_HOME:-__INSTALL__}"
+OPENTSDB_CONF_FILE="${OPENTSDB_CONF_FILE:-${OPENTSDB_HOME}/etc/opentsdb/opentsdb.conf}"
+LOGFILE_BASE=${LOGFILE_BASE:-${OPENTSDB_HOME}/var/log/opentsdb/verify_service}
+PID_FILE=${MAPR_HOME}/pid/opentsdb.pid
+OPENTSDB_DEF_PORT=4242
+
+EXIT_SUCCESS=0
+EXIT_NOT_RUNNING=1
+EXIT_RUNNING_NOT_RESPONDING=2
+EXIT_USAGE=3
+CONNECT_TIMEOUT=15
+USAGE="$0 [-q]"
+QUIET=0
+NOW=`date "+%Y%m%d_%H%M%S"`
+
+getOTPort() {
+    local port=""
+    port=$(grep tsd.network.port "$OPENTSDB_CONF_FILE" | cut -d'=' -f 2 | sed -e 's/ //g')
+    if [ -z "$port" ]; then
+        port=$OPENTSDB_DEF_PORT
+    fi
+    echo "$port"
+}
+
+if [ $# -eq 1 ] && [ "$1" == '-q' ]; then
+    QUIET=1
+elif [ $# -ge 1 ]; then
+    echo $USAGE
+    exit $EXIT_USAGE
+fi
+
+# Check if the process is running
+echo "Starting verifier at $(date)" >> $LOGFILE_BASE.$NOW
+if [ -f "$PID_FILE" ]; then
+    opentsdb_pid=$(cat $PID_FILE)
+    echo "checking to see if pid $opentsdb_pid is alive" >> $LOGFILE_BASE.$NOW
+    if kill -s 0 $opentsdb_pid ; then
+        echo "pid $opentsdb_pid is alive" >> $LOGFILE_BASE.$NOW
+        RC=$EXIT_RUNNING_NOT_RESPONDING
+    else
+        echo "pid $opentsdb_pid is NOT running" >> $LOGFILE_BASE.$NOW
+        [ $QUIET -eq 1 ] || cat $LOGFILE_BASE.$NOW
+        exit $EXIT_NOT_RUNNING
+    fi
+else
+    echo "no pid file, opentsdb is NOT running" >> $LOGFILE_BASE.$NOW
+    [ $QUIET -eq 1 ] || cat $LOGFILE_BASE.$NOW
+    exit $EXIT_NOT_RUNNING
+fi
+# Check if the process is responding
+echo "checking to see if opentsdb pid $opentsdb_pid is responsive" >> $LOGFILE_BASE.$NOW
+protocol=http
+opentsdb_port=$(getOTPort)
+opentsdb_ip=$(hostname -i | head -n 1 | cut -d' ' -f1)
+OUTPUT=$(curl -s --connect-timeout $CONNECT_TIMEOUT "$protocol://${opentsdb_ip}:${opentsdb_port}/api/query?start=1m-ago&m=sum:cpu.percent")
+
+CRC=$?
+if [ $CRC -ne 0 ]; then
+    echo "opentsdb didn't respond - rc=$CRC, output = $OUTPUT" >> $LOGFILE_BASE.$NOW
+else
+    echo "opentsdb responded - rc=$CRC, output = $OUTPUT" >> $LOGFILE_BASE.$NOW
+    RC=$EXIT_SUCCESS
+fi
+[ $QUIET -eq 1 ] || cat $LOGFILE_BASE.$NOW
+exit $RC
