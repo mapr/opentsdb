@@ -70,8 +70,8 @@ final class TSDMain {
     }
 
     public static void main(String[] args) throws IOException {
-        Logger log = LoggerFactory.getLogger(TSDMain.class);
-        log.info("Starting.");
+        final Logger log = LoggerFactory.getLogger(TSDMain.class);
+        log.info("Starting OpenTSDB...");
         log.info(BuildData.revisionString());
         log.info(BuildData.buildString());
         try {
@@ -85,28 +85,16 @@ final class TSDMain {
         CliOptions.addCommon(argp);
         argp.addOption("--port", "NUM", "TCP port to listen on.");
         argp.addOption("--bind", "ADDR", "Address to bind to (default: 0.0.0.0).");
-        argp.addOption("--staticroot", "PATH",
-                "Web root from which to serve static files (/s URLs).");
-        argp.addOption("--cachedir", "PATH",
-                "Directory under which to cache result of requests.");
-        argp.addOption("--worker-threads", "NUM",
-                "Number for async io workers (default: cpu * 2).");
-        argp.addOption("--async-io", "true|false",
-                "Use async NIO (default true) or traditional blocking io");
-        argp.addOption("--read-only", "true|false",
-                "Set tsd.mode to ro (default false)");
-        argp.addOption("--disable-ui", "true|false",
-                "Set tsd.core.enable_ui to false (default true)");
-        argp.addOption("--disable-api", "true|false",
-                "Set tsd.core.enable_api to false (default true)");
-        argp.addOption("--backlog", "NUM",
-                "Size of connection attempt queue (default: 3072 or kernel"
-                        + " somaxconn.");
-        argp.addOption("--max-connections", "NUM",
-                "Maximum number of connections to accept");
-        argp.addOption("--flush-interval", "MSEC",
-                "Maximum time for which a new data point can be buffered"
-                        + " (default: " + DEFAULT_FLUSH_INTERVAL + ").");
+        argp.addOption("--staticroot", "PATH", "Web root from which to serve static files (/s URLs).");
+        argp.addOption("--cachedir", "PATH", "Directory under which to cache result of requests.");
+        argp.addOption("--worker-threads", "NUM", "Number for async io workers (default: cpu * 2).");
+        argp.addOption("--async-io", "true|false", "Use async NIO (default true) or traditional blocking io");
+        argp.addOption("--read-only", "true|false", "Set tsd.mode to ro (default false)");
+        argp.addOption("--disable-ui", "true|false", "Set tsd.core.enable_ui to false (default true)");
+        argp.addOption("--disable-api", "true|false", "Set tsd.core.enable_api to false (default true)");
+        argp.addOption("--backlog", "NUM", "Size of connection attempt queue (default: 3072 or kernel somaxconn.");
+        argp.addOption("--max-connections", "NUM", "Maximum number of connections to accept");
+        argp.addOption("--flush-interval", "MSEC", "Maximum time for which a new data point can be buffered (default: " + DEFAULT_FLUSH_INTERVAL + ").");
         argp.addOption("--statswport", "Force all stats to include the port");
         CliOptions.addAutoMetricFlag(argp);
         args = CliOptions.parse(argp, args);
@@ -233,12 +221,12 @@ final class TSDMain {
 
             // we validated the network port config earlier
             final InetSocketAddress addr = new InetSocketAddress(bindAddress, config.getInt("tsd.network.port"));
-            log.info("Binding on " + addr);
+            log.info(String.format("Binding on %s", addr));
             server.bind(addr);
             if (startup != null) {
                 startup.setReady(tsdb);
             }
-            log.info("Ready to serve on " + addr);
+            log.info(String.format("Ready to serve on %s", addr));
 
             boolean useStreams = false; // Default to false
             int streamsCount = 64; // Default to 64 streams
@@ -274,7 +262,7 @@ final class TSDMain {
                         streamsCount, consumerMemory, autoCommitInterval);
             }
 
-            log.info("Starting.");
+            log.info("Started OpenTSDB");
         }
         catch (Throwable e) {
             factory.releaseExternalResources();
@@ -368,6 +356,8 @@ final class TSDMain {
                 if (StringUtils.isNotBlank(streamsPath)) {
                     streamName = streamsPath.trim() + '/' + i;
                     if (isStreamExist(streamName)) {
+                        log.info(String.format("Creating Consumer thread for consumer group %s", consumerGroupNum));
+
                         StreamsConsumer consumer = new StreamsConsumer(tsdb, streamName, consumerGroupNum, config, consumerMemory, autoCommitInterval);
                         executor.submit(consumer);
                         streamsCreated++;
@@ -381,6 +371,8 @@ final class TSDMain {
                 if (StringUtils.isNotBlank(newStreamsPath)) {
                     newStreamName = newStreamsPath.trim() + '/' + i;
                     if (isStreamExist(newStreamName)) {
+                        log.info(String.format("Creating New Consumer thread for consumer group %s", consumerGroupNum));
+
                         StreamsConsumer2 consumer2 = new StreamsConsumer2(tsdb, newStreamName, consumerGroupNum, config, consumerMemory, autoCommitInterval);
                         executor.submit(consumer2);
                         streamsCreated++;
