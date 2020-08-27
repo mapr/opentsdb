@@ -133,39 +133,55 @@ EOF_META!!
 }
 
 isStaleLockFile() {
-    echo "Checking to see if lock file exist" | tee -a  $LOGFILE
-    MOD_TIME="$(hadoop fs -stat $MONITORING_LOCK_DIR) 2> $LOGFILE"
+    echo "Checking to see if lock directory exist" | tee -a  $LOGFILE
+    MOD_TIME="$(hadoop fs -stat $MONITORING_LOCK_DIR 2>&1 | tee -a $LOGFILE)"
     if [ $? -ne 0 ]; then
         # the most common error is that the file doesn't exist and we get
         # No such file or directory back.
         return 0
     fi
-    EPOC_MOD_TIME=$(date +%s -d"$MOD_TIME")
-    NOW_EPOC=$(date +%s)
-    DIFF_SEC=$(expr "$NOW_EPOC" - "$EPOC_MOD_TIME")
-    if [ "$DIFF_SEC" -gt 300 ]; then
-        echo "found stale lock file ... removing - trying again" | tee -a $LOGFILE
-        hadoop fs -rm -r $MONITORING_LOCK_DIR
-        return $?
+    if [ -n "$MOD_TIME" ]; then
+        echo "MOD_TIME=$MOD_TIME" | tee -a $LOGFILE
+        BINDATE=$(which date)
+        if [ -n "$BINDATE" ]; then
+            EPOC_MOD_TIME=$(/bin/date -u +%s -d"$MOD_TIME")
+            NOW_EPOC=$($BINDATE -u +%s)
+            if [ -n "$EPOC_MOD_TIME" ] && [ -n "$NOW_EPOC" ]; then
+                DIFF_SEC=$(expr "$NOW_EPOC" - "$EPOC_MOD_TIME")
+                if [ "$DIFF_SEC" -gt 300 ]; then
+                    echo "found stale lock directory ... removing - trying again" | tee -a $LOGFILE
+                    hadoop fs -rm -r $MONITORING_LOCK_DIR
+                    return $?
+                else
+                    return 0
+                fi
+            else
+                echo "Failed convert time -  EPOC_MOD_TIME=$EPOC_MOD_TIME, NOW_EPOC=$NOW_EPOC" | tee -a  $LOGFILE
+            fi
+        else
+            echo "Failed to find the date command" | tee -a  $LOGFILE
+            return 0
+        fi
     else
+        echo "Failed to get stat time - but got 0 return code" | tee -a  $LOGFILE
         return 0
     fi
 }
 
-# Remove stale lock file if present
+# Remove stale lock directory if present
 isStaleLockFile
 if [ $? -ne 0 ]; then
-    echo "Failed to remove stale lock file $?"
+    echo "Failed to remove stale lock directory $?" | tee -a $LOGFILE
 fi
 
-# Try to create lock file - with 5 retries
+# Try to create lock directory - with 30 retries
 i=0
 while [[ $i -lt 30 ]]; do
   echo "Creating lock directory" | tee -a $LOGFILE
-  hadoop fs -mkdir $MONITORING_LOCK_DIR 2> $LOGFILE
+  hadoop fs -mkdir $MONITORING_LOCK_DIR 2>&1 |  $LOGFILE
   RC=$?
   if [ $RC -ne 0 ]; then
-    #echo "Unable to create lock file $MONITORING_LOCK_DIR"
+    #echo "Unable to create lock directory $MONITORING_LOCK_DIR"
     sleep 2
   else
     break
@@ -175,20 +191,20 @@ done
 
 # Failed after retries - exit
 if [[ $i -eq 30 ]]; then
-  echo "Failed to create lock file $MONITORING_LOCK_DIR after $i attempts." | tee -a $LOGFILE
+  echo "Failed to create lock directory $MONITORING_LOCK_DIR after $i attempts." | tee -a $LOGFILE
   exit 1 
 fi
 cleanLogFiles
 createTSDB
 RC1=$?
 
-# Try to remove lock file - with 5 retries
+# Try to remove lock directory - with 30 retries
 i=0
 while [[ $i -lt 30 ]]; do
   hadoop fs -rm -r $MONITORING_LOCK_DIR
   RC=$?
   if [ $RC -ne 0 ]; then
-    #echo "Unable to remove lock file $MONITORING_LOCK_DIR"
+    #echo "Unable to remove lock directory $MONITORING_LOCK_DIR"
     sleep 2
   else
     break
@@ -203,7 +219,7 @@ fi
 
 # Failed after retries - exit
 if [[ $i -eq 30 ]]; then
-  echo "Failed to remove lock file $MONITORING_LOCK_DIR after $i attempts. Please remove the lock file manually and run this script again"
+  echo "Failed to remove lock directory $MONITORING_LOCK_DIR after $i attempts. Please remove the lock directory manually and run this script again"
   exit 1 
 fi
 
