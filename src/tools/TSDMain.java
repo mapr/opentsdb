@@ -361,6 +361,11 @@ final class TSDMain {
                         StreamsConsumer consumer = new StreamsConsumer(tsdb, streamName, consumerGroupNum, config, consumerMemory, autoCommitInterval);
                         executor.submit(consumer);
                         streamsCreated++;
+                        log.info("step 1a");
+                        log.info("step 2a");
+                        Thread t = new Thread(consumer.getPurger(), "purger thread for " + streamName);
+                        t.setDaemon(true);
+                        t.start();
                     }
                     else {
                         log.info(String.format("Did not create Consumer thread for consumer group %s since the stream name %s does not exist",
@@ -376,6 +381,9 @@ final class TSDMain {
                         StreamsConsumer2 consumer2 = new StreamsConsumer2(tsdb, newStreamName, consumerGroupNum, config, consumerMemory, autoCommitInterval);
                         executor.submit(consumer2);
                         streamsCreated++;
+                        Thread t = new Thread(consumer2.getPurger(), "purger thread for " + newStreamName);
+                        t.setDaemon(true);
+                        t.start();
                     }
                     else {
                         log.info(String.format("Did not create New Consumer thread for consumer group %s since the stream name %s does not exist",

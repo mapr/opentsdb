@@ -35,6 +35,7 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
     private long consumerMemory;
     private long autoCommitInterval;
     private KafkaConsumer<String, String> consumer;
+    private StreamsPurger purger;
 
     public StreamsConsumer(TSDB tsdb, String streamName, String consumerGroup, Config config, long consumerMemory, long autoCommitInterval) {
         super(config);
@@ -43,8 +44,13 @@ public class StreamsConsumer extends PutDataPointRpc implements Runnable {
         this.consumerGroup = consumerGroup;
         this.consumerMemory = consumerMemory;
         this.autoCommitInterval = autoCommitInterval;
+        this.purger = new StreamsPurger(tsdb, streamName);
 
         log.info(String.format("Constructed StreamsConsumer; %s", toString()));
+    }
+
+    Runnable getPurger() {
+      return purger;
     }
 
     private Deferred<Object> writeToTSDB(final String[] metricTokens) {

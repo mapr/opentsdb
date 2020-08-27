@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.regex.Pattern;
 
+
 /**
  * @author ntirupattur
  */
@@ -49,6 +50,7 @@ public class StreamsConsumer2 extends PutDataPointRpc implements Runnable {
     private final long autoCommitInterval;
     private final HttpJsonSerializer serializer = new HttpJsonSerializer();
     private KafkaConsumer<String, String> consumer;
+    private StreamsPurger purger;
 
     public StreamsConsumer2(TSDB tsdb, String streamName, String consumerGroup, Config config, long consumerMemory, long autoCommitInterval) {
         super(config);
@@ -57,8 +59,13 @@ public class StreamsConsumer2 extends PutDataPointRpc implements Runnable {
         this.consumerGroup = consumerGroup;
         this.consumerMemory = consumerMemory;
         this.autoCommitInterval = autoCommitInterval;
+        this.purger = new StreamsPurger(tsdb, streamName);
 
         log.info(String.format("Constructed StreamsConsumer2; %s", this));
+    }
+
+    Runnable getPurger() {
+      return purger;
     }
 
     private void writeToTSDB(final String message, final long timeStamp) {
