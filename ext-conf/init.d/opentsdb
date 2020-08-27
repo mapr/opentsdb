@@ -191,6 +191,9 @@ fi
 
 APP_MAIN="net.opentsdb.tools.TSDMain"
 
+MAPR_CORE_VERSION=$(cat "${MAPR_HOME}/MapRBuildVersion" | cut -d'.' -f1,2,3)
+MAPR_JAVA_LIBRARY_PATH="${MAPR_HOME}/lib"
+
 isSecure="false"
 if [ -f "${MAPR_HOME}/conf/mapr-clusters.conf" ]; then
   isSecure=$(head -1 ${MAPR_HOME}/conf/mapr-clusters.conf | grep -o 'secure=\w*' | cut -d= -f2)
@@ -271,10 +274,20 @@ if [[ ( -n "$MAPR_JMX_OPENTSDB_ENABLE" && "$MAPR_JMX_OPENTSDB_ENABLE" = "true" )
         else
             if [ "$MAPR_JMXLOCALHOST" = "true" ]; then
                 logJmxMsg "Enabling TCP JMX for opentsdb only on localhost port $MAPR_JMX_PORT"
+                MAPR_JMX_OPTS="$MAPR_JMX_OPTS -Dcom.sun.management.jmxremote.port=$MAPR_JMX_PORT"
             else
                 logJmxMsg "Enabling TCP JMX for opentsdb on port $MAPR_JMX_PORT"
+                FIND_NAME="$MAPR_JAVA_LIBRARY_PATH/jmxagent-${MAPR_CORE_VERSION}..-mapr(-SNAPSHOT)*.jar"
+                jmxagentJar=$(find $MAPR_JAVA_LIBRARY_PATH -regextype posix-extended -regex $FIND_NAME)
+                if [ -n "$jmxagentJar" ]; then
+                    # we need to remove the default jmx options as they conflict with the jmxagent
+                    # java.security.auth.login.config  is already part of the options give to cldb at startup
+                    MAPR_JMX_OPTS="-javaagent:$jmxagentJar -Dmapr.jmx.agent.login.config=JMX_AGENT_LOGIN -Dmapr.jmx.agent.port=$MAPR_JMX_PORT"
+                else
+                    logJmxMsg "Failed to find jmxagent jar - starting without remote JMX service"
+                    MAPR_JMX_OPTS=""
+                fi
             fi
-            MAPR_JMX_OPTS="$MAPR_JMX_OPTS -Dcom.sun.management.jmxremote.port=$MAPR_JMX_PORT"
         fi
     fi
 
