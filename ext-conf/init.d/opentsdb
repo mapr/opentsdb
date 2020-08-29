@@ -176,6 +176,12 @@ export MAPR_TICKETFILE_LOCATION=${MAPR_HOME}/conf/mapruserticket
 STREAMSROOT="/var/mapr/mapr.monitoring/metricstreams"
 RETRY_COUNT=24
 RETRY_DLY=5
+MONITORING_VOLUME_NAME=${MONITORING_VOLUME_NAME:-"mapr.monitoring"}
+MONITORING_TSDB_TABLE=${MONITORING_TSDB_TABLE:-"/var/mapr/$MONITORING_VOLUME_NAME/tsdb"}
+MONITORING_UID_TABLE=${MONITORING_UID_TABLE:-"/var/mapr/$MONITORING_VOLUME_NAME/tsdb-uid"}
+MONITORING_TREE_TABLE=${MONITORING_TREE_TABLE:-"/var/mapr/$MONITORING_VOLUME_NAME/tsdb-tree"}
+MONITORING_META_TABLE=${MONITORING_META_TABLE:-"/var/mapr/$MONITORING_VOLUME_NAME/tsdb-meta"}
+MONITORING_TABLES="$MONITORING_TSDB_TABLE $MONITORING_UID_TABLE $MONITORING_TREE_TABLE $MONITORING_META_TABLE"
 
 # CHOOSE BEHAVOR: Set to fit app
 if [ $APP_REQUIRE_JAVA -eq 1 -a $APP_STARTS_WITH_JAVA -eq 1 ]; then
@@ -225,6 +231,14 @@ if [ -z "$MAPR_JMXSSL" ]; then
     MAPR_JMXSSL="false"
 fi
 
+if [ -z "$MAPR_AUTH_LOGIN_CONFIG_FILE" ]; then
+  MAPR_AUTH_LOGIN_CONFIG_FILE="${MAPR_HOME}/conf/mapr.login.conf"
+fi
+
+if [ -z "$MAPR_LOGIN_CONFIG" ]; then
+  MAPR_LOGIN_CONFIG="JMX_AGENT_LOGIN"
+fi
+
 if [ -z "$MAPR_JMXDISABLE" ] && [ -z "$MAPR_JMXLOCALHOST" ] && [ -z "$MAPR_JMXREMOTEHOST" ]; then
     logJmxMsg "No MapR JMX options given - defaulting to local binding"
 fi
@@ -235,10 +249,11 @@ if [[ ( -n "$MAPR_JMX_OPENTSDB_ENABLE" && "$MAPR_JMX_OPENTSDB_ENABLE" = "true" )
     MAPR_JMX_OPTS="-Dcom.sun.management.jmxremote"
     if [ "$MAPR_JMXAUTH" = "true" ]; then
         if [ "$isSecure" = "true" ]; then
-            if [ -f "$MAPR_HOME/conf/jmxremote.password" ] && [ -f "$MAPR_HOME/conf/jmxremote.access" ]; then
+            if [ -f "$MAPR_HOME/conf/jmxremote.access" ]; then
                 MAPR_JMX_OPTS="$MAPR_JMX_OPTS -Dcom.sun.management.jmxremote.authenticate=true \
-                    -Dcom.sun.management.jmxremote.password.file=$MAPR_HOME/conf/jmxremote.password \
-                    -Dcom.sun.management.jmxremote.access.file=$MAPR_HOME/conf/jmxremote.access"
+                    -Dcom.sun.management.jmxremote.access.file=$MAPR_HOME/conf/jmxremote.access \
+                    -Djava.security.auth.login.config=$MAPR_AUTH_LOGIN_CONFIG_FILE \
+                    -Dcom.sun.management.jmxremote.login.config=$MAPR_LOGIN_CONFIG"
             else
                 logJmxMsg "JMX password and/or access files missing - not starting since we are in secure mode"
                 [ $LOG_JMX_MSGS -eq 1 ] && exit 1
@@ -256,7 +271,7 @@ if [[ ( -n "$MAPR_JMX_OPENTSDB_ENABLE" && "$MAPR_JMX_OPENTSDB_ENABLE" = "true" )
         MAPR_JMXREMOTEHOST=false
     fi
     if [ "$MAPR_JMXLOCALHOST" = "true" ] || [ "$MAPR_JMXREMOTEHOST" = "true" ]; then
-        if [ "$MAPR_JMXSSL" = "true" ]; then
+        if [ "$MAPR_JMXSSL" = "true" ] && [ "$MAPR_JMXREMOTEHOST" = "true" ]; then
             MAPR_JMX_OPTS="$MAPR_JMX_OPTS -Dcom.sun.management.jmxremote.ssl=true"
         else
             MAPR_JMX_OPTS="$MAPR_JMX_OPTS -Dcom.sun.management.jmxremote.ssl=false"
@@ -281,8 +296,8 @@ if [[ ( -n "$MAPR_JMX_OPENTSDB_ENABLE" && "$MAPR_JMX_OPENTSDB_ENABLE" = "true" )
                 jmxagentJar=$(find $MAPR_JAVA_LIBRARY_PATH -regextype posix-extended -regex $FIND_NAME)
                 if [ -n "$jmxagentJar" ]; then
                     # we need to remove the default jmx options as they conflict with the jmxagent
-                    # java.security.auth.login.config  is already part of the options give to cldb at startup
-                    MAPR_JMX_OPTS="-javaagent:$jmxagentJar -Dmapr.jmx.agent.login.config=JMX_AGENT_LOGIN -Dmapr.jmx.agent.port=$MAPR_JMX_PORT"
+                    # java.security.auth.login.config  is already part of the options give to opentbsd at startup
+                    MAPR_JMX_OPTS="-javaagent:$jmxagentJar -Dmapr.jmx.agent.login.config=$MAPR_LOGIN_CONFIG -Dmapr.jmx.agent.port=$MAPR_JMX_PORT"
                 else
                     logJmxMsg "Failed to find jmxagent jar - starting without remote JMX service"
                     MAPR_JMX_OPTS=""
@@ -405,16 +420,29 @@ setEffectiveIds() {
     egid=${egid:-$gid}
 }
 
+checkTSDBHbaseTables() {
+    local rc=0
+    for tbl in $MONITORING_TABLES ; do
+        if ! hadoop fs -stat "$tbl" > /dev/null 2>&1; then
+            rc=1
+        fi
+    done
+    return $rc
+}
+
 createTSDBHbaseTables() {
     local rc=1
-    # Create TSDB tables
-    HBASE_VERSION=`cat ${MAPR_HOME}/hbase/hbaseversion`
-    export COMPRESSION=NONE; export HBASE_HOME=/opt/mapr/hbase/hbase-$HBASE_VERSION; ${APP_HOME_DIR}/share/opentsdb/tools/create_table.sh > ${APP_LOG_DIR}/opentsdb_install.log
-    rc=$?
-    if [ $rc -ne 0 ]; then
-        echo "Failed to create TSDB tables - need to rerun configure.sh -R or run create_table.sh"
-        rm -f "$APP_LOCK_FILE" "$APP_PID_FILE" "$MAPR_APP_PID_FILE" >/dev/null 2>&1
-        exit 1
+
+    if ! checkTSDBHbaseTables ; then
+        # Create TSDB tables when they don't exist
+        HBASE_VERSION=`cat ${MAPR_HOME}/hbase/hbaseversion`
+        export COMPRESSION=NONE; export HBASE_HOME=/opt/mapr/hbase/hbase-$HBASE_VERSION; ${APP_HOME_DIR}/share/opentsdb/tools/create_table.sh > ${APP_LOG_DIR}/opentsdb_install.log
+        rc=$?
+        if [ $rc -ne 0 ]; then
+            echo "Failed to create TSDB tables - need to rerun configure.sh -R or run create_table.sh"
+            rm -f "$APP_LOCK_FILE" "$APP_PID_FILE" "$MAPR_APP_PID_FILE" >/dev/null 2>&1
+            exit 1
+        fi
     fi
 }
 

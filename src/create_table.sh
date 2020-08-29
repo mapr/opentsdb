@@ -32,13 +32,13 @@ function cleanLogFiles() {
 
 function createTSDB() {
   # Create $MONITORING_VOLUME_NAME volume before creating tables
-  maprcli volume info -name $MONITORING_VOLUME_NAME -json > $LOGFILE 2>&1
+  maprcli volume info -name $MONITORING_VOLUME_NAME -json >> $LOGFILE 2>&1
   RC00=$?
-  maprcli volume info -path /var/mapr/$MONITORING_VOLUME_NAME -json > $LOGFILE 2>&1
+  maprcli volume info -path /var/mapr/$MONITORING_VOLUME_NAME -json >> $LOGFILE 2>&1
   RC01=$?
   if [ $RC00 -ne 0 -a $RC01 -ne 0 ]; then
     echo "Creating volume $MONITORING_VOLUME_NAME" | tee -a $LOGFILE
-    maprcli volume create -name $MONITORING_VOLUME_NAME -path /var/mapr/$MONITORING_VOLUME_NAME > $LOGFILE 2>&1
+    maprcli volume create -name $MONITORING_VOLUME_NAME -path /var/mapr/$MONITORING_VOLUME_NAME >> $LOGFILE 2>&1
     RC0=$?
     if [ $RC0 -ne 0 ]; then
       echo "Create volume failed for /var/mapr/$MONITORING_VOLUME_NAME" | tee -a $LOGFILE
@@ -75,7 +75,7 @@ function createTSDB() {
   hbh=$HBASE_HOME
   unset HBASE_HOME
   if ! hadoop fs -stat $MONITORING_UID_TABLE > /dev/null 2>&1 ; then
-    MAPR_DAEMON=spyglass "$hbh/bin/hbase" shell <<EOF_UID!!  > $LOGFILE 2>&1 
+    MAPR_DAEMON=spyglass "$hbh/bin/hbase" shell <<EOF_UID!!  >> $LOGFILE 2>&1 
     create '$MONITORING_UID_TABLE',
       {NAME => 'id', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'},
       {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'}
@@ -89,7 +89,7 @@ EOF_UID!!
   fi
 
   if ! hadoop fs -stat $MONITORING_TSDB_TABLE > /dev/null 2>&1 ; then
-    MAPR_DAEMON=spyglass "$hbh/bin/hbase" shell <<EOF_TSDB!!  > $LOGFILE 2>&1 
+    MAPR_DAEMON=spyglass "$hbh/bin/hbase" shell <<EOF_TSDB!!  >> $LOGFILE 2>&1 
     create '$MONITORING_TSDB_TABLE',
       {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'}
 EOF_TSDB!!
@@ -102,7 +102,7 @@ EOF_TSDB!!
   fi
 
   if ! hadoop fs -stat $MONITORING_TREE_TABLE > /dev/null 2>&1 ; then
-    MAPR_DAEMON=spyglass "$hbh/bin/hbase" shell <<EOF_TREE!!  > $LOGFILE 2>&1 
+    MAPR_DAEMON=spyglass "$hbh/bin/hbase" shell <<EOF_TREE!!  >> $LOGFILE 2>&1 
     create '$MONITORING_TREE_TABLE',
       {NAME => 't', VERSIONS => 1, COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'}
 EOF_TREE!!
@@ -115,7 +115,7 @@ EOF_TREE!!
   fi
 
   if ! hadoop fs -stat $MONITORING_META_TABLE > /dev/null 2>&1 ; then
-    MAPR_DAEMON=spyglass "$hbh/bin/hbase" shell <<EOF_META!!  > $LOGFILE 2>&1 
+    MAPR_DAEMON=spyglass "$hbh/bin/hbase" shell <<EOF_META!!  >> $LOGFILE 2>&1 
     create '$MONITORING_META_TABLE',
       {NAME => 'name', COMPRESSION => '$COMPRESSION', BLOOMFILTER => '$BLOOMFILTER', DATA_BLOCK_ENCODING => '$DATA_BLOCK_ENCODING'}
 EOF_META!!
@@ -134,7 +134,7 @@ EOF_META!!
 
 isStaleLockFile() {
     echo "Checking to see if lock directory exist" | tee -a  $LOGFILE
-    MOD_TIME="$(hadoop fs -stat $MONITORING_LOCK_DIR 2>&1 | tee -a $LOGFILE)"
+    MOD_TIME="$(hadoop fs -stat $MONITORING_LOCK_DIR) 2>> $LOGFILE"
     if [ $? -ne 0 ]; then
         # the most common error is that the file doesn't exist and we get
         # No such file or directory back.
@@ -178,7 +178,7 @@ fi
 i=0
 while [[ $i -lt 30 ]]; do
   echo "Creating lock directory" | tee -a $LOGFILE
-  hadoop fs -mkdir $MONITORING_LOCK_DIR 2>&1 |  $LOGFILE
+  hadoop fs -mkdir $MONITORING_LOCK_DIR 2>&1 | tee -a $LOGFILE
   RC=$?
   if [ $RC -ne 0 ]; then
     #echo "Unable to create lock directory $MONITORING_LOCK_DIR"
