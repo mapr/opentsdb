@@ -59,7 +59,7 @@ public class StreamsConsumer2 extends PutDataPointRpc implements Runnable {
         this.consumerGroup = consumerGroup;
         this.consumerMemory = consumerMemory;
         this.autoCommitInterval = autoCommitInterval;
-        this.purger = new StreamsPurger(tsdb, streamName);
+        this.purger = new StreamsPurger(tsdb, config, streamName);
 
         log.info(String.format("Constructed StreamsConsumer2; %s", this));
     }

@@ -342,6 +342,21 @@ final class TSDMain {
         return startup;
     }
 
+    private static void maybeRunPurger(Logger log, Runnable purger, Config config, String name) {
+        boolean usePurger = true;
+        try {
+            usePurger = !Boolean.parseBoolean(config.getString("tsd.streams.disable_purger"));
+        } catch (Throwable ignored) {}
+        if (!usePurger) {
+            log.info("Purger thread for stream [" + name + "] won't run");
+            return;
+        }
+        Thread t = new Thread(purger, "purger thread for " + name);
+        t.setDaemon(true);
+        t.start();
+        log.info("Purger thread for stream [" + name + "] started");
+    }
+
     private static void startConsumers(Logger log, TSDB tsdb, String streamsPath, String newStreamsPath, String consumerGroup,
                                        ExecutorService executor, Config config, int streamsCount, long consumerMemory, long autoCommitInterval) {
         try {
@@ -361,11 +376,7 @@ final class TSDMain {
                         StreamsConsumer consumer = new StreamsConsumer(tsdb, streamName, consumerGroupNum, config, consumerMemory, autoCommitInterval);
                         executor.submit(consumer);
                         streamsCreated++;
-                        log.info("step 1a");
-                        log.info("step 2a");
-                        Thread t = new Thread(consumer.getPurger(), "purger thread for " + streamName);
-                        t.setDaemon(true);
-                        t.start();
+                        maybeRunPurger(log, consumer.getPurger(), config, streamName);
                     }
                     else {
                         log.info(String.format("Did not create Consumer thread for consumer group %s since the stream name %s does not exist",
@@ -381,9 +392,7 @@ final class TSDMain {
                         StreamsConsumer2 consumer2 = new StreamsConsumer2(tsdb, newStreamName, consumerGroupNum, config, consumerMemory, autoCommitInterval);
                         executor.submit(consumer2);
                         streamsCreated++;
-                        Thread t = new Thread(consumer2.getPurger(), "purger thread for " + newStreamName);
-                        t.setDaemon(true);
-                        t.start();
+                        maybeRunPurger(log, consumer2.getPurger(), config, newStreamName);
                     }
                     else {
                         log.info(String.format("Did not create New Consumer thread for consumer group %s since the stream name %s does not exist",

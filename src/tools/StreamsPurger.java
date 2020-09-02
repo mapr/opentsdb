@@ -1,5 +1,8 @@
 package net.opentsdb.tools;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -21,6 +24,7 @@ import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
 
 import net.opentsdb.uid.NoSuchUniqueName;
+import net.opentsdb.utils.Config;
 import net.opentsdb.tsd.PutDataPointRpc;
 import net.opentsdb.core.TSDB;
 
@@ -37,8 +41,12 @@ public class StreamsPurger implements Runnable {
   private KafkaConsumer<String,String> consumer;
   private Logger log;
   private Properties props;
+  private int initialSleepInterval;
+  private int sleepBetweenPurges;
+  private final int defaultSleepBetweenPurges = 1 * 24 * 60 * 60 * 1000;
+  private final int defaultInitialSleep = 12345;
 
-  public StreamsPurger(TSDB tsdb, String streamName) {
+  public StreamsPurger(TSDB tsdb, Config config, String streamName) {
     this.tsdb = tsdb;
     this.streamName = streamName;
     this.log = LoggerFactory.getLogger(StreamsPurger.class);
@@ -51,6 +59,16 @@ public class StreamsPurger implements Runnable {
     this.props.put("group.id", "HARDCODED_PURGER_GROUP_ID");
     this.props.put("enable.auto.commit", "false");
     this.props.put("auto.offset.reset", "earliest");
+
+    initialSleepInterval = defaultInitialSleep;
+    try {
+      initialSleepInterval = Integer.parseInt(config.getString("tsd.streams.initial_sleep_interval"));
+    } catch (Throwable ignored) {}
+
+    sleepBetweenPurges = defaultSleepBetweenPurges;
+    try {
+      sleepBetweenPurges = Integer.parseInt(config.getString("tsd.streams.sleep_interval_between_purges"));
+    } catch (Throwable ignored) {}
   }
 
 
@@ -98,7 +116,16 @@ public class StreamsPurger implements Runnable {
 
   private void purge() {
     try {
-      Runtime.getRuntime().exec("maprcli stream purge -path " + this.streamName);
+      Runtime rt = Runtime.getRuntime();
+      Process proc = rt.exec("maprcli stream purge -path " + this.streamName);
+      BufferedReader br = new BufferedReader(new InputStreamReader(proc.getErrorStream()));
+      String line = null;
+      while ((line = br.readLine()) != null) {
+        log.info(line);
+      }
+      int retval = proc.waitFor();
+      log.info("maprcli stream purge returned [{}]", retval);
+
     } catch (Throwable e) {
       log.error("maprcli stream purge -path " + this.streamName + " failed with Throwable: ", e);
     }
@@ -106,9 +133,14 @@ public class StreamsPurger implements Runnable {
 
   @Override
   public void run() {
+
+
+    if (initialSleepInterval != defaultInitialSleep) {
+      log.info("Initial sleep interval for Purger is [{}]", initialSleepInterval);
+    }
     // delay before the first purge and poke:
     try {
-      Thread.sleep(12345);
+      Thread.sleep(initialSleepInterval);
     } catch (Throwable e) {
       log.error("Thread::sleep() failed with Throwable: ", e);
     }
@@ -116,8 +148,13 @@ public class StreamsPurger implements Runnable {
     for (;;) {
       purge();
       poke();
+      // we normally run purger once a day
+      if (sleepBetweenPurges != defaultSleepBetweenPurges) {
+        log.info("Next purge in {} seconds ({} days)", sleepBetweenPurges / 1000, sleepBetweenPurges / defaultSleepBetweenPurges);
+      }
+
       try {
-        Thread.sleep(1 * 24 * 60 * 60 * 1000);
+        Thread.sleep(sleepBetweenPurges);
       } catch (Throwable e) {
         log.error("Thread::sleep() failed with Throwable: ", e);
       }
