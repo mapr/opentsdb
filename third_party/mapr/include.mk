@@ -27,20 +27,22 @@ KAFKA_VERSION_STR := $(KAFKA_VERSION)
 endif
 
 #temporarily switch to snapshot for 6.0.0
-MAPR_BASE_URL := http://maven.corp.maprtech.com/nexus/content/repositories/${RELEASE_TYPE}/com/mapr/hadoop/maprfs/${MAPR_VERSION_STR}/
+#MAPR_BASE_URL := http://maven.corp.maprtech.com/nexus/content/repositories/${RELEASE_TYPE}/com/mapr/hadoop/maprfs/${MAPR_VERSION_STR}/
+MAPR_BASE_URL := $(MAPR_MAVEN_REPO)/com/mapr/hadoop/maprfs/${MAPR_VERSION_STR}/
 
 $(MAPR):
 	set dummy "$(MAPR_BASE_URL)" "$(MAPR)"; shift; mvn -B org.apache.maven.plugins:maven-dependency-plugin:2.4:get -DrepoUrl=$(MAPR_MAVEN_REPO) -Dartifact=com.mapr.hadoop:maprfs:$(MAPR_VERSION_STR) -Ddest=$(MAPR)
 
 MAPR_STREAMS := third_party/mapr/mapr-streams-$(MAPR_VERSION_STR).jar
-MAPR_STREAMS_BASE_URL := http://maven.corp.maprtech.com/nexus/content/repositories/${RELEASE_TYPE}/com/mapr/streams/mapr-streams/${MAPR_VERSION_STR}/
+#MAPR_STREAMS_BASE_URL := http://maven.corp.maprtech.com/nexus/content/repositories/${RELEASE_TYPE}/com/mapr/streams/mapr-streams/${MAPR_VERSION_STR}/
+MAPR_STREAMS_BASE_URL := $(MAPR_MAVEN_REPO)/com/mapr/streams/mapr-streams/${MAPR_VERSION_STR}/
 
 $(MAPR_STREAMS):
 	set dummy "$(MAPR_STREAMS_BASE_URL)" "$(MAPR_STREAMS)"; shift; mvn org.apache.maven.plugins:maven-dependency-plugin:2.4:get -DrepoUrl=$(MAPR_MAVEN_REPO) -Dartifact=com.mapr.streams:mapr-streams:$(MAPR_VERSION_STR) -Ddest=$(MAPR_STREAMS)
 
 KAFKA := third_party/mapr/kafka-clients-$(KAFKA_VERSION_STR).jar
 #KAFKA_BASE_URL := http://maven.corp.maprtech.com/nexus/content/repositories/${RELEASE_TYPE}/org/apache/kafka/kafka-clients/${KAFKA_VERSION_STR}/
-KAFKA_BASE_URL := http://maven.corp.maprtech.com/nexus/content/repositories/${RELEASE_TYPE}/org/apache/kafka/connect-runtime/${KAFKA_VERSION_STR}/
+KAFKA_BASE_URL := $(MAPR_MAVEN_REPO)/org/apache/kafka/connect-runtime/${KAFKA_VERSION_STR}/
 
 $(KAFKA):
 	set dummy "$(KAFKA_BASE_URL)" "$(KAFKA)"; shift; mvn org.apache.maven.plugins:maven-dependency-plugin:2.4:get -DrepoUrl=$(MAPR_MAVEN_REPO) -Dartifact=org.apache.kafka:kafka-clients:$(KAFKA_VERSION_STR) -Ddest=$(KAFKA)
