@@ -34,8 +34,16 @@ fi
 
 # Check if the process is running
 echo "Starting verifier at $(date)" >> $LOGFILE_BASE.$NOW
-if [ -f "$PID_FILE" ]; then
-    opentsdb_pid=$(cat $PID_FILE)
+if [ -e "$PID_FILE" ] || [ -h "$PID_FILE" ]; then
+    opentsdb_pid=$(cat $PID_FILE 2> /dev/null)
+    if [ $? -ne 0 ]; then
+        PID_FILE=$(ls -l $PID_FILE | awk '{print $11}')
+        opentsdb_pid=$(cat $PID_FILE 2> /dev/null)
+    fi
+    if [ -z "$opentsdb_pid" ]; then
+        echo "ERROR - could not get pid for opentsdb" >> $LOGFILE_BASE.$NOW
+        exit $EXIT_NOT_RUNNING
+    fi
     echo "checking to see if pid $opentsdb_pid is alive" >> $LOGFILE_BASE.$NOW
     if kill -s 0 $opentsdb_pid ; then
         echo "pid $opentsdb_pid is alive" >> $LOGFILE_BASE.$NOW
@@ -50,6 +58,7 @@ else
     [ $QUIET -eq 1 ] || cat $LOGFILE_BASE.$NOW
     exit $EXIT_NOT_RUNNING
 fi
+
 # Check if the process is responding
 echo "checking to see if opentsdb pid $opentsdb_pid is responsive" >> $LOGFILE_BASE.$NOW
 protocol=http
