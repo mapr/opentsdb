@@ -1,6 +1,6 @@
 #!/bin/bash
 
-MAPR_HOME=${MAPR_HOME:-__PREFIX__}
+MAPR_HOME=${MAPR_HOME:-/opt/mapr}
 OPENTSDB_HOME="${OPENTSDB_HOME:-__INSTALL__}"
 OPENTSDB_CONF_FILE="${OPENTSDB_CONF_FILE:-${OPENTSDB_HOME}/etc/opentsdb/opentsdb.conf}"
 LOGFILE_BASE=${LOGFILE_BASE:-${OPENTSDB_HOME}/var/log/opentsdb/verify_service}
