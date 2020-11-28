@@ -38,7 +38,7 @@ fi
 maprcli_output=$(maprcli service list -node $(hostname -f) | grep opentsdb | tr -d [:blank:])
 otsdb_status=${maprcli_output: -1}
 if [ $otsdb_status = "0" ] || [ $otsdb_status = "1" ] || [ $otsdb_status = "3" ]; then
-    echo "Warden has not yet started or stopped kibana. Warden status - $otsdb_status" >> $LOGFILE_BASE.$NOW
+    echo "Warden has not yet started or stopped opentsdb. Warden status - $otsdb_status" >> $LOGFILE_BASE.$NOW
     [ $QUIET -eq 1 ] || cat $LOGFILE_BASE.$NOW
     exit $EXIT_NOT_STARTED
 fi
