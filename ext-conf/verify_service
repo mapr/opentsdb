@@ -6,11 +6,13 @@ OPENTSDB_CONF_FILE="${OPENTSDB_CONF_FILE:-${OPENTSDB_HOME}/etc/opentsdb/opentsdb
 LOGFILE_BASE=${LOGFILE_BASE:-${OPENTSDB_HOME}/var/log/opentsdb/verify_service}
 PID_FILE=${MAPR_HOME}/pid/opentsdb.pid
 OPENTSDB_DEF_PORT=4242
+export MAPR_TICKETFILE_LOCATION=${MAPR_HOME}/conf/mapruserticket
 
 EXIT_SUCCESS=0
 EXIT_NOT_RUNNING=1
 EXIT_RUNNING_NOT_RESPONDING=2
-EXIT_USAGE=3
+EXIT_NOT_STARTED=3
+EXIT_USAGE=4
 CONNECT_TIMEOUT=15
 USAGE="$0 [-q]"
 QUIET=0
@@ -30,6 +32,15 @@ if [ $# -eq 1 ] && [ "$1" == '-q' ]; then
 elif [ $# -ge 1 ]; then
     echo $USAGE
     exit $EXIT_USAGE
+fi
+
+# Check if the process was started by warden.
+maprcli_output=$(maprcli service list -node $(hostname -f) | grep opentsdb | tr -d [:blank:])
+otsdb_status=${maprcli_output: -1}
+if [ $otsdb_status = "0" ] || [ $otsdb_status = "1" ] || [ $otsdb_status = "3" ]; then
+    echo "Warden has not yet started or stopped kibana. Warden status - $otsdb_status" >> $LOGFILE_BASE.$NOW
+    [ $QUIET -eq 1 ] || cat $LOGFILE_BASE.$NOW
+    exit $EXIT_NOT_STARTED
 fi
 
 # Check if the process is running
