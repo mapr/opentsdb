@@ -353,6 +353,14 @@ check_java_heap_dump_dir() {
     fi
 }
 
+removeOldAsyncHbase() {
+    #make sure we don't have old asynchbase jar left over due to upgrade
+    OTSDB_LIB="$OTSDB_HOME/share/opentsdb/lib"
+    if find "$OTSDB_LIB" -name 'asynchbase-*jar' > /dev/null; then
+        rm -f "$OTSDB_LIB"/asynchbase-*jar
+    fi
+}
+
 # typically called from master configure.sh with the following arguments
 #
 # configure.sh  -nodeCount ${otNodesCount} -OT "${otNodesList}" -nodePort ${otPort}
@@ -504,6 +512,7 @@ configureOTPort
 registerOTPort
 configureZKQuorum
 configureInputStreams
+removeOldAsyncHbase
 createCronJob
 #install our changes
 cp ${NEW_OT_CONF_FILE} ${OT_CONF_FILE}
