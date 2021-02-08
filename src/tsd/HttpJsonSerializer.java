@@ -867,7 +867,7 @@ public class HttpJsonSerializer extends HttpSerializer {
                 final double value = dp.doubleValue();
                 if (Double.isNaN(value) && 
                     orig_query.fillPolicy() == FillPolicy.NULL) {
-                  json.writeNumberField(Long.toString(timestamp), null);
+                  json.writeNullField(Long.toString(timestamp));
                 } else {
                   json.writeNumberField(Long.toString(timestamp), dp.doubleValue());
                 }
