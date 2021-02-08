@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-JACKSON_VERSION := 2.9.10
+JACKSON_VERSION := 2.12.1
 
 JACKSON_ANNOTATIONS_VERSION = $(JACKSON_VERSION)
 JACKSON_ANNOTATIONS := third_party/jackson/jackson-annotations-$(JACKSON_ANNOTATIONS_VERSION).jar
@@ -29,7 +29,7 @@ JACKSON_CORE_BASE_URL := https://repo.maven.apache.org/maven2/com/fasterxml/jack
 $(JACKSON_CORE): $(JACKSON_CORE).md5
 	set dummy "$(JACKSON_CORE_BASE_URL)" "$(JACKSON_CORE)"; shift; $(FETCH_DEPENDENCY)
 
-JACKSON_DATABIND_VERSION = $(JACKSON_VERSION).5
+JACKSON_DATABIND_VERSION = $(JACKSON_VERSION)
 JACKSON_DATABIND := third_party/jackson/jackson-databind-$(JACKSON_DATABIND_VERSION).jar
 JACKSON_DATABIND_BASE_URL := https://repo.maven.apache.org/maven2/com/fasterxml/jackson/core/jackson-databind/$(JACKSON_DATABIND_VERSION)
 
