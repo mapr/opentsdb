@@ -687,7 +687,7 @@ create_tmp_directory(){
 create_tmp_directory
 : ${DUMP_DATE:=$(date "+%Y-%m-%d-%H:%M:%S.%3N")}
 : ${DUMP_FILE:=${MAPR_HOME}/heapdumps/opentsdb.heap_dump_$DUMP_DATE}
-: ${JVMARGS:=-enableassertions -enablesystemassertions -Djava.iotmpdir="$IOTMP_DIR_PATH" -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$DUMP_FILE $JVMXMX $MAPR_JMX_OPTS}
+: ${JVMARGS:=-enableassertions -enablesystemassertions -Djava.io.tmpdir="$IOTMP_DIR_PATH" -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$DUMP_FILE $JVMXMX $MAPR_JMX_OPTS}
 export JVMARGS
 
 if [ $APP_DOES_NOT_MANAGE_PID_FILE -eq 1 -a $APP_DAEMONIZES -eq 1 ]; then
