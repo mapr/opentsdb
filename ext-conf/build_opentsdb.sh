@@ -40,12 +40,26 @@ fi
 export BUILD_TAG=mapr-t${ID}-b${BUILD_NUMBER};
 export JOB=$(echo $JOB_NAME | awk -F/ '{print $1}')
 export DIST="/usr/local/jenkins/workspace/${JOB}/label/${NODE_NAME}/${repoName}/${PROJECT}/dist"
+export MY_IP=$(getent hosts $(hostname -f) | cut -d' ' -f1)
+
+if [ -f /etc/SuSE-release ] || [ "$MY_IP" = 10.10.108.206 ]; then
+#
+# Suse globals
+#
+cat > ${WORKSPACE}/properties.txt << EOL
+ARTIFACTORY_REPONAME=eco-suse
+ARTIFACTORY_PATH=releases/opensource/suse/
+PACKAGE_TYPE=*.rpm
+BUILD_DIR=${BUILD_TAG}
+EOL
+
+BASE_IMAGE=docker.artifactory.lab/suse12_installer_spyglass-proto2-java8-spyglass:latest
 
 
 #
 # RedHat globals
 #
-if [ -z "$(uname -a | grep -i ubuntu)" ]; then
+elif [ -z "$(uname -a | grep -i ubuntu)" ]; then
 cat > ${WORKSPACE}/properties.txt << EOL
 ARTIFACTORY_REPONAME=eco-rpm
 ARTIFACTORY_PATH=releases/opensource/redhat/
