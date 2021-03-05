@@ -134,36 +134,41 @@ EOF_META!!
 
 isStaleLockFile() {
     echo "Checking to see if lock directory exist" | tee -a  $LOGFILE
-    MOD_TIME="$(hadoop fs -stat $MONITORING_LOCK_DIR) 2>> $LOGFILE"
-    if [ $? -ne 0 ]; then
-        # the most common error is that the file doesn't exist and we get
-        # No such file or directory back.
-        return 0
-    fi
-    if [ -n "$MOD_TIME" ]; then
-        echo "MOD_TIME=$MOD_TIME" | tee -a $LOGFILE
-        BINDATE=$(which date)
-        if [ -n "$BINDATE" ]; then
-            EPOC_MOD_TIME=$(/bin/date -u +%s -d"$MOD_TIME")
-            NOW_EPOC=$($BINDATE -u +%s)
-            if [ -n "$EPOC_MOD_TIME" ] && [ -n "$NOW_EPOC" ]; then
-                DIFF_SEC=$(expr "$NOW_EPOC" - "$EPOC_MOD_TIME")
-                if [ "$DIFF_SEC" -gt 300 ]; then
-                    echo "found stale lock directory ... removing - trying again" | tee -a $LOGFILE
-                    hadoop fs -rm -r $MONITORING_LOCK_DIR
-                    return $?
+    if hadoop fs -test -e "$MONITORING_LOCK_DIR"; then
+        MOD_TIME="$(hadoop fs -stat $MONITORING_LOCK_DIR) 2>> $LOGFILE"
+        if [ $? -ne 0 ]; then
+            # the most common error is that the file doesn't exist and we get
+            # No such file or directory back.
+            return 0
+        fi
+        if [ -n "$MOD_TIME" ]; then
+            echo "MOD_TIME=$MOD_TIME" | tee -a $LOGFILE
+            BINDATE=$(which date)
+            if [ -n "$BINDATE" ]; then
+                EPOC_MOD_TIME=$(/bin/date -u +%s -d"$MOD_TIME")
+                NOW_EPOC=$($BINDATE -u +%s)
+                if [ -n "$EPOC_MOD_TIME" ] && [ -n "$NOW_EPOC" ]; then
+                    DIFF_SEC=$(expr "$NOW_EPOC" - "$EPOC_MOD_TIME")
+                    if [ "$DIFF_SEC" -gt 300 ]; then
+                        echo "found stale lock directory ... removing - trying again" | tee -a $LOGFILE
+                        hadoop fs -rm -r $MONITORING_LOCK_DIR
+                        return $?
+                    else
+                        return 0
+                    fi
                 else
-                    return 0
+                    echo "Failed convert time -  EPOC_MOD_TIME=$EPOC_MOD_TIME, NOW_EPOC=$NOW_EPOC" | tee -a  $LOGFILE
                 fi
             else
-                echo "Failed convert time -  EPOC_MOD_TIME=$EPOC_MOD_TIME, NOW_EPOC=$NOW_EPOC" | tee -a  $LOGFILE
+                echo "Failed to find the date command" | tee -a  $LOGFILE
+                return 0
             fi
         else
-            echo "Failed to find the date command" | tee -a  $LOGFILE
+            echo "Failed to get stat time - but got 0 return code" | tee -a  $LOGFILE
             return 0
         fi
     else
-        echo "Failed to get stat time - but got 0 return code" | tee -a  $LOGFILE
+        echo "$MONITORING_LOCK_DIR does not exist" | tee -a  $LOGFILE
         return 0
     fi
 }
