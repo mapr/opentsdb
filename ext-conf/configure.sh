@@ -324,7 +324,7 @@ function createCronJob() {
 
     # $OS is set by initCfgEnv
     case "$OS" in
-        redhat)
+        redhat|ol)
             CRONTAB="/var/spool/cron/$MAPR_USER"
             ;;
         suse)
@@ -333,6 +333,9 @@ function createCronJob() {
         ubuntu)
             CRONTAB="/var/spool/cron/crontabs/$MAPR_USER"
             ;;
+        *)
+            echo "ERROR: Do not recognize OS=$OS - not installing crontab"
+            return 0;;
     esac
 
     if ! cat $CRONTAB 2> /dev/null | fgrep -q 'tsdb_cluster_mgmt.sh -purgeData' > /dev/null 2>&1 ; then
