@@ -4,10 +4,10 @@
 #############################################################################
 #
 # Script to manage opentsdb cluster
-# 
-# 
 #
-# __INSTALL_ (double undersoces on both sides) 
+#
+#
+# __INSTALL_ (double undersoces on both sides)
 # gets expanded to /opt/mapr/opentsdb/opentsdb-<ver> during pakcaging
 # set OT_HOME explicitly if running this in a source build env.
 #
@@ -32,6 +32,8 @@ OT_PRETTY=${OT_PRETTY:-0}
 # '2 years ago'
 OT_RETENTION_PERIOD="${OT_RETENTION_PERIOD:-2 weeks ago}"
 OT_VERBOSE=${OT_VERBOSE:-0}
+MONITORING_PURGE_LOCK_DIR=${MONITORING_PURGE_LOCK_DIR:-"/tmp/otPurgeLockFile"}
+MONITORING_PURGE_LOCK_FILE="$MONITORING_PURGE_LOCK_DIR/$(hostname -f)"
 
 if which python3 > /dev/null ; then
     PY_CMD="python3"
@@ -40,6 +42,108 @@ elif which python2 > /dev/null ; then
 else
     PY_CMD="python"
 fi
+
+check_stale_lock() {
+    # check to see if this node created the lock file, and if so is the
+    # the pid still running.
+    if hadoop fs -stat $MONITORING_PURGE_LOCK_FILE ; then
+        purge_pid=$(hadoop fs -cat $MONITORING_PURGE_LOCK_FILE)
+        if [ -n "$purge_pid" ] ; then
+            if kill -0 $purge_pid;  then
+                echo "Another purge job is already in progress - exiting" >> $OT_LOGFILE
+                exit 2
+            else
+                # this node created the lock file, but the pid is gone
+                remove_purge_lock
+                if [ $RC -ne 0 ]; then
+                    echo "Unable to remove lock directory $MONITORING_PURGE_LOCK_DIR" >> $OT_LOGFILE
+                else
+                    echo "lock directory $MONITORING_PURGE_LOCK_DIR removed" >> $OT_LOGFILE
+                fi
+            fi
+
+        fi
+    fi
+}
+
+create_purge_lock() {
+    local i=0
+    local error_logged=0
+
+    check_stale_lock
+    # Try to create lock directory - with 30 retries
+    while [[ $i -lt 30 ]]; do
+        echo "Creating lock directory" | tee -a $OT_LOGFILE
+        OUTPUT=$(hadoop fs -mkdir $MONITORING_PURGE_LOCK_DIR 2>&1)
+        RC=$?
+        echo "$OUTPUT" | tee -a $OT_LOGFILE
+        if [ $RC -ne 0 ]; then
+            if [ $error_logged -eq 0 ]; then
+                echo "Unable to create lock directory $MONITORING_PURGE_LOCK_DIR" >> $OT_LOGFILE
+            fi
+            sleep 2
+        else
+            break
+        fi
+        (( i++ ))
+    done
+
+    # Failed after retries - exit
+    if [[ $i -eq 30 ]]; then
+        echo "Failed to create lock directory $MONITORING_PURGE_LOCK_DIR after $i attempts." | tee -a $OT_LOGFILE
+        exit 1
+    else
+        echo "Successfully created lock directory" | tee -a $OT_LOGFILE
+    fi
+
+    echo "Creating lock file" | tee -a $OT_LOGFILE
+    OUTPUT=$(hadoop fs -touchz $MONITORING_PURGE_LOCK_FILE 2>&1)
+    RC=$?
+    echo "$OUTPUT" | tee -a $OT_LOGFILE
+    if [ $RC -eq 0 ]; then
+        echo "adding own pid to lock file" | tee -a $OT_LOGFILE
+
+        OUTPUT=$(echo "$$" | hadoop fs -appendToFile - $MONITORING_PURGE_LOCK_FILE 2>&1)
+        RC=$?
+        echo "$OUTPUT" | tee -a $OT_LOGFILE
+        if [ $RC -ne 0 ]; then
+            echo "failed to add own pid to lock file" | tee -a $OT_LOGFILE
+        fi
+    fi
+}
+
+remove_purge_lock() {
+    # Try to remove lock directory - with 30 retries
+    local i=0
+    local error_logged=0
+
+    while [[ $i -lt 30 ]]; do
+        echo "Removing lock directory" | tee -a $OT_LOGFILE
+        OUTPUT=$(hadoop fs -rm -r $MONITORING_PURGE_LOCK_DIR 2>&1)
+        RC=$?
+        echo "$OUTPUT" | tee -a $OT_LOGFILE
+        if [ $RC -ne 0 ]; then
+            if [ $error_logged -eq 0 ]; then
+                echo "Unable to remove lock directory $MONITORING_PURGE_LOCK_DIR" | tee -a $OT_LOGFILE
+                error_logged=1
+            fi
+            sleep 2
+        else
+            break
+        fi
+        (( i++ ))
+    done
+
+    # Failed after retries
+    if [[ $i -eq 30 ]]; then
+        echo "Failed to remove lock directory $MONITORING_PURGE_LOCK_DIR after $i attempts." | tee -a $OT_LOGFILE
+        return 1
+    else
+        echo "Successfully removed lock directory" | tee -a $OT_LOGFILE
+    fi
+    return 0
+}
+
 
 # main
 #
@@ -174,7 +278,7 @@ if [ ${RC} -eq 0 ] ; then
 fi
 
 if [ $SUCCESS -eq 1 ] ; then
-   if [ $SHOW_OUTPUT -eq 1 ] ; then 
+   if [ $SHOW_OUTPUT -eq 1 ] ; then
        if [ $OT_PRETTY -eq 1 ]; then
            echo "$RESP" | $PY_CMD -m json.tool
        else
@@ -186,11 +290,14 @@ if [ $SUCCESS -eq 1 ] ; then
            "purgeData")
                export JVMARGS="-enableassertions -enablesystemassertions -DLOG_FILE=$OT_SCAN_DAEMON_LOGFILE -DQUERY_LOG=$OT_SCAN_DAEMON_QRYLOGFILE"
                export MAPR_TICKETFILE_LOCATION=${MAPR_HOME}/conf/mapruserticket
+
+
                if [ "$OT_VERBOSE" -eq 1 ]; then
                    OT_SCAN_LOGFILE=$OT_LOGFILE
                else
                    mkdir -p "$OT_LOGDIR/metrics_tmp"
                fi
+               create_purge_lock
                OT_LOGFILE_BN=$(basename $OT_LOGFILE)
                echo "$(date) Purging old data - retention period: $OT_RETENTION_PERIOD ">> $OT_LOGFILE
                for metric in $(echo "$RESP" | sed -e 's/\[//;s/\]//;s/\,/ /g;s/"//g' ); do
@@ -213,6 +320,8 @@ if [ $SUCCESS -eq 1 ] ; then
                        SUCCESS=0
                    fi
                done
+               remove_purge_lock
+
                echo "$(date) Purging old data complete - success =  $SUCCESS ">> $OT_LOGFILE
                ;;
        esac
@@ -220,7 +329,7 @@ if [ $SUCCESS -eq 1 ] ; then
            echo "$(date) $OT_MSG"
        fi
    fi
-else 
+else
    echo "OT operation failed - rc = ${RC} response = $RESP"
 fi
 
