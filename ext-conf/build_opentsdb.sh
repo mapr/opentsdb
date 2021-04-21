@@ -1,7 +1,7 @@
 #!/bin/bash -x
 packageName=${packageName:-mapr-opentsdb}
 sourceVersion=${sourceVersion:-2.4.0}
-branchName=${branchName:-mapr-v${packageVersion}-mep7x}
+branchName=${branchName:-mapr-v${packageVersion}-mep6x}
 ebfVersion=${ebfVersion:-0}
 packageVersion=${packageVersion:-${sourceVersion}.${ebfVersion}}
 repoName=${repoName:-opensource}
@@ -46,21 +46,6 @@ fi
 export BUILD_TAG=mapr-t${ID}-b${BUILD_NUMBER};
 export JOB=$(echo $JOB_NAME | awk -F/ '{print $1}')
 export DIST="/usr/local/jenkins/workspace/${JOB}/label/${NODE_NAME}/${repoName}/${PROJECT}/dist"
-export MY_IP=$(getent hosts $(hostname -f) | cut -d' ' -f1)
-
-if [ -f /etc/SuSE-release ] || [ "$MY_IP" = 10.10.108.206 ]; then
-#
-# Suse globals
-#
-cat > ${WORKSPACE}/properties.txt << EOL
-ARTIFACTORY_REPONAME=eco-suse
-ARTIFACTORY_PATH=releases/opensource/suse/
-PACKAGE_TYPE=*.rpm
-BUILD_DIR=${BUILD_TAG}
-EOL
-
-BASE_IMAGE=docker.artifactory.lab/suse12_installer_spyglass-proto2-java8-spyglass:latest
-
 
 if [ -f /etc/SuSE-release ] || [ "$NODE_LABELS" = "mip-mapreng-jsc83-35 sles1" ]; then
 #
