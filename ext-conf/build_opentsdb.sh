@@ -22,7 +22,7 @@ export PROJECT=${packageName}-${packageVersion}
 export BLD_PROJECT=${packageName}-${sourceVersion}
 export CN_NAME="jenkins-temp-${PROJECT}"
 export RELEASE_VER=${packageVersion}
-export JENKINS_HOST=10.163.161.242
+export JENKINS_HOST="10.163.161.242"
 
 
 #
@@ -51,7 +51,7 @@ if [ ! -d "${WORKSPACE}" ]; then
     mkdir -p "${WORKSPACE}"
 fi
 
-if [ -f /etc/SuSE-release ] || [ "$NODE_LABELS" = "sles1" ]; then
+if [ -f /etc/SuSE-release ] || [ "$NODE_LABELS" = "mip-mapreng-jsc83-35 sles1" ]; then
 #
 # Suse globals
 #
@@ -123,7 +123,6 @@ if [ "${isRelease}" = "false" ]; then
     # only use released artifacts
     export MAPR_MAVEN_REPO=${MAPR_CENTRAL}
 
-    export RELEASE_ARGS="${releaseArgs}"
 else
     echo "Is this a release? -> ${isRelease}"
 
@@ -139,10 +138,9 @@ else
     else
         export MAPR_MAVEN_REPO=${MAPR_RELEASES_REPO}
     fi
-
-    export RELEASE_ARGS="${releaseArgs}"
-
 fi
+
+export RELEASE_ARGS="${releaseArgs}"
 
 echo "MAPR_MIRROR=$MAPR_MIRROR" >> env.txt
 echo "MAVEN_CENTRAL=$MAVEN_CENTRAL" >> env.txt
@@ -182,7 +180,8 @@ else
         npm config set proxy http://web-proxy.corp.hpecorp.net:8080/;\
         npm config set https-proxy http://web-proxy.corp.hpecorp.net:8080/;\
         npm config set http-proxy http://web-proxy.corp.hpecorp.net:8080/;\
-        npm config set strict-ssl=false ;\
+        npm config set strict-ssl=false;\
+        npm config set loglevel=verbose;\
         echo /root/docker-build-info/gitlog10.txt ; \
         cat /root/docker-build-info/gitlog10.txt ; \
         echo ====== ; \
@@ -223,6 +222,7 @@ fi
 cat ./env.txt
 
 DOCKER_OPTS=" --env-file ./env.txt \
+              $INTERACTIVE_BUILD \
               -v /root/yum-proxy.conf:/etc/yum.conf:ro \
               -v /root/apt-proxy.conf:/etc/apt/apt.conf.d/proxy.conf:ro \
               -v /root/.m2/settings.xml:/root/.m2/settings.xml:ro \
@@ -230,7 +230,6 @@ DOCKER_OPTS=" --env-file ./env.txt \
               -v /etc/profile.d/proxy.sh:/etc/profile.d/proxy.sh:ro \
               -v /etc/hosts:/etc/hosts:ro \
               -v /etc/resolv.conf:/etc/resolv.conf:ro \
-              $INTERACTIVE_BUILD \
               --name="${CN_NAME}" \
               --workdir="/root/${repoName}" \
               --rm=$RM_CONTAINER \
