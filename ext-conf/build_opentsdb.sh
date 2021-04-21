@@ -1,15 +1,17 @@
 #!/bin/bash -x
 packageName=${packageName:-mapr-opentsdb}
 sourceVersion=${sourceVersion:-2.4.0}
+branchName=${branchName:-mapr-v${packageVersion}-mep7x}
 ebfVersion=${ebfVersion:-0}
 packageVersion=${packageVersion:-${sourceVersion}.${ebfVersion}}
 repoName=${repoName:-opensource}
 isRelease=${isRelease:-}
 maprVersion=${maprVersion:-6.2.0.0-mapr}
-kafkaVersion=${kafkaVersion:-2.1.1.0-mapr}
-hadoopVersion=${hadoopVersion:-2.7.4.0-mapr-1908}
-useMaprSnapshots=${useMaprSnapshots:-1}
-releaseArgs=${releaseArgs:-"OPENTSDB_BRANCH_NAME=mapr-v${sourceVersion}-mep7x MAPR_VERSION=${maprVersion} KAFKA_VERSION=${kafkaVersion} USE_MAPR_SNAPSHOTS=${useMaprSnapshots} HADOOP_VERSION=${hadoopVersion}"}
+kafkaVersion=${kafkaVersion:-2.1.1.0-mapr-700}
+hadoopVersion=${hadoopVersion:-2.7.4.100-mapr-701}
+useMaprSnapshots=${useMaprSnapshots:-0}
+useJarsFromStaging=${useJarsFromStaging:-0}
+releaseArgs=${releaseArgs:-"OPENTSDB_BRANCH_NAME=${branchName} MAPR_VERSION=${maprVersion} KAFKA_VERSION=${kafkaVersion} USE_MAPR_SNAPSHOTS=${useMaprSnapshots} HADOOP_VERSION=${hadoopVersion}"}
 releaseRepoName=${releaseRepoName:-opensource.release}
 ECHONUMBER=${ECONUMBER:-NONE}
 privatePkgBranch=${privatePkgBranch:-MEP-7.0.0}
@@ -20,6 +22,7 @@ export PROJECT=${packageName}-${packageVersion}
 export BLD_PROJECT=${packageName}-${sourceVersion}
 export CN_NAME="jenkins-temp-${PROJECT}"
 export RELEASE_VER=${packageVersion}
+export JENKINS_HOST=10.163.161.242
 
 
 #
@@ -33,7 +36,7 @@ export PREPEND_PATH="${JAVA_HOME}/bin:"
 
 export TZ='America/Los_Angeles'
 if [ -z "$DEBUG" ] && [ -z "$DEVELOPMENT_BUILD" ]; then
-    export ID=$(ssh root@10.10.1.50 date "+%Y%m%d%H%M")
+    export ID=$(ssh root@${JENKINS_HOST} date "+%Y%m%d%H%M")
     RM_CONTAINER="true"
 else
     export ID=$(date "+%Y%m%d%H%M")
@@ -48,10 +51,27 @@ if [ ! -d "${WORKSPACE}" ]; then
     mkdir -p "${WORKSPACE}"
 fi
 
+if [ -f /etc/SuSE-release ] || [ "$NODE_LABELS" = "sles1" ]; then
+#
+# Suse globals
+#
+
+cat > ${WORKSPACE}/properties.txt << EOL
+ARTIFACTORY_REPONAME=eco-suse
+ARTIFACTORY_PATH=releases/opensource/suse/
+PACKAGE_TYPE=*.rpm
+BUILD_DIR=${BUILD_TAG}
+EOL
+
+    #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/suse12_installer_spyglass-proto2-java12-spyglass:latest
+    BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/suse15_installer_spyglass-proto3-gcc8-java12-spyglass
+
+    EXTRA_CMD="rvm install 2.7.1 --disable-binary"
+
 #
 # RedHat globals
 #
-if [ -z "$(uname -a | grep -i ubuntu)" ]; then
+elif [ -z "$(uname -a | grep -i ubuntu)" ]; then
 cat > ${WORKSPACE}/properties.txt << EOL
 ARTIFACTORY_REPONAME=eco-rpm
 ARTIFACTORY_PATH=releases/opensource/redhat/
@@ -59,12 +79,12 @@ PACKAGE_TYPE=*.rpm
 BUILD_DIR=${BUILD_TAG}
 EOL
 
-    #BASE_IMAGE=maprdocker.lab/mapr:centos61-java7-ecosystem-150515
+    #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/mapr:centos61-java7-ecosystem-150515
 
-    #BASE_IMAGE=maprdocker.lab/centos7-java8-build
-    #BASE_IMAGE=maprdocker.lab/centos7_installer_spyglass-java8:latest
-    #BASE_IMAGE=maprdocker.lab/centos7-gcc7_installer_spyglass-proto3-java11-spyglass:latest
-    BASE_IMAGE=docker.artifactory.lab/centos8_installer_spyglass-proto3-java12-spyglass
+    #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/centos7-java8-build
+    #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/centos7_installer_spyglass-java8:latest
+    #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/centos7-gcc7_installer_spyglass-proto3-java11-spyglass:latest
+    BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/centos8_installer_spyglass-proto3-java12-spyglass
 
     EXTRA_CMD="rvm install 2.7.1 --disable-binary"
 
@@ -80,9 +100,9 @@ PACKAGE_TYPE=*.deb
 BUILD_DIR=${BUILD_TAG}
 EOL
 
-    #BASE_IMAGE=maprdocker.lab/ubuntu14-java8-build:latest
-    #BASE_IMAGE=maprdocker.lab/ubuntu14_installer_spyglass-java8:latest
-    BASE_IMAGE=maprdocker.lab/ubuntu16_installer_spyglass-gcc7-proto3-java12-spyglass
+    #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/ubuntu14-java8-build:latest
+    #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/ubuntu14_installer_spyglass-java8:latest
+    BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/ubuntu16_installer_spyglass-gcc7-proto3-java12-spyglass
 
     EXTRA_CMD="echo there is no extra cmd"
 
@@ -95,8 +115,7 @@ if [ "${isRelease}" = "false" ]; then
     echo "Is this a release? -> ${isRelease}"
 
     export MAPR_MIRROR=central
-    export MAVEN_CENTRAL=http://maven.corp.maprtech.com/nexus/content/groups/public/
-    export MAPR_MVN_BASE=http://admin:admin123@maven.corp.maprtech.com/nexus/content
+    export MAPR_MVN_BASE=http://admin:admin123@df-mvn-dev.mip.storage.hpecorp.net/nexus/content
     export MAPR_CENTRAL=${MAPR_MVN_BASE}/groups/public
     export MAPR_RELEASES_REPO=${MAPR_MVN_BASE}/repositories/releases
     export MAPR_SNAPSHOTS_REPO=${MAPR_MVN_BASE}/repositories/snapshots
@@ -109,19 +128,17 @@ else
     echo "Is this a release? -> ${isRelease}"
 
     export MAPR_MIRROR=central
-    export MAVEN_CENTRAL=http://10.10.100.99:8081/nexus/content/groups/public/
-    export MAPR_MVN_BASE=http://admin:admin123@maven.corp.maprtech.com/nexus/content
+    export MAVEN_STAGE=http://df-mvn-stage.mip.storage.hpecorp.net:8081/nexus/content/repositories/releases
+    export MAPR_MVN_BASE=http://admin:admin123@df-mvn-dev.mip.storage.hpecorp.net/nexus/content
     export MAPR_CENTRAL=${MAPR_MVN_BASE}/groups/public
     export MAPR_RELEASES_REPO=${MAPR_MVN_BASE}/repositories/releases
     export MAPR_SNAPSHOTS_REPO=${MAPR_MVN_BASE}/repositories/snapshots
-    export MAPR_MAVEN_REPO=${MAPR_RELEASES_REPO}
 
-    export MAPR_MIRROR=central
-    export MAVEN_CENTRAL=http://maven.corp.maprtech.com/nexus/content/groups/public/
-    export MAPR_MVN_BASE=http://admin:admin123@maven.corp.maprtech.com/nexus/content
-    export MAPR_CENTRAL=${MAPR_MVN_BASE}/groups/public
-    export MAPR_RELEASES_REPO=${MAPR_MVN_BASE}/repositories/releases
-    export MAPR_SNAPSHOTS_REPO=${MAPR_MVN_BASE}/repositories/snapshots
+    if [ "${useJarsFromStaging}" = "true" ]; then
+        export MAPR_MAVEN_REPO=${MAVEN_STAGE}
+    else
+        export MAPR_MAVEN_REPO=${MAPR_RELEASES_REPO}
+    fi
 
     export RELEASE_ARGS="${releaseArgs}"
 
@@ -162,6 +179,10 @@ else
     INTERACTIVE_BUILD="${INTERACTIVE_BUILD:-""}"
     BUILD_CMD_OPT="-c"
     BUILD_CMD=" echo ====== ; \
+        npm config set proxy http://web-proxy.corp.hpecorp.net:8080/;\
+        npm config set https-proxy http://web-proxy.corp.hpecorp.net:8080/;\
+        npm config set http-proxy http://web-proxy.corp.hpecorp.net:8080/;\
+        npm config set strict-ssl=false ;\
         echo /root/docker-build-info/gitlog10.txt ; \
         cat /root/docker-build-info/gitlog10.txt ; \
         echo ====== ; \
@@ -202,6 +223,13 @@ fi
 cat ./env.txt
 
 DOCKER_OPTS=" --env-file ./env.txt \
+              -v /root/yum-proxy.conf:/etc/yum.conf:ro \
+              -v /root/apt-proxy.conf:/etc/apt/apt.conf.d/proxy.conf:ro \
+              -v /root/.m2/settings.xml:/root/.m2/settings.xml:ro \
+              -v /root/.gradle/gradle.properties:/root/.gradle/gradle.properties:ro \
+              -v /etc/profile.d/proxy.sh:/etc/profile.d/proxy.sh:ro \
+              -v /etc/hosts:/etc/hosts:ro \
+              -v /etc/resolv.conf:/etc/resolv.conf:ro \
               $INTERACTIVE_BUILD \
               --name="${CN_NAME}" \
               --workdir="/root/${repoName}" \
@@ -236,15 +264,15 @@ fi
 
 if [ -z "$DEBUG" ] && [ -z "$DEVELOPMENT_BUILD" ]; then
     if [ -z "$(uname -a | grep -i ubuntu)" ]; then
-        if [ -e /root/rpmsigning/rpmsign.exp ]; then
-            echo "Doing RPM signing"
-            echo "Perform signing operation now"
-            expect -f /root/rpmsigning/rpmsign.exp ${DIST}/*.rpm
-            if [ $? -ne 0 ]; then
-                echo "RPM signing failed!"
-            fi
-        else
-            echo "Skipping RPM signing  .."
+        echo "Doing RPM signing"
+        echo "Perform signing operation now"
+        /root/bin/rpmSign.sh ${DIST}/
+        if [ $? -ne 0 ]; then
+            echo "RPM signing failed!"
         fi
+    else
+        echo "Ubuntu signing not done in jenkins job!"
     fi
+else
+    echo "signing not done in debug/development builds!"
 fi
