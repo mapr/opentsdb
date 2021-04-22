@@ -10,7 +10,6 @@ maprVersion=${maprVersion:-6.1.0-mapr}
 kafkaVersion=${kafkaVersion:-1.1.1-mapr-1901}
 hadoopVersion=${hadoopVersion:-2.7.0-mapr-1808}
 useMaprSnapshots=${useMaprSnapshots:-0}
-useMaprSnapshots=${useMaprSnapshots:-0}
 useJarsFromStaging=${useJarsFromStaging:-0}
 releaseArgs=${releaseArgs:-"OPENTSDB_BRANCH_NAME=${branchName} MAPR_VERSION=${maprVersion} KAFKA_VERSION=${kafkaVersion} USE_MAPR_SNAPSHOTS=${useMaprSnapshots} HADOOP_VERSION=${hadoopVersion}"}
 releaseRepoName=${releaseRepoName:-opensource.release}
