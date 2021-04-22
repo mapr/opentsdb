@@ -160,6 +160,9 @@ APP_PID_FILE="$APP_PID_DIR/$APP.pid"
 # CHOOSE BEHAVOR: Set to fit app
 APP_OPTS_1="tsd --config=${APP_CONF_FILE}"
 APP_OPTS_2=""
+DATE=$(date "+%Y-%m-%d-%H:%M:%S.%3N")
+JVM_HEAP_DUMP_PATH=${JVM_HEAP_DUMP_PATH:-${MAPR_HOME%/*}/cores}
+APP_OPTS_HEAP_DUMP="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$JVM_HEAP_DUMP_PATH/$APP.heap_dump_$DATE"
 
 # Export APP specific variables here
 # Set a default value for JVMARGS
