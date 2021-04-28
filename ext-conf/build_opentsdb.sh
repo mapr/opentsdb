@@ -44,9 +44,10 @@ else
 fi
 export BUILD_TAG=mapr-t${ID}-b${BUILD_NUMBER};
 export JOB=$(echo $JOB_NAME | awk -F/ '{print $1}')
-export DIST="/usr/local/jenkins/workspace/${JOB}/label/${NODE_NAME}/${repoName}/${PROJECT}/dist"
+export LABEL=${JOB_NAME##*label=}
+export DIST="${WORKSPACE}/${repoName}/${PROJECT}/dist"
 
-if [ -f /etc/SuSE-release ] || [ "$NODE_LABELS" = "mip-mapreng-jsc83-35 sles1" ]; then
+if [ -f /etc/SuSE-release ] || [ "$LABEL" = "sles1" ]; then
 #
 # Suse globals
 #
@@ -58,8 +59,8 @@ PACKAGE_TYPE=*.rpm
 BUILD_DIR=${BUILD_TAG}
 EOL
 
-    #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/suse12_installer_spyglass-proto2-java12-spyglass:latest
-    BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/suse15_installer_spyglass-proto3-gcc8-java12-spyglass
+    BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/suse12_installer_spyglass-gcc7-proto2-golang1.13-java12-spyglass:latest
+    #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/suse15_installer_spyglass-proto3-gcc8-golang1.13-java12-spyglass:latest
 
     EXTRA_CMD="rvm install 2.7.1 --disable-binary"
 
@@ -77,7 +78,7 @@ EOL
     #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/mapr:centos61-java7-ecosystem-150515
     #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/centos7-java8-build
     #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/centos7_installer_spyglass-java8:latest
-    BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/centos7-gcc7_installer_spyglass-proto3-java11-spyglass:latest
+    BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/centos7-gcc7_installer_spyglass-proto2-golang1.13-java12-spyglass:latest
 
     EXTRA_CMD="rvm install 2.7.1 --disable-binary"
 
@@ -95,7 +96,7 @@ EOL
 
     #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/ubuntu14-java8-build:latest
     #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/ubuntu14_installer_spyglass-java8:latest
-    BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/ubuntu16_installer_spyglass-gcc7-proto3-java11-spyglass
+    BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/ubuntu14_installer_spyglass-proto2-java8-golang1.13-spyglass:latest
 
     EXTRA_CMD="echo there is no extra cmd"
 
@@ -253,6 +254,7 @@ if [ -z "$DEBUG" ] && [ -z "$DEVELOPMENT_BUILD" ]; then
         /root/bin/rpmSign.sh ${DIST}/
         if [ $? -ne 0 ]; then
             echo "RPM signing failed!"
+            exit 1
         fi
     else
         echo "Ubuntu signing not done in jenkins job!"
