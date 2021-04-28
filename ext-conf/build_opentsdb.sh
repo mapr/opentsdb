@@ -39,13 +39,17 @@ if [ -z "$DEBUG" ] && [ -z "$DEVELOPMENT_BUILD" ]; then
     export ID=$(ssh root@${JENKINS_HOST} date "+%Y%m%d%H%M")
     RM_CONTAINER="true"
 else
-    RM_CONTAINER="false"
     export ID=$(date "+%Y%m%d%H%M")
+    RM_CONTAINER="false"
 fi
 export BUILD_TAG=mapr-t${ID}-b${BUILD_NUMBER};
 export JOB=$(echo $JOB_NAME | awk -F/ '{print $1}')
 export LABEL=${JOB_NAME##*label=}
 export DIST="${WORKSPACE}/${repoName}/${PROJECT}/dist"
+
+if [ ! -d "${WORKSPACE}" ]; then
+    mkdir -p "${WORKSPACE}"
+fi
 
 if [ -f /etc/SuSE-release ] || [ "$LABEL" = "sles1" ]; then
 #
@@ -95,7 +99,8 @@ EOL
 
     #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/ubuntu14-java8-build:latest
     #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/ubuntu14_installer_spyglass-java8:latest
-    BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/ubuntu14_installer_spyglass-proto2-golang1.13-java12-spyglass:latest
+    BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/ubuntu14_installer_spyglass-proto2-java8-golang1.13-spyglass:latest
+
 
     EXTRA_CMD="echo there is no extra cmd"
 
@@ -155,12 +160,19 @@ echo "JAVA_HOME=${JAVA_HOME}" >> env.txt
 echo "BUILD_NUMBER=${RELEASE_VER}.${BUILD_NUMBER}" >> env.txt
 
 
+if [ -n "$NOEXITAFTERBUILD" ]; then
+    INTERACTIVE_BUILD="-i -t"
+    INTERACTIVE_SHELL="/bin/bash"
+else
+    INTERACTIVE_SHELL=""
+fi
+
 if [ -n "$DEBUG" ]; then
     INTERACTIVE_BUILD=${INTERACTIVE_BUILD:-"-i -t"}
     BUILD_CMD_OPT=""
     BUILD_CMD=""
 else
-    INTERACTIVE_BUILD=""
+    INTERACTIVE_BUILD="${INTERACTIVE_BUILD:-""}"
     BUILD_CMD_OPT="-c"
     BUILD_CMD=" echo ====== ; \
         npm config set proxy http://web-proxy.corp.hpecorp.net:8080/;\
@@ -180,7 +192,8 @@ else
         rm -rf ${PROJECT}; git clone git@github.com:mapr/private-pkg.git ${PROJECT} ; \
         cd ${PROJECT};  \
         git checkout ${privatePkgBranch} ; \
-        make ${BLD_PROJECT}-info; make ${BLD_PROJECT} ${RELEASE_ARGS} TIMESTAMP=${ID};"
+        make ${BLD_PROJECT}-info; make ${BLD_PROJECT} ${RELEASE_ARGS} TIMESTAMP=${ID}; \
+        ${INTERACTIVE_SHELL}"
 fi
 
 if [ -z "$DEBUG" ]; then
@@ -210,6 +223,7 @@ DOCKER_OPTS=" --env-file ./env.txt \
               $INTERACTIVE_BUILD \
               -v /root/yum-proxy.conf:/etc/yum.conf:ro \
               -v /root/apt-proxy.conf:/etc/apt/apt.conf.d/proxy.conf:ro \
+              -v /usr/local/jenkins/workspace/mapr-${PROJECT}/mvncache/repository:/root/.m2/repository:rw \
               -v /root/.m2/settings.xml:/root/.m2/settings.xml:ro \
               -v /root/.gradle/gradle.properties:/root/.gradle/gradle.properties:ro \
               -v /etc/profile.d/proxy.sh:/etc/profile.d/proxy.sh:ro \
@@ -217,7 +231,7 @@ DOCKER_OPTS=" --env-file ./env.txt \
               -v /etc/resolv.conf:/etc/resolv.conf:ro \
               --name="${CN_NAME}" \
               --workdir="/root/${repoName}" \
-              --rm=true \
+              --rm=$RM_CONTAINER \
               -v ${WORKSPACE}/${repoName}:/root/${repoName}:rw "
 
 if [ -n "$DEBUG" ]; then
@@ -248,9 +262,17 @@ fi
 
 if [ -z "$DEBUG" ] && [ -z "$DEVELOPMENT_BUILD" ]; then
     if [ -z "$(uname -a | grep -i ubuntu)" ]; then
+        if [ -e "/root/bin/rpmSign.sh" ]; then
+            SIGN_CMD="/root/bin/rpmSign.sh ${DIST}/"
+        elif [ -e /root/rpmsigning/rpmsign.exp ]; then
+            SIGN_CMD="expect -f /root/rpmsigning/rpmsign.exp "${DIST}/*.rpm
+        else
+            echo "No signing script found"
+            exit 1
+        fi
         echo "Doing RPM signing"
         echo "Perform signing operation now"
-        /root/bin/rpmSign.sh ${DIST}/
+        $SIGN_CMD
         if [ $? -ne 0 ]; then
             echo "RPM signing failed!"
             exit 1
