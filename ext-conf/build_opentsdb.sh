@@ -22,7 +22,7 @@ export PROJECT=${packageName}-${packageVersion}
 export BLD_PROJECT=${packageName}-${sourceVersion}
 export CN_NAME="jenkins-temp-${PROJECT}"
 export RELEASE_VER=${packageVersion}
-export JENKINS_HOST=10.163.161.242
+export JENKINS_HOST="10.163.161.242"
 
 
 #
@@ -44,14 +44,15 @@ else
 fi
 export BUILD_TAG=mapr-t${ID}-b${BUILD_NUMBER};
 export JOB=$(echo $JOB_NAME | awk -F/ '{print $1}')
-export DIST="/usr/local/jenkins/workspace/${JOB}/label/${NODE_NAME}/${repoName}/${PROJECT}/dist"
+export LABEL=${JOB_NAME##*label=}
+export DIST="${WORKSPACE}/${repoName}/${PROJECT}/dist"
 
 
 if [ ! -d "${WORKSPACE}" ]; then
     mkdir -p "${WORKSPACE}"
 fi
 
-if [ -f /etc/SuSE-release ] || [ "$NODE_LABELS" = "sles1" ]; then
+if [ -f /etc/SuSE-release ] || [ "$LABEL" = "sles1" ]; then
 #
 # Suse globals
 #
@@ -64,7 +65,7 @@ BUILD_DIR=${BUILD_TAG}
 EOL
 
     #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/suse12_installer_spyglass-proto2-java12-spyglass:latest
-    BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/suse15_installer_spyglass-proto3-gcc8-java12-spyglass
+    BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/suse15_installer_spyglass-proto3-gcc8-golang1.13-java12-spyglass:latest
 
     EXTRA_CMD="rvm install 2.7.1 --disable-binary"
 
@@ -84,7 +85,7 @@ EOL
     #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/centos7-java8-build
     #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/centos7_installer_spyglass-java8:latest
     #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/centos7-gcc7_installer_spyglass-proto3-java11-spyglass:latest
-    BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/centos8_installer_spyglass-proto3-java12-spyglass
+    BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/centos8_installer_spyglass-proto3-golang1.13-java12-spyglass:latest
 
     EXTRA_CMD="rvm install 2.7.1 --disable-binary"
 
@@ -102,7 +103,7 @@ EOL
 
     #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/ubuntu14-java8-build:latest
     #BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/ubuntu14_installer_spyglass-java8:latest
-    BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/ubuntu16_installer_spyglass-gcc7-proto3-java12-spyglass
+    BASE_IMAGE=dfdkr.mip.storage.hpecorp.net/ubuntu16_installer_spyglass-gcc7-proto3-java12-golang1.13-spyglass:latest
 
     EXTRA_CMD="echo there is no extra cmd"
 
@@ -123,7 +124,6 @@ if [ "${isRelease}" = "false" ]; then
     # only use released artifacts
     export MAPR_MAVEN_REPO=${MAPR_CENTRAL}
 
-    export RELEASE_ARGS="${releaseArgs}"
 else
     echo "Is this a release? -> ${isRelease}"
 
@@ -139,10 +139,9 @@ else
     else
         export MAPR_MAVEN_REPO=${MAPR_RELEASES_REPO}
     fi
-
-    export RELEASE_ARGS="${releaseArgs}"
-
 fi
+
+export RELEASE_ARGS="${releaseArgs}"
 
 echo "MAPR_MIRROR=$MAPR_MIRROR" >> env.txt
 echo "MAVEN_CENTRAL=$MAVEN_CENTRAL" >> env.txt
@@ -182,7 +181,8 @@ else
         npm config set proxy http://web-proxy.corp.hpecorp.net:8080/;\
         npm config set https-proxy http://web-proxy.corp.hpecorp.net:8080/;\
         npm config set http-proxy http://web-proxy.corp.hpecorp.net:8080/;\
-        npm config set strict-ssl=false ;\
+        npm config set strict-ssl=false;\
+        npm config set loglevel=verbose;\
         echo /root/docker-build-info/gitlog10.txt ; \
         cat /root/docker-build-info/gitlog10.txt ; \
         echo ====== ; \
@@ -223,14 +223,15 @@ fi
 cat ./env.txt
 
 DOCKER_OPTS=" --env-file ./env.txt \
+              $INTERACTIVE_BUILD \
               -v /root/yum-proxy.conf:/etc/yum.conf:ro \
               -v /root/apt-proxy.conf:/etc/apt/apt.conf.d/proxy.conf:ro \
+              -v /usr/local/jenkins/workspace/mapr-${PROJECT}/mvncache/repository:/root/.m2/repository:rw \
               -v /root/.m2/settings.xml:/root/.m2/settings.xml:ro \
               -v /root/.gradle/gradle.properties:/root/.gradle/gradle.properties:ro \
               -v /etc/profile.d/proxy.sh:/etc/profile.d/proxy.sh:ro \
               -v /etc/hosts:/etc/hosts:ro \
               -v /etc/resolv.conf:/etc/resolv.conf:ro \
-              $INTERACTIVE_BUILD \
               --name="${CN_NAME}" \
               --workdir="/root/${repoName}" \
               --rm=$RM_CONTAINER \
@@ -264,11 +265,20 @@ fi
 
 if [ -z "$DEBUG" ] && [ -z "$DEVELOPMENT_BUILD" ]; then
     if [ -z "$(uname -a | grep -i ubuntu)" ]; then
+        if [ -e "/root/bin/rpmSign.sh" ]; then
+            SIGN_CMD="/root/bin/rpmSign.sh ${DIST}/"
+        elif [ -e /root/rpmsigning/rpmsign.exp ]; then
+            SIGN_CMD="expect -f /root/rpmsigning/rpmsign.exp "${DIST}/*.rpm
+        else
+            echo "No signing script found"
+            exit 1
+        fi
         echo "Doing RPM signing"
         echo "Perform signing operation now"
-        /root/bin/rpmSign.sh ${DIST}/
+        $SIGN_CMD
         if [ $? -ne 0 ]; then
             echo "RPM signing failed!"
+            exit 1
         fi
     else
         echo "Ubuntu signing not done in jenkins job!"
