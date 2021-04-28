@@ -20,7 +20,7 @@ WORKSPACE=${WORKSPACE:-/home/lars/src/build/opentsdb}
 
 export PROJECT=${packageName}-${packageVersion}
 export BLD_PROJECT=${packageName}-${sourceVersion}
-export CN_NAME="jenkins-temp-${PROJECT}"
+export CN_NAME="jenkins-temp-${PROJECT}-${branchName}"
 export RELEASE_VER=${packageVersion}
 export JENKINS_HOST="10.163.161.242"
 
@@ -224,6 +224,9 @@ cat ./env.txt
 
 DOCKER_OPTS=" --env-file ./env.txt \
               $INTERACTIVE_BUILD \
+              --name="${CN_NAME}" \
+              --workdir="/root/${repoName}" \
+              --rm=$RM_CONTAINER \
               -v /root/yum-proxy.conf:/etc/yum.conf:ro \
               -v /root/apt-proxy.conf:/etc/apt/apt.conf.d/proxy.conf:ro \
               -v /usr/local/jenkins/workspace/mapr-${PROJECT}/mvncache/repository:/root/.m2/repository:rw \
@@ -232,9 +235,6 @@ DOCKER_OPTS=" --env-file ./env.txt \
               -v /etc/profile.d/proxy.sh:/etc/profile.d/proxy.sh:ro \
               -v /etc/hosts:/etc/hosts:ro \
               -v /etc/resolv.conf:/etc/resolv.conf:ro \
-              --name="${CN_NAME}" \
-              --workdir="/root/${repoName}" \
-              --rm=$RM_CONTAINER \
               -v ${WORKSPACE}/${repoName}:/root/${repoName}:rw "
 
 if [ -n "$DEBUG" ]; then
