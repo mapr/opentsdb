@@ -253,6 +253,7 @@ if [ -z "$DEBUG" ] && [ -z "$DEVELOPMENT_BUILD" ]; then
         /root/bin/rpmSign.sh ${DIST}/
         if [ $? -ne 0 ]; then
             echo "RPM signing failed!"
+            exit 1
         fi
     else
         echo "Ubuntu signing not done in jenkins job!"
