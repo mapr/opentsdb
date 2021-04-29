@@ -59,7 +59,7 @@ if [ -f /etc/SuSE-release ] || [ "$LABEL" = "sles1" ]; then
 
 cat > ${WORKSPACE}/properties.txt << EOL
 ARTIFACTORY_REPONAME=eco-suse
-ARTIFACTORY_PATH=releases/opensource/suse/
+ARTIFACTORY_PATH=releases/opensource/suse/${PROJECT}
 PACKAGE_TYPE=*.rpm
 BUILD_DIR=${BUILD_TAG}
 EOL
@@ -75,7 +75,7 @@ EOL
 elif [ -z "$(uname -a | grep -i ubuntu)" ]; then
 cat > ${WORKSPACE}/properties.txt << EOL
 ARTIFACTORY_REPONAME=eco-rpm
-ARTIFACTORY_PATH=releases/opensource/redhat/
+ARTIFACTORY_PATH=releases/opensource/redhat/${PROJECT}
 PACKAGE_TYPE=*.rpm
 BUILD_DIR=${BUILD_TAG}
 EOL
@@ -96,7 +96,7 @@ EOL
 else
 cat > ${WORKSPACE}/properties.txt <<EOL
 ARTIFACTORY_REPONAME=eco-deb
-ARTIFACTORY_PATH=releases/opensource/ubuntu/
+ARTIFACTORY_PATH=releases/opensource/ubuntu/${PROJECT}
 PACKAGE_TYPE=*.deb
 BUILD_DIR=${BUILD_TAG}
 EOL
@@ -229,7 +229,7 @@ DOCKER_OPTS=" --env-file ./env.txt \
               --rm=$RM_CONTAINER \
               -v /root/yum-proxy.conf:/etc/yum.conf:ro \
               -v /root/apt-proxy.conf:/etc/apt/apt.conf.d/proxy.conf:ro \
-              -v /usr/local/jenkins/workspace/mapr-${PROJECT}/mvncache/repository:/root/.m2/repository:rw \
+              -v /usr/local/jenkins/workspace/mapr-${PROJECT}-${branchName}/mvncache/repository:/root/.m2/repository:rw \
               -v /root/.m2/settings.xml:/root/.m2/settings.xml:ro \
               -v /root/.gradle/gradle.properties:/root/.gradle/gradle.properties:ro \
               -v /etc/profile.d/proxy.sh:/etc/profile.d/proxy.sh:ro \
