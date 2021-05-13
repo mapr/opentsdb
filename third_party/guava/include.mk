@@ -23,7 +23,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-GUAVA_VERSION := 30.1.1-jre
+GUAVA_VERSION := 18.0
 GUAVA := third_party/guava/guava-$(GUAVA_VERSION).jar
 GUAVA_BASE_URL := https://repo.maven.apache.org/maven2/com/google/guava/guava/$(GUAVA_VERSION)
 
