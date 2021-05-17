@@ -368,7 +368,7 @@ function createCronJob() {
             return 0;;
     esac
 
-    if ! cat $CRONTAB 2> /dev/null | fgrep -q 'tsdb_cluster_mgmt.sh -purgeData' > /dev/null 2>&1 ; then
+    if [ ! -e "$CRONTAB" ] || ! cat $CRONTAB 2> /dev/null | fgrep -q 'tsdb_cluster_mgmt.sh -purgeData' > /dev/null 2>&1 ; then
         if ! cat $CRONTAB 2> /dev/null | fgrep -q SHELL && [ ! -s $CRONTAB ]; then
             echo "SHELL=/bin/bash" >> "$CRONTAB"
         fi
