@@ -17,7 +17,7 @@
 
 MAPR_HOME=${MAPR_HOME:-/opt/mapr}
 OT_DEBUG_OPTS=" -S -v -v -v -v "
-OT_HOME=${OT_HOME:-/opt/mapr/opentsdb/opentsdb-2.4.0}
+OT_HOME=${OT_HOME:-__INSTALL__}
 OT_LOGDIR="${OT_LOGDIR:-$OT_HOME/var/log/opentsdb}"
 OT_LOGFILE="${OT_LOGFILE:-$OT_LOGDIR/ot_purgeData.log}"
 OT_SCAN_DAEMON_LOGFILE="${OT_SCAN_DAEMON_LOGFILE:-$OT_LOGDIR/opentsdb_scandaemon.log}"
@@ -262,8 +262,37 @@ fi
 
 if [ $# -eq 1 ]; then
     OT_HOST=$1
-else
-    OT_HOST=$(hostname)
+fi
+
+if [  -z "${OT_HOST}" ]; then
+    #try localhost and hostname -f
+    #check for ping and name in no_proxy if no_proxy is set
+    for h in localhost $(hostname -f) ; do
+        if ping -c 4 $h > /dev/null 2>&1 ; then
+            if [ -n "$no_proxy" ] ; then
+                if [ "$h" = "localhost" ]; then
+                    pdomain=$h
+                else
+                    pdomain=$(hostname -d)
+                fi
+		if echo "$no_proxy" | grep -q $pdomain ; then
+                    OT_HOST=$h
+                    break;
+                fi
+            else
+                OT_HOST=$h
+                break;
+            fi
+        fi
+    done
+fi
+
+if [ "${OT_HOST/http/}" = "${OT_HOST}" ]; then
+    if [ -z "${OT_HOST}" ]; then
+        echo "no host provided - or localhost / host domain not in no_proxy list"
+        exit 1
+    fi
+    OT_HOST="http://${OT_HOST}"
 fi
 
 SUCCESS=0
@@ -275,6 +304,9 @@ if [ ${RC} -eq 0 ] ; then
    else
        SUCCESS=1
    fi
+else
+    echo "Failed OT query - RESP=$RESP"
+    exit 1
 fi
 
 if [ $SUCCESS -eq 1 ] ; then
